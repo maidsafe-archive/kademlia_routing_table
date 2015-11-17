@@ -38,6 +38,33 @@
 #![allow(box_pointers, fat_ptr_transmutes, missing_copy_implementations,
          missing_debug_implementations)]
 
-#[test]
-fn it_works() {
-}
+#[macro_use]
+extern crate log;
+
+extern crate cbor;
+extern crate rand;
+extern crate rustc_serialize;
+extern crate sodiumoxide;
+extern crate time;
+
+extern crate crust;
+
+mod common_bits;
+mod name_type;
+mod utilities;
+
+/// Provides a kademlia routing table
+pub mod routing_table;
+/// Types and functions used throught the library.
+pub mod types;
+/// Private network identity component.
+pub mod id;
+/// Commonly required functions.
+pub mod utils;
+/// Public network identity component.
+pub mod public_id;
+/// Errors reported for failed conditions/operations.
+pub mod error;
+
+/// NameType is a 512bit name to address elements on the DHT network.
+pub use name_type::{NameType, closer_to_target, NAME_TYPE_LEN};
