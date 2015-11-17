@@ -7,8 +7,8 @@ os:
 language: rust
 rust:
   - nightly
-  - beta
-  - stable
+#  - beta
+#  - stable
 sudo: false
 branches:
   only:
