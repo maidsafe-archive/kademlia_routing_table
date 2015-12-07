@@ -2,7 +2,7 @@
 name          = "kademlia_routing_table"
 readme        = "README.md"
 license       = "GPL-3.0"
-version       = "0.0.2"
+version       = "0.0.3"
 authors       = ["MaidSafe Developers <dev@maidsafe.net>"]
 homepage      = "http://maidsafe.net"
 repository    = "https://github.com/maidsafe/kademlia_routing_table"
