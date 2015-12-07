@@ -71,11 +71,11 @@ pub fn quorum_size() -> usize {
 }
 /// Defines the number of contacts which should be returned by the `target_nodes` function for a
 /// target which is outwith our close group and is not a contact in the table.
-pub const PARRALLELISM: u8 = 4;
+pub const PARALLELISM: u8 = 4;
 
 /// parallelism as u64
-pub fn parrallelism() -> usize {
-	PARRALLELISM as usize
+pub fn parallelism() -> usize {
+	PARALLELISM as usize
 }
 /// Defines the target max number of contacts per bucket.  This is not a hard limit; buckets can
 /// exceed this size if required.
@@ -256,7 +256,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 
 /// This returns a collection of contacts to which a message should be sent onwards.  It will
 /// return all of our close group (comprising 'group_size()' contacts) if the closest one to the
-/// target is within our close group.  If not, it will return either the 'parrallelism()' closest
+/// target is within our close group.  If not, it will return either the 'parallelism()' closest
 /// contacts to the target or a single contact if 'target' is the name of a contact in the table.
     pub fn target_nodes(&self, target: &::xor_name::XorName) -> Vec<NodeInfo<T, U>> {
 // if in range of close_group send to all close_group
@@ -279,7 +279,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
                                  })
                .into_iter()
                .cloned()
-               .take(parrallelism())
+               .take(parallelism())
                .collect::<Vec<_>>()
     }
 
@@ -435,7 +435,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 #[cfg(test)]
 mod test {
     extern crate bit_vec;
-    use super::{RoutingTable, NodeInfo, group_size, optimal_table_size, parrallelism, quorum_size,
+    use super::{RoutingTable, NodeInfo, group_size, optimal_table_size, parallelism, quorum_size,
                 HasName};
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -909,13 +909,13 @@ mod test {
         }
 
         // Try with nodes far from us, first time *not* in table and second time *in* table (should
-        // return 'parrallelism()' contacts closest to target first time and the single actual target
+        // return 'parallelism()' contacts closest to target first time and the single actual target
         // the second time)
         let mut target: ::xor_name::XorName;
         for count in 0..2 {
             for i in 0..(optimal_table_size() - group_size()) {
                 let (target, expected_len) = if count == 0 {
-                    (test.buckets[i].far_contact.clone(), parrallelism())
+                    (test.buckets[i].far_contact.clone(), parallelism())
                 } else {
                     (test.buckets[i].mid_contact.clone(), 1)
                 };
