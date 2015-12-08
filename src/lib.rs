@@ -64,9 +64,9 @@ pub fn group_size() -> usize {
 }
 
 /// Used as number of nodes agreed to represnet a quorum
-pub const QUORUM_SIZE: u8 = 5;
-/// Quorum size as usize
-pub fn quorum_size() -> usize {
+const QUORUM_SIZE: u8 = 5;
+// Quorum size as usize
+fn quorum_size() -> usize {
 	QUORUM_SIZE as usize
 }
 /// Defines the number of contacts which should be returned by the `target_nodes` function for a
