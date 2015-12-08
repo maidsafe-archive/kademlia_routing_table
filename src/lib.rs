@@ -107,6 +107,7 @@ pub struct NodeInfo<T, U> {
     pub public_id: T,
     /// connection object, may be socket etc.
     pub connections: Vec<U>,
+	bucket_index: usize,
 }
 
 impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
@@ -115,6 +116,7 @@ impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
         NodeInfo {
             public_id: public_id,
             connections: connections,
+			bucket_index: 0,
         }
     }
 
@@ -601,6 +603,7 @@ mod test {
         NodeInfo {
             public_id: TestNodeInfo::new(),
             connections: Vec::new(),
+			bucket_index: 0
         }
     }
 
