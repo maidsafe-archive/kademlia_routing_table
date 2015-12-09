@@ -241,6 +241,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 /// This unconditionally removes the contact from the table.
     pub fn drop_node(&mut self, node_to_drop: &::xor_name::XorName) {
         self.nodes.retain(|node_info| node_info.name() != node_to_drop);
+		self.set_group_bucket_distance();
     }
 
 /// This should be called when a connection has dropped.  If the
@@ -413,6 +414,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
                 return
             }
 // We didn't find an existing entry, so insert a new one
+// Set bucket index before adding, this will not change over life of this node in routing table
         let index = self.bucket_index(&node_info.name());
 	    let mut node = node_info;
 		node.set_bucket_index(index);
