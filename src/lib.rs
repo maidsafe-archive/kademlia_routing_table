@@ -413,7 +413,10 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
                 return
             }
 // We didn't find an existing entry, so insert a new one
-        self.nodes.push(node_info);
+        let index = self.bucket_index(&node_info.name());
+	    let mut node = node_info;
+		node.set_bucket_index(index);
+        self.nodes.push(node);
         {
         let our_name = &self.our_name;
         self.nodes.sort_by(
