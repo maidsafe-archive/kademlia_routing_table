@@ -86,7 +86,7 @@ pub fn bucket_size() -> usize {
 	BUCKET_SIZE as usize
 }
 
-/// Defines the target max number of contacts for the whole routing table.  This is not a hard limit;
+/// Defines the target max number of contacts for the whole routing table. This is not a hard limit;
 /// the table size can exceed this size if required.
 const OPTIMAL_TABLE_SIZE: u8 = 64;
 
@@ -111,7 +111,7 @@ pub struct NodeInfo<T, U> {
 }
 
 impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
-    /// constructor
+/// constructor
     pub fn new(public_id: T, connections: Vec<U>) -> NodeInfo<T, U> {
         NodeInfo {
             public_id: public_id,
@@ -120,10 +120,20 @@ impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
         }
     }
 
-    /// name of routing table entry
+/// name of routing table entry
     pub fn name(&self) -> &::xor_name::XorName {
         self.public_id.name()
     }
+
+/// routing table will set this prior to adding the node
+	pub fn set_bucket_index(&mut self, index: usize) {
+		self.bucket_index = index;
+	}
+
+/// query current bucket index for this node
+	pub fn bucket_index(&self) -> usize {
+		self.bucket_index
+	}
 }
 
 /// The RoutingTable class is used to maintain a list of contacts to which the node is connected.
