@@ -373,7 +373,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         let finish = group_size();
 
         while counter >= finish {
-            let bucket_index = self.bucket_index(self.nodes[counter].name());
+            let bucket_index = self.nodes[counter].bucket_index();
 
 // If we're entering a new bucket, reset details.
             if bucket_index != current_bucket {
