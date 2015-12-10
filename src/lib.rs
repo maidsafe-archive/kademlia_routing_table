@@ -127,19 +127,13 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     pub fn add_node(&mut self, their_info: NodeInfo<T, U>) -> (bool, Option<NodeInfo<T, U>>) {
         if self.our_name == *their_info.name() {
             return (false, None)
-        }
-
-        if self.has_node(their_info.name()) {
+        } else if self.has_node(their_info.name()) {
             debug!("Routing table {:?} has node {:?}. not adding", self.nodes, their_info);
             return (false, None)
-        }
-
-        if self.nodes.len() < OPTIMAL_TABLE_SIZE {
+        } else if self.nodes.len() < OPTIMAL_TABLE_SIZE {
             self.push_back_then_sort(their_info);
             return (true, None)
-        }
-
-        if ::xor_name::closer_to_target(their_info.name(),
+        } else  if ::xor_name::closer_to_target(their_info.name(),
                                          self.nodes[GROUP_SIZE].name(),
                                          &self.our_name) {
             self.push_back_then_sort(their_info);
