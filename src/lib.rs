@@ -125,15 +125,6 @@ impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
         self.public_id.name()
     }
 
-/// routing table will set this prior to adding the node
-	pub fn set_bucket_index(&mut self, index: usize) {
-		self.bucket_index = index;
-	}
-
-/// query current bucket index for this node
-	pub fn bucket_index(&self) -> usize {
-		self.bucket_index
-	}
 }
 
 /// The RoutingTable class is used to maintain a list of contacts to which the node is connected.
