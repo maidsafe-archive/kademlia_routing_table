@@ -64,9 +64,9 @@ pub fn group_size() -> usize {
 }
 
 /// Used as number of nodes agreed to represnet a quorum
-pub const QUORUM_SIZE: u8 = 5;
-/// Quorum size as usize
-pub fn quorum_size() -> usize {
+const QUORUM_SIZE: u8 = 5;
+// Quorum size as usize
+fn quorum_size() -> usize {
 	QUORUM_SIZE as usize
 }
 /// Defines the number of contacts which should be returned by the `target_nodes` function for a
@@ -86,7 +86,7 @@ pub fn bucket_size() -> usize {
 	BUCKET_SIZE as usize
 }
 
-/// Defines the target max number of contacts for the whole routing table.  This is not a hard limit;
+/// Defines the target max number of contacts for the whole routing table. This is not a hard limit;
 /// the table size can exceed this size if required.
 const OPTIMAL_TABLE_SIZE: u8 = 64;
 
@@ -107,21 +107,24 @@ pub struct NodeInfo<T, U> {
     pub public_id: T,
     /// connection object, may be socket etc.
     pub connections: Vec<U>,
+	bucket_index: usize,
 }
 
 impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
-    /// constructor
+/// constructor
     pub fn new(public_id: T, connections: Vec<U>) -> NodeInfo<T, U> {
         NodeInfo {
             public_id: public_id,
             connections: connections,
+			bucket_index: 0,
         }
     }
 
-    /// name of routing table entry
+/// name of routing table entry
     pub fn name(&self) -> &::xor_name::XorName {
         self.public_id.name()
     }
+
 }
 
 /// The RoutingTable class is used to maintain a list of contacts to which the node is connected.
@@ -148,20 +151,14 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     pub fn add_node(&mut self, their_info: NodeInfo<T, U>) -> (bool, Option<NodeInfo<T, U>>) {
         if self.our_name == *their_info.name() {
             return (false, None)
-        }
-
-        if self.has_node(their_info.name()) {
+        } else if self.get(&their_info.name()).is_some() {
             debug!("Routing table {:?} has node {:?}. not adding", self.nodes, their_info);
             return (false, None)
-        }
-
-        if self.nodes.len() < optimal_table_size() {
+        } else if self.nodes.len() < optimal_table_size() {
             self.push_back_then_sort(their_info);
             return (true, None)
-        }
-
-        if ::xor_name::closer_to_target(their_info.name(),
-                                         self.nodes[group_size()].name(),
+        } else  if ::xor_name::closer_to_target(their_info.name(),
+                                         self.nodes[self.dynamic_group_size()].name(),
                                          &self.our_name) {
             self.push_back_then_sort(their_info);
             return match self.find_candidate_for_removal() {
@@ -206,18 +203,17 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 /// checking procedure is the same as for `add_node`, except for the lack of a public key to
 /// check in step 1.
     pub fn want_to_add(&self, their_name: &::xor_name::XorName) -> bool {
-        if self.our_name == *their_name || self.has_node(their_name)  {
+        if self.our_name == *their_name || self.get(&their_name).is_some()  {
             return false
-        }
-
-        if self.nodes.len() < optimal_table_size() {
+        } else if self.nodes.len() < optimal_table_size() {
             return true
-        }
-        let group_len = group_size() - 1;
-        if ::xor_name::closer_to_target(their_name, self.nodes[group_len].name(), &self.our_name) {
+        } else  if ::xor_name::closer_to_target(their_name,
+                                                self.nodes[self.dynamic_group_size()].name(),
+                                                &self.our_name) {
             return true
+        } else {
+            self.new_node_is_better_than_existing(&their_name, self.find_candidate_for_removal())
         }
-        self.new_node_is_better_than_existing(&their_name, self.find_candidate_for_removal())
     }
 
 /// returns the current calculated quorum size. This is dependent on routing table size at any time
@@ -229,6 +225,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 /// This unconditionally removes the contact from the table.
     pub fn drop_node(&mut self, node_to_drop: &::xor_name::XorName) {
         self.nodes.retain(|node_info| node_info.name() != node_to_drop);
+		self.set_group_bucket_distance();
     }
 
 /// This should be called when a connection has dropped.  If the
@@ -312,8 +309,8 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         &self.our_name
     }
 /// check is routing table contains name
-    pub fn has_node(&self, name: &::xor_name::XorName) -> bool {
-        self.nodes.iter().any(|node_info| node_info.name() == name)
+    pub fn get(&self, name: &::xor_name::XorName) ->Option<&NodeInfo<T,U>> {
+        self.nodes.iter().find(|node_info| node_info.name() == name)
     }
 
 /// Use this to calculate incoming messages for instance "fit" in this bucket distance
@@ -325,7 +322,10 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         self.group_bucket_index >= address1.bucket_distance(&address2)
     }
 
-
+// get current group size
+    fn dynamic_group_size(&self) -> usize {
+        std::cmp::min(self.nodes.len() - 1, group_size())
+    }
 // The node in your close group furthest from you
     fn furthest_close_node(&self) -> Option<&NodeInfo<T, U>> {
         match self.nodes.iter().nth(group_size() - 1) {
@@ -360,7 +360,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         let finish = group_size();
 
         while counter >= finish {
-            let bucket_index = self.bucket_index(self.nodes[counter].name());
+            let bucket_index = self.nodes[counter].bucket_index;
 
 // If we're entering a new bucket, reset details.
             if bucket_index != current_bucket {
@@ -401,7 +401,11 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
                 return
             }
 // We didn't find an existing entry, so insert a new one
-        self.nodes.push(node_info);
+// Set bucket index before adding, this will not change over life of this node in routing table
+        let index = self.bucket_index(&node_info.name());
+	    let mut node = node_info;
+		node.bucket_index = index;
+        self.nodes.push(node);
         {
         let our_name = &self.our_name;
         self.nodes.sort_by(
@@ -601,6 +605,7 @@ mod test {
         NodeInfo {
             public_id: TestNodeInfo::new(),
             connections: Vec::new(),
+			bucket_index: 0
         }
     }
 
