@@ -167,7 +167,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
             self.push_back_then_sort(their_info);
             return (true, None)
         } else  if ::xor_name::closer_to_target(their_info.name(),
-                                         self.nodes[group_size()].name(),
+                                         self.nodes[self.dynamic_group_size()].name(),
                                          &self.our_name) {
             self.push_back_then_sort(their_info);
             return match self.find_candidate_for_removal() {
@@ -214,16 +214,15 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     pub fn want_to_add(&self, their_name: &::xor_name::XorName) -> bool {
         if self.our_name == *their_name || self.has_node(their_name)  {
             return false
-        }
-
-        if self.nodes.len() < optimal_table_size() {
+        } else if self.nodes.len() < optimal_table_size() {
             return true
-        }
-        let group_len = group_size() - 1;
-        if ::xor_name::closer_to_target(their_name, self.nodes[group_len].name(), &self.our_name) {
+        } else  if ::xor_name::closer_to_target(their_name,
+                                                self.nodes[self.dynamic_group_size()].name(),
+                                                &self.our_name) {
             return true
+        } else {
+            self.new_node_is_better_than_existing(&their_name, self.find_candidate_for_removal())
         }
-        self.new_node_is_better_than_existing(&their_name, self.find_candidate_for_removal())
     }
 
 /// returns the current calculated quorum size. This is dependent on routing table size at any time
@@ -332,7 +331,10 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         self.group_bucket_index >= address1.bucket_distance(&address2)
     }
 
-
+// get current group size
+    fn dynamic_group_size(&self) -> usize {
+        std::cmp::min(self.nodes.len() - 1, group_size())
+    }
 // The node in your close group furthest from you
     fn furthest_close_node(&self) -> Option<&NodeInfo<T, U>> {
         match self.nodes.iter().nth(group_size() - 1) {
