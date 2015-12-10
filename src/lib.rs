@@ -151,7 +151,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     pub fn add_node(&mut self, their_info: NodeInfo<T, U>) -> (bool, Option<NodeInfo<T, U>>) {
         if self.our_name == *their_info.name() {
             return (false, None)
-        } else if self.has_node(their_info.name()) {
+        } else if self.get(&their_info.name()).is_some() {
             debug!("Routing table {:?} has node {:?}. not adding", self.nodes, their_info);
             return (false, None)
         } else if self.nodes.len() < optimal_table_size() {
@@ -203,7 +203,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 /// checking procedure is the same as for `add_node`, except for the lack of a public key to
 /// check in step 1.
     pub fn want_to_add(&self, their_name: &::xor_name::XorName) -> bool {
-        if self.our_name == *their_name || self.has_node(their_name)  {
+        if self.our_name == *their_name || self.get(&their_name).is_some()  {
             return false
         } else if self.nodes.len() < optimal_table_size() {
             return true
@@ -309,8 +309,8 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         &self.our_name
     }
 /// check is routing table contains name
-    pub fn has_node(&self, name: &::xor_name::XorName) -> bool {
-        self.nodes.iter().any(|node_info| node_info.name() == name)
+    pub fn get(&self, name: &::xor_name::XorName) ->Option<&NodeInfo<T,U>> {
+        self.nodes.iter().find(|node_info| node_info.name() == name)
     }
 
 /// Use this to calculate incoming messages for instance "fit" in this bucket distance
@@ -360,7 +360,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         let finish = group_size();
 
         while counter >= finish {
-            let bucket_index = self.nodes[counter].bucket_index();
+            let bucket_index = self.nodes[counter].bucket_index;
 
 // If we're entering a new bucket, reset details.
             if bucket_index != current_bucket {
@@ -404,7 +404,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 // Set bucket index before adding, this will not change over life of this node in routing table
         let index = self.bucket_index(&node_info.name());
 	    let mut node = node_info;
-		node.set_bucket_index(index);
+		node.bucket_index = index;
         self.nodes.push(node);
         {
         let our_name = &self.our_name;
