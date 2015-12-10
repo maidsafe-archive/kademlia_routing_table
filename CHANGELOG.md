@@ -3,7 +3,7 @@
 ## [0.0.4]
 - Add bucket index to NodeInfo<T,U>
 - hash_node -> get (return option & NodeInfo)
-- reduced soem if statements with if/else if blocks
+- reduced some if statements with if/else if blocks
 ## [0.0.3]
 - Remove unneeded library (clippy)
 - Fixed typo in parallelism methods
