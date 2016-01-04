@@ -60,14 +60,14 @@ pub const GROUP_SIZE: u8 = 8;
 
 /// Defines the size of close group
 pub fn group_size() -> usize {
-	GROUP_SIZE as usize
+    GROUP_SIZE as usize
 }
 
 /// Used as number of nodes agreed to represnet a quorum
 const QUORUM_SIZE: u8 = 5;
 // Quorum size as usize
 fn quorum_size() -> usize {
-	QUORUM_SIZE as usize
+    QUORUM_SIZE as usize
 }
 /// Defines the number of contacts which should be returned by the `target_nodes` function for a
 /// target which is outwith our close group and is not a contact in the table.
@@ -75,7 +75,7 @@ pub const PARALLELISM: u8 = 4;
 
 /// parallelism as u64
 pub fn parallelism() -> usize {
-	PARALLELISM as usize
+    PARALLELISM as usize
 }
 /// Defines the target max number of contacts per bucket.  This is not a hard limit; buckets can
 /// exceed this size if required.
@@ -83,7 +83,7 @@ const BUCKET_SIZE: u8 = 1;
 
 /// Bucket size
 pub fn bucket_size() -> usize {
-	BUCKET_SIZE as usize
+    BUCKET_SIZE as usize
 }
 
 /// Defines the target max number of contacts for the whole routing table. This is not a hard limit;
@@ -92,7 +92,7 @@ const OPTIMAL_TABLE_SIZE: u8 = 64;
 
 /// optimal table size as usize
 pub fn optimal_table_size() -> usize {
-	OPTIMAL_TABLE_SIZE as usize
+    OPTIMAL_TABLE_SIZE as usize
 }
 /// required trait for the info held on a node by routing_table
 pub trait HasName {
@@ -107,24 +107,23 @@ pub struct NodeInfo<T, U> {
     pub public_id: T,
     /// connection object, may be socket etc.
     pub connections: Vec<U>,
-	bucket_index: usize,
+    bucket_index: usize,
 }
 
 impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
-/// constructor
+    /// constructor
     pub fn new(public_id: T, connections: Vec<U>) -> NodeInfo<T, U> {
         NodeInfo {
             public_id: public_id,
             connections: connections,
-			bucket_index: 0,
+            bucket_index: 0,
         }
     }
 
-/// name of routing table entry
+    /// name of routing table entry
     pub fn name(&self) -> &::xor_name::XorName {
         self.public_id.name()
     }
-
 }
 
 /// The RoutingTable class is used to maintain a list of contacts to which the node is connected.
@@ -169,7 +168,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 
         let removal_node_index = self.find_candidate_for_removal();
         if self.new_node_is_better_than_existing(their_info.name(), removal_node_index) {
-            let removal_node = self.nodes.remove(removal_node_index.unwrap());
+            let removal_node = self.nodes.remove(removal_node_index.expect("Could not remove a value we just calculated, perhaps non atomic "));
             self.push_back_then_sort(their_info);
             return (true, Some(removal_node))
         }
@@ -204,13 +203,13 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 /// check in step 1.
     pub fn want_to_add(&self, their_name: &::xor_name::XorName) -> bool {
         if self.our_name == *their_name || self.get(&their_name).is_some()  {
-            return false
+            false
         } else if self.nodes.len() < optimal_table_size() {
-            return true
+            true
         } else  if ::xor_name::closer_to_target(their_name,
                                                 self.nodes[self.dynamic_group_size()].name(),
                                                 &self.our_name) {
-            return true
+            true
         } else {
             self.new_node_is_better_than_existing(&their_name, self.find_candidate_for_removal())
         }
@@ -219,7 +218,8 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 /// returns the current calculated quorum size. This is dependent on routing table size at any time
 	pub fn dynamic_quorum_size(&self) -> usize {
 		let factor :f32 = QUORUM_SIZE as f32 / GROUP_SIZE as f32;
-		::std::cmp::min((self.nodes.len() as f32 * factor) as usize , quorum_size())
+		::std::cmp::min((
+        self.nodes.len() as f32 * factor).round() as usize, quorum_size())
 	}
 
 /// This unconditionally removes the contact from the table.
@@ -605,7 +605,7 @@ mod test {
         NodeInfo {
             public_id: TestNodeInfo::new(),
             connections: Vec::new(),
-			bucket_index: 0
+            bucket_index: 0,
         }
     }
 
