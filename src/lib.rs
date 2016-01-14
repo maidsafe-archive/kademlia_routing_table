@@ -251,33 +251,39 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         None
     }
 
-/// This returns a collection of contacts to which a message should be sent onwards.  It will
-/// return all of our close group (comprising 'group_size()' contacts) if the closest one to the
-/// target is within our close group.  If not, it will return either the 'parallelism()' closest
-/// contacts to the target or a single contact if 'target' is the name of a contact in the table.
+    /// Returns the `n` nodes in our routing table that are closest to `target`.
+    fn closest_nodes_to(&self, target: &::xor_name::XorName, n: usize) -> Vec<NodeInfo<T, U>> {
+        self.nodes.iter()
+                  .sorted_by(|a, b| if ::xor_name::closer_to_target(&a.name(), &b.name(), &target) {
+                                        ::std::cmp::Ordering::Less
+                                    } else {
+                                        ::std::cmp::Ordering::Greater
+                                    })
+                  .into_iter()
+                  .take(n)
+                  .cloned()
+                  .collect()
+    }
+
+    /// Returns a collection of nodes to which a message should be sent onwards.
+    ///
+    /// It will return `group_size()` contacts if we are close to the `target`. Otherwise, it will
+    /// return only the target node itself, if it is in our contacts. If not, it returns the
+    /// `parallelism()` closest contacts to the target.
     pub fn target_nodes(&self, target: &::xor_name::XorName) -> Vec<NodeInfo<T, U>> {
-// if in range of close_group send to all close_group
+        // if in range of close_group send to all close_group
         if self.is_close(target) {
-            return self.our_close_group()
+            return self.closest_nodes_to(target, group_size());
         }
 
-// if not in close group but connected then send direct
+        // if not in close group but connected then send direct
         if let Some(ref found) = self.nodes.iter().find(|ref node| node.name() == target) {
             return vec![(*found).clone()]
         }
 
-// not in close group or routing table so send to closest known nodes up to parallelism
-// count
-        self.nodes.iter()
-               .sorted_by(|a, b| if ::xor_name::closer_to_target(&a.name(), &b.name(), &target) {
-                                     ::std::cmp::Ordering::Less
-                                 } else {
-                                     ::std::cmp::Ordering::Greater
-                                 })
-               .into_iter()
-               .cloned()
-               .take(parallelism())
-               .collect::<Vec<_>>()
+        // not in close group or routing table so send to closest known nodes up to parallelism
+        // count
+        self.closest_nodes_to(target, parallelism())
     }
 
 /// This returns our close group, i.e. the 'group_size()' contacts closest to our name (or the
@@ -286,15 +292,22 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         self.nodes.iter().take(group_size()).cloned().collect()
     }
 
-/// This returns true if the provided name is closer than or equal to the furthest node in our
-/// close group. If the routing table contains less than group_size() nodes, then every address is
-/// considered to be close.
+    /// Returns `true` if there are fewer than `group_size()` nodes in our routing table that are
+    /// closer to `name` than we are.
+    ///
+    /// In other words, it returns `true` whenever we cannot rule out that we might be among the
+    /// `group_size()` closest nodes to `name`.
+    ///
+    /// If the routing table is filled in such a way that each bucket contains `group_size()`
+    /// elements unless there aren't enough such nodes in the network, then this criterion is
+    /// actually sufficient! In that case, `true` is returned if and only if we are among the
+    /// `group_size()` closest node to `name` in the network.
     pub fn is_close(&self, name: &::xor_name::XorName) -> bool {
-        match self.nodes.iter().nth(group_size() - 1) {
-            Some(node) => ::xor_name::closer_to_target_or_equal(name, node.name(), &self.our_name),
-            None => true
-        }
+        self.nodes.iter()
+            .filter(|node| ::xor_name::closer_to_target_or_equal(node.name(), &self.our_name, name))
+            .count() < group_size()
     }
+
 /// number of elements
     pub fn len(&self) -> usize {
         self.nodes.len()
@@ -439,8 +452,9 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 #[cfg(test)]
 mod test {
     extern crate bit_vec;
-    use super::{RoutingTable, NodeInfo, group_size, optimal_table_size, parallelism, quorum_size,
-                HasName};
+    use super::{RoutingTable, NodeInfo, group_size, optimal_table_size, parallelism, HasName};
+    use std::collections;
+    use itertools::Itertools;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     struct TestNodeInfo {
@@ -461,6 +475,11 @@ mod test {
             &self.name
         }
     }
+
+    fn to_node_info(name: &::xor_name::XorName) -> NodeInfo<TestNodeInfo, u64> {
+        NodeInfo::new(TestNodeInfo { name: name.clone() }, vec!())
+    }
+
     enum ContactType {
         Far,
         Mid,
@@ -942,7 +961,7 @@ mod test {
         // Try with nodes close to us, first time *not* in table and second time *in* table (should
         // return group_size() closest to target)
         for count in 0..2 {
-            for i in (optimal_table_size() - group_size())..optimal_table_size() {
+            for i in (optimal_table_size() - group_size() + 1)..optimal_table_size() {
                 target = if count == 0 {
                     test.buckets[i].close_contact.clone()
                 } else {
@@ -993,39 +1012,45 @@ mod test {
 
     #[test]
     fn our_close_group_and_is_close() {
-        // unchecked - could be merged with one above?
-        // independent double verification of our_close_group()
-        // this test verifies that the close group is returned sorted
-        let name = ::rand::random::<::xor_name::XorName>();
-        let mut routing_table = RoutingTable::new(&name);
-
-        let mut count: usize = 0;
-        loop {
-            let _ = routing_table.add_node(NodeInfo::new(TestNodeInfo::new(), vec![]));
-            count += 1;
-            if routing_table.len() >= optimal_table_size() {
-                break;
-            }
-            if count >= 2 * optimal_table_size() {
-                panic!("Routing table does not fill up.");
-            }
+        let mut tables = collections::HashMap::new();
+        // Create nodes such that each can exactly fill up its routing table.
+        for _ in 0..(optimal_table_size() + 1) {
+            let node_info = create_random_node_info();
+            let table = RoutingTable::<TestNodeInfo, u64>::new(node_info.name());
+            let _ = tables.insert(node_info.name().clone(), table);
         }
-        let our_close_group: Vec<NodeInfo<TestNodeInfo, u64>> = routing_table.our_close_group();
-        assert_eq!(our_close_group.len(), group_size());
-        let mut closer_name: ::xor_name::XorName = name.clone();
-        for close_node in &our_close_group {
-            assert!(::xor_name::closer_to_target(&closer_name, close_node.name(), &name));
-            assert!(routing_table.is_close(close_node.name()));
-            closer_name = close_node.name().clone();
-        }
-        for node in &routing_table.nodes {
-            if our_close_group.iter()
-                              .filter(|close_node| close_node.name() == node.name())
-                              .count() > 0 {
-                assert!(routing_table.is_close(node.name()));
-            } else {
-                assert!(!routing_table.is_close(node.name()));
+        let keys: Vec<::xor_name::XorName> = tables.keys().cloned().collect();
+        // Add each node to each other node's routing table.
+        for name0 in keys.iter() {
+            for name1 in keys.iter() {
+                if tables[name0].want_to_add(name1) {
+                    let _ = tables.get_mut(name0).unwrap().add_node(to_node_info(name1));
+                }
             }
+            assert_eq!(optimal_table_size(), tables[name0].len());
+        }
+        // Check close groups of addresses that are not nodes.
+        for _ in 0..1000 {
+            let name = ::rand::random();
+            let close_group_size = tables.values().filter(|t| t.is_close(&name)).count();
+            assert_eq!(group_size(), close_group_size);
+            // TODO: Find a way to ensure at least the following for more than 65 nodes.
+            // assert!(quorum_size() <= close_group_size && close_group_size < 2 * quorum_size(),
+            //         "Close group has {} elements", close_group_size);
+        }
+        // Check close groups of the nodes' addresses.
+        for name in keys {
+            let close_group: Vec<_> = tables.values()
+                                            .filter(|t| t.is_close(&name))
+                                            .map(|t| t.our_name().clone())
+                                            .sorted_by(&mut *make_sort_predicate(name.clone()));
+            assert_eq!(group_size(), close_group.len());
+            let our_close_group: Vec<_> = tables[&name].our_close_group()
+                                                       .into_iter()
+                                                       .map(|ni| ni.name().clone())
+                                                       .collect();
+            // The node itself is not in `our_close_group`, but it is in `close_group`:
+            assert_eq!(close_group[1..].to_vec(), our_close_group[..(group_size() - 1)].to_vec());
         }
     }
 
@@ -1129,18 +1154,19 @@ mod test {
             }
         }
 
+        let mut tested_close_target = false;
         for i in 0..tables.len() {
             addresses.sort_by(&mut *make_sort_predicate(tables[i].our_name.clone()));
             // if target is in close group return the whole close group excluding target
-            for j in 1..(group_size() - quorum_size()) {
-                let target_close_group = tables[i].target_nodes(&addresses[j]);
-                assert_eq!(group_size(), target_close_group.len());
-                // should contain our close group
-                for k in 0..target_close_group.len() {
-                    assert_eq!(*target_close_group[k].name(), addresses[k + 1]);
+            for j in 1..group_size() {
+                if tables[i].is_close(&addresses[j]) {
+                    let target_close_group = tables[i].target_nodes(&addresses[j]);
+                    assert_eq!(group_size(), target_close_group.len());
+                    tested_close_target = true;
                 }
             }
         }
+        assert!(tested_close_target, "No node in the sample was close.");
     }
 
     #[test]
