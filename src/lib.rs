@@ -251,33 +251,39 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         None
     }
 
-/// This returns a collection of contacts to which a message should be sent onwards.  It will
-/// return all of our close group (comprising 'group_size()' contacts) if the closest one to the
-/// target is within our close group.  If not, it will return either the 'parallelism()' closest
-/// contacts to the target or a single contact if 'target' is the name of a contact in the table.
+    /// Returns the `n` nodes in our routing table that are closest to `target`.
+    fn closest_nodes_to(&self, target: &::xor_name::XorName, n: usize) -> Vec<NodeInfo<T, U>> {
+        self.nodes.iter()
+                  .sorted_by(|a, b| if ::xor_name::closer_to_target(&a.name(), &b.name(), &target) {
+                                        ::std::cmp::Ordering::Less
+                                    } else {
+                                        ::std::cmp::Ordering::Greater
+                                    })
+                  .into_iter()
+                  .take(n)
+                  .cloned()
+                  .collect()
+    }
+
+    /// Returns a collection of nodes to which a message should be sent onwards.
+    ///
+    /// It will return `group_size()` contacts if we are close to the `target`. Otherwise, it will
+    /// return only the target node itself, if it is in our contacts. If not, it returns the
+    /// `parallelism()` closest contacts to the target.
     pub fn target_nodes(&self, target: &::xor_name::XorName) -> Vec<NodeInfo<T, U>> {
-// if in range of close_group send to all close_group
+        // if in range of close_group send to all close_group
         if self.is_close(target) {
-            return self.our_close_group()
+            return self.closest_nodes_to(target, group_size());
         }
 
-// if not in close group but connected then send direct
+        // if not in close group but connected then send direct
         if let Some(ref found) = self.nodes.iter().find(|ref node| node.name() == target) {
             return vec![(*found).clone()]
         }
 
-// not in close group or routing table so send to closest known nodes up to parallelism
-// count
-        self.nodes.iter()
-               .sorted_by(|a, b| if ::xor_name::closer_to_target(&a.name(), &b.name(), &target) {
-                                     ::std::cmp::Ordering::Less
-                                 } else {
-                                     ::std::cmp::Ordering::Greater
-                                 })
-               .into_iter()
-               .cloned()
-               .take(parallelism())
-               .collect::<Vec<_>>()
+        // not in close group or routing table so send to closest known nodes up to parallelism
+        // count
+        self.closest_nodes_to(target, parallelism())
     }
 
 /// This returns our close group, i.e. the 'group_size()' contacts closest to our name (or the
@@ -1156,10 +1162,6 @@ mod test {
                 if tables[i].is_close(&addresses[j]) {
                     let target_close_group = tables[i].target_nodes(&addresses[j]);
                     assert_eq!(group_size(), target_close_group.len());
-                    // should contain our close group
-                    for k in 0..target_close_group.len() {
-                        assert_eq!(*target_close_group[k].name(), addresses[k + 1]);
-                    }
                     tested_close_target = true;
                 }
             }
