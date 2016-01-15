@@ -156,9 +156,9 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         } else if self.nodes.len() < optimal_table_size() {
             self.push_back_then_sort(their_info);
             return (true, None)
-        } else  if ::xor_name::closer_to_target(their_info.name(),
-                                         self.nodes[self.dynamic_group_size()].name(),
-                                         &self.our_name) {
+        } else if ::xor_name::closer_to_target(their_info.name(),
+                                               self.furthest_close_node().unwrap().name(),
+                                               &self.our_name) {
             self.push_back_then_sort(their_info);
             return match self.find_candidate_for_removal() {
                 None => (true, None),
@@ -206,9 +206,9 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
             false
         } else if self.nodes.len() < optimal_table_size() {
             true
-        } else  if ::xor_name::closer_to_target(their_name,
-                                                self.nodes[self.dynamic_group_size()].name(),
-                                                &self.our_name) {
+        } else if ::xor_name::closer_to_target(their_name,
+                                               self.furthest_close_node().unwrap().name(),
+                                               &self.our_name) {
             true
         } else {
             self.new_node_is_better_than_existing(&their_name, self.find_candidate_for_removal())
@@ -335,17 +335,11 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         self.group_bucket_index >= address1.bucket_distance(&address2)
     }
 
-// get current group size
-    fn dynamic_group_size(&self) -> usize {
-        std::cmp::min(self.nodes.len() - 1, group_size())
-    }
 // The node in your close group furthest from you
     fn furthest_close_node(&self) -> Option<&NodeInfo<T, U>> {
-        match self.nodes.iter().nth(group_size() - 1) {
-            Some(node) => Some(node),
-            None => self.nodes.last()
-        }
+        self.nodes.get(group_size() - 1).or(self.nodes.last())
     }
+
 // set the index number of the furthest close node and memoise it in the Routingtable struct
     fn set_group_bucket_distance(&mut self) {
         let index = match self.furthest_close_node() {
