@@ -451,7 +451,6 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 
 #[cfg(test)]
 mod test {
-    extern crate bit_vec;
     use super::{RoutingTable, NodeInfo, group_size, optimal_table_size, parallelism, HasName};
     use std::collections;
     use itertools::Itertools;
@@ -480,72 +479,29 @@ mod test {
         NodeInfo::new(TestNodeInfo { name: name.clone() }, vec!())
     }
 
-    enum ContactType {
-        Far,
-        Mid,
-        Close,
-    }
-
-    struct Bucket {
-        far_contact: ::xor_name::XorName,
-        mid_contact: ::xor_name::XorName,
-        close_contact: ::xor_name::XorName,
-    }
-
-    impl Bucket {
-        fn new(farthest_from_tables_own_name: ::xor_name::XorName, index: usize) -> Bucket {
-            Bucket {
-                far_contact: Self::get_contact(&farthest_from_tables_own_name,
-                                               index,
-                                               ContactType::Far),
-                mid_contact: Self::get_contact(&farthest_from_tables_own_name,
-                                               index,
-                                               ContactType::Mid),
-                close_contact: Self::get_contact(&farthest_from_tables_own_name,
-                                                 index,
-                                                 ContactType::Close),
-            }
+    /// Creates a name in the `index`-th bucket of the table with the given name, where
+    /// `index < 503`. The given `distance` will be added. If `distance == 255`, the furthest
+    /// possible name in the given bucket is returned.
+    fn get_contact(table_name: &::xor_name::XorName, index: usize, distance: u8)
+            -> ::xor_name::XorName {
+        let ::xor_name::XorName(mut arr) = table_name.clone();
+        // Invert all bits starting with the `index`th one, so the bucket distance is `index`.
+        arr[index / 8] = arr[index / 8] ^ (1 << (8 - index % 8) - 1);
+        for i in (index / 8 + 1)..(arr.len() - 1) {
+            arr[i] = arr[i] ^ 255;
         }
-        fn get_contact(farthest_from_tables_own_name: &::xor_name::XorName,
-                       index: usize,
-                       contact_type: ContactType)
-                       -> ::xor_name::XorName {
-            let mut binary_name =
-                self::bit_vec::BitVec::from_bytes(&farthest_from_tables_own_name.0);
-            if index > 0 {
-                for i in 0..index {
-                    let bit = unwrap_option!(binary_name.get(i), "");
-                    binary_name.set(i, !bit);
-                }
-            }
-
-            match contact_type {
-                ContactType::Mid => {
-                    let bit_num = binary_name.len() - 1;
-                    let bit = unwrap_option!(binary_name.get(bit_num), "");
-                    binary_name.set(bit_num, !bit);
-                }
-                ContactType::Close => {
-                    let bit_num = binary_name.len() - 2;
-                    let bit = unwrap_option!(binary_name.get(bit_num), "");
-                    binary_name.set(bit_num, !bit);
-                }
-                ContactType::Far => {}
-            };
-
-            let mut arr = [0u8; 64];
-            let bytes = binary_name.to_bytes();
-            for i in 0..64 {
-                arr[i] = bytes[..][i];
-            }
-            ::xor_name::XorName(arr)
-        }
+        // Add the desired distance.
+        let last = arr.len() - 1;
+        arr[last] = arr[last] ^ distance;
+        let result = ::xor_name::XorName(arr);
+        assert_eq!(index, result.bucket_distance(table_name));
+        result
     }
 
     struct TestEnvironment {
         table: RoutingTable<TestNodeInfo, u64>,
-        buckets: Vec<Bucket>,
         node_info: NodeInfo<TestNodeInfo, u64>,
+        name: ::xor_name::XorName,
         initial_count: usize,
         added_names: Vec<::xor_name::XorName>,
     }
@@ -553,10 +509,11 @@ mod test {
     impl TestEnvironment {
         fn new() -> TestEnvironment {
             let node_info = create_random_node_info();
+            let name = node_info.name().clone();
             TestEnvironment {
                 table: RoutingTable::new(node_info.name()),
-                buckets: initialise_buckets(node_info.name()),
                 node_info: node_info,
+                name: name,
                 initial_count: (::rand::random::<usize>() % (group_size() - 1)) + 1,
                 added_names: Vec::new(),
             }
@@ -564,7 +521,7 @@ mod test {
 
         fn partially_fill_table(&mut self) {
             for i in 0..self.initial_count {
-                self.node_info.public_id.set_name(self.buckets[i].mid_contact);
+                self.node_info.public_id.set_name(get_contact(&self.name, i, 1));
                 self.added_names.push(self.node_info.name().clone());
                 assert!(self.table.add_node(self.node_info.clone()).0);
             }
@@ -575,7 +532,7 @@ mod test {
 
         fn complete_filling_table(&mut self) {
             for i in self.initial_count..optimal_table_size() {
-                self.node_info.public_id.set_name(self.buckets[i].mid_contact);
+                self.node_info.public_id.set_name(get_contact(&self.name, i, 1));
                 self.added_names.push(self.node_info.name().clone());
                 assert!(self.table.add_node(self.node_info.clone()).0);
             }
@@ -591,33 +548,6 @@ mod test {
                 None => None,
             }
         }
-    }
-
-    fn initialise_buckets(name: &::xor_name::XorName) -> Vec<Bucket> {
-        let arr = [255u8; 64];
-        let mut arr_res = [0u8; 64];
-        for i in 0..64 {
-            arr_res[i] = arr[i] ^ name.0[i];
-        }
-
-        let farthest_from_tables_own_name = ::xor_name::XorName::new(arr_res);
-
-        let mut buckets = Vec::new();
-        for i in 0..100 {
-            buckets.push(Bucket::new(farthest_from_tables_own_name.clone(), i));
-            assert!(::xor_name::closer_to_target(&buckets[i].mid_contact,
-                                                 &buckets[i].far_contact,
-                                                 name));
-            assert!(::xor_name::closer_to_target(&buckets[i].close_contact,
-                                                 &buckets[i].mid_contact,
-                                                 name));
-            if i != 0 {
-                assert!(::xor_name::closer_to_target(&buckets[i].far_contact,
-                                                     &buckets[i - 1].close_contact,
-                                                     name));
-            }
-        }
-        buckets
     }
 
     fn create_random_node_info() -> NodeInfo<TestNodeInfo, u64> {
@@ -649,9 +579,8 @@ mod test {
         }
     }
 
-    fn make_sort_predicate
-                           (target: ::xor_name::XorName)
-                            -> Box<FnMut(&::xor_name::XorName, &::xor_name::XorName) -> ::std::cmp::Ordering> {
+    fn make_sort_predicate(target: ::xor_name::XorName)
+            -> Box<FnMut(&::xor_name::XorName, &::xor_name::XorName) -> ::std::cmp::Ordering> {
         Box::new(move |lhs: &::xor_name::XorName, rhs: &::xor_name::XorName| {
             match ::xor_name::closer_to_target(lhs, rhs, &target) {
                 true => ::std::cmp::Ordering::Less,
@@ -672,7 +601,7 @@ mod test {
         assert_eq!(test.table.len(), 0);
 
         // add first contact
-        test.node_info.public_id.set_name(test.buckets[0].far_contact);
+        test.node_info.public_id.set_name(get_contact(&test.name, 0, 2));
         assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(test.table.len(), 1);
 
@@ -685,32 +614,32 @@ mod test {
         // 0 or 1 contacts.
 
         // Bucket 0
-        test.node_info.public_id.set_name(test.buckets[0].mid_contact);
+        test.node_info.public_id.set_name(get_contact(&test.name, 0, 1));
         assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(2, test.table.len());
         assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(2, test.table.len());
 
-        test.node_info.public_id.set_name(test.buckets[0].close_contact);
+        test.node_info.public_id.set_name(get_contact(&test.name, 0, 0));
         assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(3, test.table.len());
         assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(3, test.table.len());
 
         // Bucket 1
-        test.node_info.public_id.set_name(test.buckets[1].far_contact);
+        test.node_info.public_id.set_name(get_contact(&test.name, 1, 2));
         assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(4, test.table.len());
         assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(4, test.table.len());
 
-        test.node_info.public_id.set_name(test.buckets[1].mid_contact);
+        test.node_info.public_id.set_name(get_contact(&test.name, 1, 1));
         assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(5, test.table.len());
         assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(5, test.table.len());
 
-        test.node_info.public_id.set_name(test.buckets[1].close_contact);
+        test.node_info.public_id.set_name(get_contact(&test.name, 1, 0));
         assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(6, test.table.len());
         assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
@@ -718,20 +647,20 @@ mod test {
 
         // Add remaining contacts
         for i in 2..(optimal_table_size() - 4) {
-            test.node_info.public_id.set_name(test.buckets[i].mid_contact);
+            test.node_info.public_id.set_name(get_contact(&test.name, i, 1));
             assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
             assert_eq!(i + 5, test.table.len());
             assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
             assert_eq!(i + 5, test.table.len());
         }
 
-        // Check next 4 closer additions return 'buckets_[0].far_contact',
-        // 'buckets_[0].mid_contact', 'buckets_[1].far_contact', and 'buckets_[1].mid_contact' as
+        // Check next 4 closer additions return 'buckets_[0, 2)',
+        // 'buckets_[0, 1)', 'buckets_[1, 2)', and 'buckets_[1, 1)' as
         // dropped (in that order)
         let mut dropped: Vec<::xor_name::XorName> = Vec::new();
         let optimal_len = optimal_table_size();
         for i in (optimal_len - 4)..optimal_len {
-            test.node_info.public_id.set_name(test.buckets[i].mid_contact);
+            test.node_info.public_id.set_name(get_contact(&test.name, i, 1));
             let result_of_add = test.table.add_node(test.node_info.clone());
             assert!(result_of_add.0);
             dropped.push(unwrap_option!(result_of_add.1, "").name().clone());
@@ -739,10 +668,10 @@ mod test {
             assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
             assert_eq!(optimal_table_size(), test.table.len());
         }
-        assert!(test.buckets[0].far_contact == dropped[0]);
-        assert!(test.buckets[0].mid_contact == dropped[1]);
-        assert!(test.buckets[1].far_contact == dropped[2]);
-        assert!(test.buckets[1].mid_contact == dropped[3]);
+        assert!(get_contact(&test.name, 0, 2) == dropped[0]);
+        assert!(get_contact(&test.name, 0, 1) == dropped[1]);
+        assert!(get_contact(&test.name, 1, 2) == dropped[2]);
+        assert!(get_contact(&test.name, 1, 1) == dropped[3]);
 
         // Try to add far contacts again (should fail)
         for far_contact in dropped {
@@ -752,7 +681,7 @@ mod test {
         }
 
         // Add final close contact to push len() of table above optimal_table_size()
-        test.node_info.public_id.set_name(test.buckets[optimal_table_size()].mid_contact);
+        test.node_info.public_id.set_name(get_contact(&test.name, optimal_table_size(), 1));
         assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(optimal_table_size() + 1, test.table.len());
         assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
@@ -772,54 +701,54 @@ mod test {
         assert!(!test.table.want_to_add(&test.table.our_name));
 
         // Should return true for empty routing table
-        assert!(test.table.want_to_add(&test.buckets[0].far_contact));
+        assert!(test.table.want_to_add(&get_contact(&test.name, 0, 2)));
 
         // Add the first contact, and check it doesn't allow duplicates
         let mut new_node_0 = create_random_node_info();
-        new_node_0.public_id.set_name(test.buckets[0].far_contact);
+        new_node_0.public_id.set_name(get_contact(&test.name, 0, 2));
         assert!(test.table.add_node(new_node_0).0);
-        assert!(!test.table.want_to_add(&test.buckets[0].far_contact));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 0, 2)));
 
         // Add further 'optimal_table_size()' - 1 contact (should all succeed with no removals).  Set
         // this up so that bucket 0 (furthest) and bucket 1 have 3 contacts each and all others have
         // 0 or 1 contacts.
 
         let mut new_node_1 = create_random_node_info();
-        new_node_1.public_id.set_name(test.buckets[0].mid_contact);
+        new_node_1.public_id.set_name(get_contact(&test.name, 0, 1));
         assert!(test.table.want_to_add(new_node_1.name()));
         assert!(test.table.add_node(new_node_1).0);
-        assert!(!test.table.want_to_add(&test.buckets[0].mid_contact));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 0, 1)));
 
         let mut new_node_2 = create_random_node_info();
-        new_node_2.public_id.set_name(test.buckets[0].close_contact);
+        new_node_2.public_id.set_name(get_contact(&test.name, 0, 0));
         assert!(test.table.want_to_add(new_node_2.name()));
         assert!(test.table.add_node(new_node_2).0);
-        assert!(!test.table.want_to_add(&test.buckets[0].close_contact));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 0, 0)));
 
         let mut new_node_3 = create_random_node_info();
-        new_node_3.public_id.set_name(test.buckets[1].far_contact);
+        new_node_3.public_id.set_name(get_contact(&test.name, 1, 2));
         assert!(test.table.want_to_add(new_node_3.name()));
         assert!(test.table.add_node(new_node_3).0);
-        assert!(!test.table.want_to_add(&test.buckets[1].far_contact));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 1, 2)));
 
         let mut new_node_4 = create_random_node_info();
-        new_node_4.public_id.set_name(test.buckets[1].mid_contact);
+        new_node_4.public_id.set_name(get_contact(&test.name, 1, 1));
         assert!(test.table.want_to_add(new_node_4.name()));
         assert!(test.table.add_node(new_node_4).0);
-        assert!(!test.table.want_to_add(&test.buckets[1].mid_contact));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 1, 1)));
 
         let mut new_node_5 = create_random_node_info();
-        new_node_5.public_id.set_name(test.buckets[1].close_contact);
+        new_node_5.public_id.set_name(get_contact(&test.name, 1, 0));
         assert!(test.table.want_to_add(new_node_5.name()));
         assert!(test.table.add_node(new_node_5).0);
-        assert!(!test.table.want_to_add(&test.buckets[1].close_contact));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 1, 0)));
 
         for i in 2..(optimal_table_size() - 4) {
             let mut new_node = create_random_node_info();
-            new_node.public_id.set_name(test.buckets[i].mid_contact);
+            new_node.public_id.set_name(get_contact(&test.name, i, 1));
             assert!(test.table.want_to_add(new_node.name()));
             assert!(test.table.add_node(new_node).0);
-            assert!(!test.table.want_to_add(&test.buckets[i].mid_contact));
+            assert!(!test.table.want_to_add(&get_contact(&test.name, i, 1)));
         }
 
         assert_eq!(optimal_table_size(), test.table.nodes.len());
@@ -827,21 +756,21 @@ mod test {
         let optimal_len = optimal_table_size();
         for i in (optimal_len - 4)..optimal_len {
             let mut new_node = create_random_node_info();
-            new_node.public_id.set_name(test.buckets[i].mid_contact);
+            new_node.public_id.set_name(get_contact(&test.name, i, 1));
             assert!(test.table.want_to_add(new_node.name()));
             assert!(test.table.add_node(new_node).0);
-            assert!(!test.table.want_to_add(&test.buckets[i].mid_contact));
+            assert!(!test.table.want_to_add(&get_contact(&test.name, i, 1)));
             assert_eq!(optimal_table_size(), test.table.nodes.len());
         }
 
         // Check for contacts again which are now not in the table
-        assert!(!test.table.want_to_add(&test.buckets[0].far_contact));
-        assert!(!test.table.want_to_add(&test.buckets[0].mid_contact));
-        assert!(!test.table.want_to_add(&test.buckets[1].far_contact));
-        assert!(!test.table.want_to_add(&test.buckets[1].mid_contact));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 0, 2)));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 0, 1)));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 1, 2)));
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 1, 1)));
 
         // Check final close contact which would push len() of table above optimal_table_size()
-        assert!(test.table.want_to_add(&test.buckets[optimal_table_size()].mid_contact));
+        assert!(test.table.want_to_add(&get_contact(&test.name, optimal_table_size(), 1)));
     }
 
     #[test]
@@ -867,7 +796,7 @@ mod test {
         assert_eq!(optimal_table_size(), test.table.len());
 
         // Try with Address of node not in table
-        test.table.drop_node(&test.buckets[0].far_contact);
+        test.table.drop_node(&get_contact(&test.name, 0, 2));
         assert_eq!(optimal_table_size(), test.table.len());
 
         // Remove all nodes one at a time in random order
@@ -906,7 +835,7 @@ mod test {
         for i in 0..test.initial_count {
             let mut assert_checker = 0;
             for j in 0..target_nodes.len() {
-                if *target_nodes[j].name() == test.buckets[i].mid_contact {
+                if *target_nodes[j].name() == get_contact(&test.name, i, 1) {
                     assert_checker = 1;
                     break;
                 }
@@ -924,7 +853,7 @@ mod test {
         for i in ((optimal_table_size() - group_size())..optimal_table_size() - 1).rev() {
             let mut assert_checker = 0;
             for j in 0..target_nodes.len() {
-                if *target_nodes[j].name() == test.buckets[i].mid_contact {
+                if *target_nodes[j].name() == get_contact(&test.name, i, 1) {
                     assert_checker = 1;
                     break;
                 }
@@ -939,9 +868,9 @@ mod test {
         for count in 0..2 {
             for i in 0..(optimal_table_size() - group_size()) {
                 let (target, expected_len) = if count == 0 {
-                    (test.buckets[i].far_contact.clone(), parallelism())
+                    (get_contact(&test.name, i, 2).clone(), parallelism())
                 } else {
-                    (test.buckets[i].mid_contact.clone(), 1)
+                    (get_contact(&test.name, i, 1).clone(), 1)
                 };
                 target_nodes = test.table.target_nodes(&target);
                 assert_eq!(expected_len, target_nodes.len());
@@ -963,9 +892,9 @@ mod test {
         for count in 0..2 {
             for i in (optimal_table_size() - group_size() + 1)..optimal_table_size() {
                 target = if count == 0 {
-                    test.buckets[i].close_contact.clone()
+                    get_contact(&test.name, i, 0).clone()
                 } else {
-                    test.buckets[i].mid_contact.clone()
+                    get_contact(&test.name, i, 1).clone()
                 };
                 target_nodes = test.table.target_nodes(&target);
                 assert_eq!(group_size(), target_nodes.len());
@@ -997,7 +926,7 @@ mod test {
             assert!(test.table
                         .our_close_group()
                         .iter()
-                        .filter(|node| *node.name() == test.buckets[i].mid_contact)
+                        .filter(|node| *node.name() == get_contact(&test.name, i, 1))
                         .count() > 0);
         }
 
@@ -1173,7 +1102,7 @@ mod test {
     fn trivial_functions_test() {
         // unchecked - but also check has_node function
         let mut test = TestEnvironment::new();
-        assert!(test.public_id(&test.buckets[0].mid_contact).is_none());
+        assert!(test.public_id(&get_contact(&test.name, 0, 1)).is_none());
         assert_eq!(0, test.table.nodes.len());
 
         // Check on partially filled the table
@@ -1188,8 +1117,8 @@ mod test {
         }
         // EXPECT_TRUE(asymm::MatchingKeys(info_.dht_public_id.public_key(),
         //                                 *table_.GetPublicKey(info_.name())));
-        match test.public_id(&test.buckets[test.buckets.len() - 1].far_contact) {
-            Some(_) => panic!("PublicId Exits"),
+        match test.public_id(&get_contact(&test.name, 99, 2)) {
+            Some(_) => panic!("PublicId Exists"),
             None => {}
         }
         assert_eq!(test.initial_count + 1, test.table.nodes.len());
@@ -1197,7 +1126,7 @@ mod test {
         // Check on fully filled the table
         test.table.drop_node(test_node.name());
         test.complete_filling_table();
-        test.table.drop_node(&test.buckets[0].mid_contact);
+        test.table.drop_node(&get_contact(&test.name, 0, 1));
         test.node_info = test_node.clone();
         assert!(test.table.add_node(test.node_info.clone()).0);
 
@@ -1205,8 +1134,8 @@ mod test {
             Some(_) => {}
             None => panic!("PublicId None"),
         }
-        match test.public_id(&test.buckets[test.buckets.len() - 1].far_contact) {
-            Some(_) => panic!("PublicId Exits"),
+        match test.public_id(&get_contact(&test.name, 99, 2)) {
+            Some(_) => panic!("PublicId Exists"),
             None => {}
         }
         // EXPECT_TRUE(asymm::MatchingKeys(info_.dht_public_id.public_key(),
