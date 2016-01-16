@@ -156,9 +156,8 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         } else if self.nodes.len() < optimal_table_size() {
             self.push_back_then_sort(their_info);
             return (true, None)
-        } else if ::xor_name::closer_to_target(their_info.name(),
-                                               self.furthest_close_node().unwrap().name(),
-                                               &self.our_name) {
+        } else if self.furthest_close_node()
+                      .map_or(true, |node| self.is_closer(their_info.name(), node.name())) {
             self.push_back_then_sort(their_info);
             return match self.find_candidate_for_removal() {
                 None => (true, None),
@@ -206,9 +205,8 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
             false
         } else if self.nodes.len() < optimal_table_size() {
             true
-        } else if ::xor_name::closer_to_target(their_name,
-                                               self.furthest_close_node().unwrap().name(),
-                                               &self.our_name) {
+        } else if self.furthest_close_node()
+                      .map_or(true, |node| self.is_closer(their_name, node.name())) {
             true
         } else {
             self.new_node_is_better_than_existing(&their_name, self.find_candidate_for_removal())
@@ -308,6 +306,11 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
             .count() < group_size()
     }
 
+    /// Returns `true` if `lhs` is closer to this node's name that `rhs`.
+    fn is_closer(&self, lhs: &::xor_name::XorName, rhs: &::xor_name::XorName) -> bool {
+        ::xor_name::closer_to_target(lhs, rhs, &self.our_name)
+    }
+
 /// number of elements
     pub fn len(&self) -> usize {
         self.nodes.len()
@@ -321,9 +324,13 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     pub fn our_name(&self) -> &::xor_name::XorName {
         &self.our_name
     }
-/// check is routing table contains name
+
+    /// Returns the `NodeInfo` with the given name, if it is in the routing table.
     pub fn get(&self, name: &::xor_name::XorName) ->Option<&NodeInfo<T,U>> {
-        self.nodes.iter().find(|node_info| node_info.name() == name)
+        match self.binary_search(name) {
+            Ok(i) => self.nodes.get(i),
+            Err(_) => None,
+        }
     }
 
 /// Use this to calculate incoming messages for instance "fit" in this bucket distance
@@ -398,31 +405,32 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         self.our_name.bucket_distance(name)
     }
 
-    fn push_back_then_sort(&mut self, node_info: NodeInfo<T, U>) {
+    /// Returns `Ok(i)` if `self.nodes[i]` has the given `name`, or `Err(i)` if no node with that
+    /// `name` exists and `i` is the index where it would be inserted into the ordered node list.
+    fn binary_search(&self, name: &::xor_name::XorName) -> Result<usize, usize> {
+        self.nodes.binary_search_by(|other| if self.is_closer(other.name(), name) {
+                                                ::std::cmp::Ordering::Less
+                                            } else if other.name() == name {
+                                                ::std::cmp::Ordering::Equal
+                                            } else {
+                                                ::std::cmp::Ordering::Greater
+                                            })
+    }
 
-// Try to find and update an existing entry
-            if let Some(mut entry) = self.nodes
-                                         .iter_mut()
-                                         .find(|element| element.name() == node_info.name()) {
-                entry.connections.extend(node_info.connections);
-                return
+    fn push_back_then_sort(&mut self, mut node: NodeInfo<T, U>) {
+        match self.binary_search(node.name()) {
+            Ok(i) => {
+                // Node already exists! Update the entry:
+                self.nodes[i].connections.extend(node.connections);
+            },
+            Err(i) => {
+                // No existing entry, so set the node's bucket distance and insert it.
+                let index = self.bucket_index(&node.name());
+		        node.bucket_index = index;
+                self.nodes.insert(i, node);
+                self.set_group_bucket_distance();
             }
-// We didn't find an existing entry, so insert a new one
-// Set bucket index before adding, this will not change over life of this node in routing table
-        let index = self.bucket_index(&node_info.name());
-	    let mut node = node_info;
-		node.bucket_index = index;
-        self.nodes.push(node);
-        {
-        let our_name = &self.our_name;
-        self.nodes.sort_by(
-            |lhs, rhs| if ::xor_name::closer_to_target(lhs.name(), rhs.name(), our_name) {
-                           ::std::cmp::Ordering::Less
-                       } else {
-                           ::std::cmp::Ordering::Greater
-                       });
         }
-        self.set_group_bucket_distance();
     }
 
 // Returns true if 'removal_node_index' is Some and the new node is in a closer bucket than the
