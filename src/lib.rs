@@ -54,6 +54,7 @@ extern crate rand;
 extern crate xor_name;
 
 use itertools::*;
+use xor_name::XorName;
 
 /// Defines the size of close group
 pub const GROUP_SIZE: u8 = 8;
@@ -97,7 +98,7 @@ pub fn optimal_table_size() -> usize {
 /// required trait for the info held on a node by routing_table
 pub trait HasName {
     /// return xor_name for this type
-    fn name(&self) -> &::xor_name::XorName;
+    fn name(&self) -> &XorName;
 }
 
 /// Allows user defined data for routing table
@@ -121,7 +122,7 @@ impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
     }
 
     /// name of routing table entry
-    pub fn name(&self) -> &::xor_name::XorName {
+    pub fn name(&self) -> &XorName {
         self.public_id.name()
     }
 }
@@ -129,14 +130,14 @@ impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
 /// The RoutingTable class is used to maintain a list of contacts to which the node is connected.
 pub struct RoutingTable<T, U> {
     nodes: Vec<NodeInfo<T, U>>,
-    our_name: ::xor_name::XorName,
+    our_name: XorName,
     group_bucket_index: usize,
 }
 
 impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
       U : PartialEq + ::std::fmt::Debug + ::std::clone::Clone>RoutingTable<T, U> {
     /// Creates a new routing table for the node with the given name.
-	pub fn new(our_name: &::xor_name::XorName) -> RoutingTable<T, U> {
+	pub fn new(our_name: &XorName) -> RoutingTable<T, U> {
         RoutingTable {
             nodes: vec![],
             our_name: our_name.clone(),
@@ -178,9 +179,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 
     /// Adds a connection to an existing entry.  Should be called after `has_node`. The return
     /// indicates if the given connection was added to an existing NodeInfo.
-    pub fn add_connection(&mut self,
-                          their_name: &::xor_name::XorName,
-                          connection: U) -> bool {
+    pub fn add_connection(&mut self, their_name: &XorName, connection: U) -> bool {
         match self.nodes.iter_mut().find(|node_info| node_info.name() == their_name) {
             Some(mut node_info) => {
                 if node_info.connections.iter().any(|elt| *elt == connection) {
@@ -201,7 +200,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// adding the contact to our routing table, i.e. would this contact improve our table.  The
     /// checking procedure is the same as for `add_node`, except for the lack of a public key to
     /// check in step 1.
-    pub fn want_to_add(&self, their_name: &::xor_name::XorName) -> bool {
+    pub fn want_to_add(&self, their_name: &XorName) -> bool {
         if self.our_name == *their_name || self.get(&their_name).is_some()  {
             false
         } else if self.nodes.len() < optimal_table_size() {
@@ -223,7 +222,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 	}
 
     /// This unconditionally removes the contact from the table.
-    pub fn drop_node(&mut self, node_to_drop: &::xor_name::XorName) {
+    pub fn drop_node(&mut self, node_to_drop: &XorName) {
         self.nodes.retain(|node_info| node_info.name() != node_to_drop);
 		self.set_group_bucket_index();
     }
@@ -232,7 +231,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// affected entry has no connections after removing this one, the entry is removed from the
     /// routing table and its name is returned.  If the entry still has at least one connection, or
     /// an entry cannot be found for 'lost_connection', the function returns 'None'.
-    pub fn drop_connection(&mut self, lost_connection: &U) -> Option<::xor_name::XorName> {
+    pub fn drop_connection(&mut self, lost_connection: &U) -> Option<XorName> {
         let remove_connection = |node_info: &mut NodeInfo<T,U>| {
             if let Some(index) = node_info.connections
                                           .iter()
@@ -252,7 +251,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     }
 
     /// Returns the `n` nodes in our routing table that are closest to `target`.
-    fn closest_nodes_to(&self, target: &::xor_name::XorName, n: usize) -> Vec<NodeInfo<T, U>> {
+    fn closest_nodes_to(&self, target: &XorName, n: usize) -> Vec<NodeInfo<T, U>> {
         self.nodes.iter()
                   .sorted_by(|a, b| target.cmp_closeness(&a.name(), &b.name()))
                   .into_iter()
@@ -266,7 +265,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// It will return `group_size()` contacts if we are close to the `target`. Otherwise, it will
     /// return only the target node itself, if it is in our contacts. If not, it returns the
     /// `parallelism()` closest contacts to the target.
-    pub fn target_nodes(&self, target: &::xor_name::XorName) -> Vec<NodeInfo<T, U>> {
+    pub fn target_nodes(&self, target: &XorName) -> Vec<NodeInfo<T, U>> {
         // if in range of close_group send to all close_group
         if self.is_close(target) {
             return self.closest_nodes_to(target, group_size());
@@ -298,14 +297,14 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// elements unless there aren't enough such nodes in the network, then this criterion is
     /// actually sufficient! In that case, `true` is returned if and only if we are among the
     /// `group_size()` closest node to `name` in the network.
-    pub fn is_close(&self, name: &::xor_name::XorName) -> bool {
+    pub fn is_close(&self, name: &XorName) -> bool {
         self.nodes.iter()
             .filter(|node| ::xor_name::closer_to_target_or_equal(node.name(), &self.our_name, name))
             .count() < group_size()
     }
 
     /// Returns `true` if `lhs` is closer to this node's name that `rhs`.
-    fn is_closer(&self, lhs: &::xor_name::XorName, rhs: &::xor_name::XorName) -> bool {
+    fn is_closer(&self, lhs: &XorName, rhs: &XorName) -> bool {
         ::xor_name::closer_to_target(lhs, rhs, &self.our_name)
     }
 
@@ -320,12 +319,12 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     }
 
     /// Returns the name of the node this routing table is for.
-    pub fn our_name(&self) -> &::xor_name::XorName {
+    pub fn our_name(&self) -> &XorName {
         &self.our_name
     }
 
     /// Returns the `NodeInfo` with the given name, if it is in the routing table.
-    pub fn get(&self, name: &::xor_name::XorName) ->Option<&NodeInfo<T,U>> {
+    pub fn get(&self, name: &XorName) ->Option<&NodeInfo<T,U>> {
         match self.binary_search(name) {
             Ok(i) => self.nodes.get(i),
             Err(_) => None,
@@ -335,9 +334,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// Use this to calculate incoming messages for instance "fit" in this bucket distance
     /// when confirming a group is who it says it is. This is a partial check, not full
     /// security.
-    pub fn try_confirm_safe_group_distance(&self,
-                                          address1: &::xor_name::XorName,
-                                          address2: &::xor_name::XorName) -> bool {
+    pub fn try_confirm_safe_group_distance(&self, address1: &XorName, address2: &XorName) -> bool {
         self.group_bucket_index >= address1.bucket_index(&address2)
     }
 
@@ -400,13 +397,13 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 
     // This is equivalent to the common leading bits of `self.our_name` and `name` where "leading
     // bits" means the most significant bits.
-    fn bucket_index(&self, name: &::xor_name::XorName) -> usize {
+    fn bucket_index(&self, name: &XorName) -> usize {
         self.our_name.bucket_index(name)
     }
 
     /// Returns `Ok(i)` if `self.nodes[i]` has the given `name`, or `Err(i)` if no node with that
     /// `name` exists and `i` is the index where it would be inserted into the ordered node list.
-    fn binary_search(&self, name: &::xor_name::XorName) -> Result<usize, usize> {
+    fn binary_search(&self, name: &XorName) -> Result<usize, usize> {
         self.nodes.binary_search_by(|other| self.our_name.cmp_closeness(other.name(), name))
     }
 
@@ -429,7 +426,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     // Returns true if 'removal_node_index' is Some and the new node is in a closer bucket than the
     // removal candidate.
     fn new_node_is_better_than_existing(&self,
-                                        new_node: &::xor_name::XorName,
+                                        new_node: &XorName,
                                         removal_node_index: Option<usize>)
                                         -> bool {
         match removal_node_index {
@@ -450,37 +447,37 @@ mod test {
                 optimal_table_size, parallelism};
     use std::collections;
     use itertools::Itertools;
+    use xor_name::XorName;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     struct TestNodeInfo {
-        name: ::xor_name::XorName,
+        name: XorName,
     }
 
     impl TestNodeInfo {
         fn new() -> TestNodeInfo {
-            TestNodeInfo { name: ::rand::random::<::xor_name::XorName>() }
+            TestNodeInfo { name: ::rand::random::<XorName>() }
         }
-        fn set_name(&mut self, name: ::xor_name::XorName) {
+        fn set_name(&mut self, name: XorName) {
             self.name = name;
         }
     }
 
     impl HasName for TestNodeInfo {
-        fn name(&self) -> &::xor_name::XorName {
+        fn name(&self) -> &XorName {
             &self.name
         }
     }
 
-    fn to_node_info(name: &::xor_name::XorName) -> NodeInfo<TestNodeInfo, u64> {
+    fn to_node_info(name: &XorName) -> NodeInfo<TestNodeInfo, u64> {
         NodeInfo::new(TestNodeInfo { name: name.clone() }, vec!())
     }
 
     /// Creates a name in the `index`-th bucket of the table with the given name, where
     /// `index < 503`. The given `distance` will be added. If `distance == 255`, the furthest
     /// possible name in the given bucket is returned.
-    fn get_contact(table_name: &::xor_name::XorName, index: usize, distance: u8)
-            -> ::xor_name::XorName {
-        let ::xor_name::XorName(mut arr) = table_name.clone();
+    fn get_contact(table_name: &XorName, index: usize, distance: u8) -> XorName {
+        let XorName(mut arr) = table_name.clone();
         // Invert all bits starting with the `index`th one, so the bucket distance is `index`.
         arr[index / 8] = arr[index / 8] ^ (1 << (8 - index % 8) - 1);
         for i in (index / 8 + 1)..(arr.len() - 1) {
@@ -489,7 +486,7 @@ mod test {
         // Add the desired distance.
         let last = arr.len() - 1;
         arr[last] = arr[last] ^ distance;
-        let result = ::xor_name::XorName(arr);
+        let result = XorName(arr);
         assert_eq!(index, result.bucket_index(table_name));
         result
     }
@@ -497,9 +494,9 @@ mod test {
     struct TestEnvironment {
         table: RoutingTable<TestNodeInfo, u64>,
         node_info: NodeInfo<TestNodeInfo, u64>,
-        name: ::xor_name::XorName,
+        name: XorName,
         initial_count: usize,
-        added_names: Vec<::xor_name::XorName>,
+        added_names: Vec<XorName>,
     }
 
     impl TestEnvironment {
@@ -537,7 +534,7 @@ mod test {
             assert!(are_nodes_sorted(&self.table), "Nodes are not sorted");
         }
 
-        fn public_id(&self, name: &::xor_name::XorName) -> Option<TestNodeInfo> {
+        fn public_id(&self, name: &XorName) -> Option<TestNodeInfo> {
             assert!(are_nodes_sorted(&self.table), "Nodes are not sorted");
             match self.table.nodes.iter().find(|node_info| node_info.name() == name) {
                 Some(node) => Some(node.public_id.clone()),
@@ -575,11 +572,9 @@ mod test {
         }
     }
 
-    fn make_sort_predicate(target: ::xor_name::XorName)
-            -> Box<FnMut(&::xor_name::XorName, &::xor_name::XorName) -> ::std::cmp::Ordering> {
-        Box::new(move |lhs: &::xor_name::XorName, rhs: &::xor_name::XorName| {
-            target.cmp_closeness(lhs, rhs)
-        })
+    fn make_sort_predicate(target: XorName)
+            -> Box<FnMut(&XorName, &XorName) -> ::std::cmp::Ordering> {
+        Box::new(move |lhs: &XorName, rhs: &XorName| target.cmp_closeness(lhs, rhs))
     }
 
     #[test]
@@ -632,7 +627,7 @@ mod test {
 
         // Check next 4 closer additions return the furthest two contacts in each of buckets 1 and
         // 2.
-        let mut dropped: Vec<::xor_name::XorName> = Vec::new();
+        let mut dropped: Vec<XorName> = Vec::new();
         for i in (optimal_len - 4)..optimal_len {
             test.node_info.public_id.set_name(get_contact(&test.name, i, 1));
             let (added, dropped_node) = test.table.add_node(test.node_info.clone());
@@ -746,7 +741,7 @@ mod test {
         test.complete_filling_table();
 
         // Try with invalid Address
-        test.table.drop_node(&::xor_name::XorName::new([0u8; 64]));
+        test.table.drop_node(&XorName::new([0u8; 64]));
         assert_eq!(optimal_table_size(), test.table.len());
 
         // Try with our Name
@@ -823,7 +818,7 @@ mod test {
         // Try with nodes far from us, first time *not* in table and second time *in* table (should
         // return 'parallelism()' contacts closest to target first time and the single actual target
         // the second time)
-        let mut target: ::xor_name::XorName;
+        let mut target: XorName;
         for count in 0..2 {
             for i in 0..(optimal_table_size() - group_size()) {
                 let (target, expected_len) = if count == 0 {
@@ -907,7 +902,7 @@ mod test {
             let table = RoutingTable::<TestNodeInfo, u64>::new(node_info.name());
             let _ = tables.insert(node_info.name().clone(), table);
         }
-        let keys: Vec<::xor_name::XorName> = tables.keys().cloned().collect();
+        let keys: Vec<XorName> = tables.keys().cloned().collect();
         // Add each node to each other node's routing table.
         for name0 in keys.iter() {
             for name1 in keys.iter() {
@@ -947,7 +942,7 @@ mod test {
         // unchecked - could be merged with one above?
         let num_of_tables = 50usize;
         let mut tables = create_random_routing_tables(num_of_tables);
-        let mut addresses: Vec<::xor_name::XorName> = Vec::with_capacity(num_of_tables);
+        let mut addresses: Vec<XorName> = Vec::with_capacity(num_of_tables);
 
         for i in 0..num_of_tables {
             addresses.push(tables[i].our_name.clone());
@@ -991,7 +986,7 @@ mod test {
         let nodes_to_remove = 20usize;
 
         let mut tables = create_random_routing_tables(network_len);
-        let mut addresses: Vec<::xor_name::XorName> = Vec::with_capacity(network_len);
+        let mut addresses: Vec<XorName> = Vec::with_capacity(network_len);
 
         for i in 0..tables.len() {
             addresses.push(tables[i].our_name.clone());
@@ -1003,7 +998,7 @@ mod test {
         }
 
         // now remove nodes
-        let mut drop_vec: Vec<::xor_name::XorName> = Vec::with_capacity(nodes_to_remove);
+        let mut drop_vec: Vec<XorName> = Vec::with_capacity(nodes_to_remove);
         for i in 0..nodes_to_remove {
             drop_vec.push(addresses[i].clone());
         }
@@ -1031,7 +1026,7 @@ mod test {
         let network_len = 100usize;
 
         let mut tables = create_random_routing_tables(network_len);
-        let mut addresses: Vec<::xor_name::XorName> = Vec::with_capacity(network_len);
+        let mut addresses: Vec<XorName> = Vec::with_capacity(network_len);
 
         for i in 0..tables.len() {
             addresses.push(tables[i].our_name.clone());
@@ -1105,7 +1100,7 @@ mod test {
     #[test]
     fn bucket_index() {
         // Set our name for routing table to max possible value (in binary, all `1`s)
-        let our_name = ::xor_name::XorName::new([255u8; ::xor_name::XOR_NAME_LEN]);
+        let our_name = XorName::new([255u8; ::xor_name::XOR_NAME_LEN]);
         let routing_table = RoutingTable::<TestNodeInfo, u64>::new(&our_name);
 
         // Iterate through each u8 element of a target name identical to ours and set it to each
@@ -1115,7 +1110,7 @@ mod test {
             let mut array = [255u8; ::xor_name::XOR_NAME_LEN];
             for modified_element in 0..255u8 {
                 array[index] = modified_element;
-                let target_name = ::xor_name::XorName::new(array);
+                let target_name = XorName::new(array);
                 // `index` is equivalent to common leading bytes, so the common leading bits (CLBs)
                 // is `index` * 8 plus some value for `modified_element`.  Where
                 // 0 <= modified_element < 128, the first bit is different so CLBs is 0, and for
@@ -1134,7 +1129,7 @@ mod test {
                     _ => unreachable!(),
                 };
                 if expected_bucket_index != routing_table.bucket_index(&target_name) {
-                    let as_binary = |name: &::xor_name::XorName| -> String {
+                    let as_binary = |name: &XorName| -> String {
                         let mut name_as_binary = String::new();
                         for i in name.0.iter() {
                             name_as_binary.push_str(&format!("{:08b}", i));
