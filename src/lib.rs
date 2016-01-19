@@ -254,11 +254,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// Returns the `n` nodes in our routing table that are closest to `target`.
     fn closest_nodes_to(&self, target: &::xor_name::XorName, n: usize) -> Vec<NodeInfo<T, U>> {
         self.nodes.iter()
-                  .sorted_by(|a, b| if ::xor_name::closer_to_target(&a.name(), &b.name(), &target) {
-                                        ::std::cmp::Ordering::Less
-                                    } else {
-                                        ::std::cmp::Ordering::Greater
-                                    })
+                  .sorted_by(|a, b| target.cmp_closeness(&a.name(), &b.name()))
                   .into_iter()
                   .take(n)
                   .cloned()
@@ -411,13 +407,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// Returns `Ok(i)` if `self.nodes[i]` has the given `name`, or `Err(i)` if no node with that
     /// `name` exists and `i` is the index where it would be inserted into the ordered node list.
     fn binary_search(&self, name: &::xor_name::XorName) -> Result<usize, usize> {
-        self.nodes.binary_search_by(|other| if self.is_closer(other.name(), name) {
-                                                ::std::cmp::Ordering::Less
-                                            } else if other.name() == name {
-                                                ::std::cmp::Ordering::Equal
-                                            } else {
-                                                ::std::cmp::Ordering::Greater
-                                            })
+        self.nodes.binary_search_by(|other| self.our_name.cmp_closeness(other.name(), name))
     }
 
     fn push_back_then_sort(&mut self, mut node: NodeInfo<T, U>) {
@@ -588,10 +578,7 @@ mod test {
     fn make_sort_predicate(target: ::xor_name::XorName)
             -> Box<FnMut(&::xor_name::XorName, &::xor_name::XorName) -> ::std::cmp::Ordering> {
         Box::new(move |lhs: &::xor_name::XorName, rhs: &::xor_name::XorName| {
-            match ::xor_name::closer_to_target(lhs, rhs, &target) {
-                true => ::std::cmp::Ordering::Less,
-                false => ::std::cmp::Ordering::Greater,
-            }
+            target.cmp_closeness(lhs, rhs)
         })
     }
 
