@@ -134,10 +134,12 @@ pub struct RoutingTable<T, U> {
     group_bucket_index: usize,
 }
 
-impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
-      U : PartialEq + ::std::fmt::Debug + ::std::clone::Clone>RoutingTable<T, U> {
+impl<T, U> RoutingTable<T, U>
+    where T: PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
+          U: PartialEq + ::std::fmt::Debug + ::std::clone::Clone
+{
     /// Creates a new routing table for the node with the given name.
-	pub fn new(our_name: &XorName) -> RoutingTable<T, U> {
+    pub fn new(our_name: &XorName) -> RoutingTable<T, U> {
         RoutingTable {
             nodes: vec![],
             our_name: our_name.clone(),
@@ -150,28 +152,32 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// one is returned in the second field, otherwise the optional field is empty.
     pub fn add_node(&mut self, their_info: NodeInfo<T, U>) -> (bool, Option<NodeInfo<T, U>>) {
         if self.our_name == *their_info.name() {
-            return (false, None)
+            return (false, None);
         } else if self.get(&their_info.name()).is_some() {
-            debug!("Routing table {:?} has node {:?}. not adding", self.nodes, their_info);
-            return (false, None)
+            debug!("Routing table {:?} has node {:?}. not adding",
+                   self.nodes,
+                   their_info);
+            return (false, None);
         } else if self.nodes.len() < optimal_table_size() {
             self.push_back_then_sort(their_info);
-            return (true, None)
+            return (true, None);
         } else if self.furthest_close_node()
-                      .map_or(true, |node| self.is_closer(their_info.name(), node.name())) {
+               .map_or(true, |node| self.is_closer(their_info.name(), node.name())) {
             self.push_back_then_sort(their_info);
             return match self.find_candidate_for_removal() {
                 None => (true, None),
                 Some(node_index) => (true, Some(self.nodes.remove(node_index))),
-            }
+            };
         }
 
         let removal_node_index = self.find_candidate_for_removal();
         if self.new_node_is_better_than_existing(their_info.name(), removal_node_index) {
-            let removal_node = self.nodes.remove(removal_node_index.expect(
-                    "Could not remove a value we just calculated, perhaps non atomic "));
+            let removal_node = self.nodes
+                                   .remove(removal_node_index.expect("Could not remove a value \
+                                                                      we just calculated, \
+                                                                      perhaps non atomic "));
             self.push_back_then_sort(their_info);
-            return (true, Some(removal_node))
+            return (true, Some(removal_node));
         }
 
         (false, None)
@@ -183,16 +189,16 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         match self.nodes.iter_mut().find(|node_info| node_info.name() == their_name) {
             Some(mut node_info) => {
                 if node_info.connections.iter().any(|elt| *elt == connection) {
-                    return false
+                    return false;
                 }
 
                 node_info.connections.push(connection);
                 true
-            },
+            }
             None => {
                 error!("The NodeInfo should already exist here.");
                 false
-            },
+            }
         }
     }
 
@@ -201,12 +207,12 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// checking procedure is the same as for `add_node`, except for the lack of a public key to
     /// check in step 1.
     pub fn want_to_add(&self, their_name: &XorName) -> bool {
-        if self.our_name == *their_name || self.get(&their_name).is_some()  {
+        if self.our_name == *their_name || self.get(&their_name).is_some() {
             false
         } else if self.nodes.len() < optimal_table_size() {
             true
         } else if self.furthest_close_node()
-                      .map_or(true, |node| self.is_closer(their_name, node.name())) {
+               .map_or(true, |node| self.is_closer(their_name, node.name())) {
             true
         } else {
             self.new_node_is_better_than_existing(&their_name, self.find_candidate_for_removal())
@@ -215,16 +221,16 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 
     /// Returns the current calculated quorum size. This is dependent on the current routing table
     /// size.
-	pub fn dynamic_quorum_size(&self) -> usize {
-		let factor :f32 = QUORUM_SIZE as f32 / GROUP_SIZE as f32;
-		::std::cmp::min((
-        self.nodes.len() as f32 * factor).round() as usize, quorum_size())
-	}
+    pub fn dynamic_quorum_size(&self) -> usize {
+        let factor: f32 = QUORUM_SIZE as f32 / GROUP_SIZE as f32;
+        ::std::cmp::min((self.nodes.len() as f32 * factor).round() as usize,
+                        quorum_size())
+    }
 
     /// This unconditionally removes the contact from the table.
     pub fn drop_node(&mut self, node_to_drop: &XorName) {
         self.nodes.retain(|node_info| node_info.name() != node_to_drop);
-		self.set_group_bucket_index();
+        self.set_group_bucket_index();
     }
 
     /// This should be called when a connection has dropped.  If the
@@ -232,7 +238,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// routing table and its name is returned.  If the entry still has at least one connection, or
     /// an entry cannot be found for 'lost_connection', the function returns 'None'.
     pub fn drop_connection(&mut self, lost_connection: &U) -> Option<XorName> {
-        let remove_connection = |node_info: &mut NodeInfo<T,U>| {
+        let remove_connection = |node_info: &mut NodeInfo<T, U>| {
             if let Some(index) = node_info.connections
                                           .iter()
                                           .position(|connection| connection == lost_connection) {
@@ -244,7 +250,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
         };
         if let Some(node_index) = self.nodes.iter_mut().position(remove_connection) {
             if self.nodes[node_index].connections.is_empty() {
-               return Some(self.nodes.remove(node_index).name().clone())
+                return Some(self.nodes.remove(node_index).name().clone());
             }
         }
         None
@@ -252,12 +258,13 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 
     /// Returns the `n` nodes in our routing table that are closest to `target`.
     fn closest_nodes_to(&self, target: &XorName, n: usize) -> Vec<NodeInfo<T, U>> {
-        self.nodes.iter()
-                  .sorted_by(|a, b| target.cmp_closeness(&a.name(), &b.name()))
-                  .into_iter()
-                  .take(n)
-                  .cloned()
-                  .collect()
+        self.nodes
+            .iter()
+            .sorted_by(|a, b| target.cmp_closeness(&a.name(), &b.name()))
+            .into_iter()
+            .take(n)
+            .cloned()
+            .collect()
     }
 
     /// Returns a collection of nodes to which a message should be sent onwards.
@@ -273,7 +280,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
 
         // if not in close group but connected then send direct
         if let Some(ref found) = self.nodes.iter().find(|ref node| node.name() == target) {
-            return vec![(*found).clone()]
+            return vec![(*found).clone()];
         }
 
         // not in close group or routing table so send to closest known nodes up to parallelism
@@ -298,8 +305,11 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     /// actually sufficient! In that case, `true` is returned if and only if we are among the
     /// `group_size()` closest node to `name` in the network.
     pub fn is_close(&self, name: &XorName) -> bool {
-        self.nodes.iter()
-            .filter(|node| ::xor_name::closer_to_target_or_equal(node.name(), &self.our_name, name))
+        self.nodes
+            .iter()
+            .filter(|node| {
+                ::xor_name::closer_to_target_or_equal(node.name(), &self.our_name, name)
+            })
             .count() < group_size()
     }
 
@@ -324,7 +334,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     }
 
     /// Returns the `NodeInfo` with the given name, if it is in the routing table.
-    pub fn get(&self, name: &XorName) ->Option<&NodeInfo<T,U>> {
+    pub fn get(&self, name: &XorName) -> Option<&NodeInfo<T, U>> {
         match self.binary_search(name) {
             Ok(i) => self.nodes.get(i),
             Err(_) => None,
@@ -346,8 +356,8 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
     // set the index number of the furthest close node and memoise it in the Routingtable struct
     fn set_group_bucket_index(&mut self) {
         let index = match self.furthest_close_node() {
-        Some(node) => self.bucket_index(&node.name()),
-        None       => 0,
+            Some(node) => self.bucket_index(&node.name()),
+            None => 0,
         };
         self.group_bucket_index = index;
     }
@@ -412,11 +422,11 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
             Ok(i) => {
                 // Node already exists! Update the entry:
                 self.nodes[i].connections.extend(node.connections);
-            },
+            }
             Err(i) => {
                 // No existing entry, so set the node's bucket distance and insert it.
                 let index = self.bucket_index(&node.name());
-		        node.bucket_index = index;
+                node.bucket_index = index;
                 self.nodes.insert(i, node);
                 self.set_group_bucket_index();
             }
@@ -433,7 +443,7 @@ impl <T : PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
             Some(index) => {
                 let removal_node = &self.nodes[index];
                 self.bucket_index(new_node) > self.bucket_index(removal_node.name())
-            },
+            }
             None => false,
         }
     }
@@ -470,7 +480,7 @@ mod test {
     }
 
     fn to_node_info(name: &XorName) -> NodeInfo<TestNodeInfo, u64> {
-        NodeInfo::new(TestNodeInfo { name: name.clone() }, vec!())
+        NodeInfo::new(TestNodeInfo { name: name.clone() }, vec![])
     }
 
     /// Creates a name in the `index`-th bucket of the table with the given name, where
@@ -572,8 +582,7 @@ mod test {
         }
     }
 
-    fn make_sort_predicate(target: XorName)
-            -> Box<FnMut(&XorName, &XorName) -> ::std::cmp::Ordering> {
+    fn make_sort_predicate(target: XorName) -> Box<FnMut(&XorName, &XorName) -> ::std::cmp::Ordering> {
         Box::new(move |lhs: &XorName, rhs: &XorName| target.cmp_closeness(lhs, rhs))
     }
 
@@ -928,12 +937,14 @@ mod test {
                                             .map(|t| t.our_name().clone())
                                             .sorted_by(&mut *make_sort_predicate(name.clone()));
             assert_eq!(group_size(), close_group.len());
-            let our_close_group: Vec<_> = tables[&name].our_close_group()
-                                                       .into_iter()
-                                                       .map(|ni| ni.name().clone())
-                                                       .collect();
+            let our_close_group: Vec<_> = tables[&name]
+                                              .our_close_group()
+                                              .into_iter()
+                                              .map(|ni| ni.name().clone())
+                                              .collect();
             // The node itself is not in `our_close_group`, but it is in `close_group`:
-            assert_eq!(close_group[1..].to_vec(), our_close_group[..(group_size() - 1)].to_vec());
+            assert_eq!(close_group[1..].to_vec(),
+                       our_close_group[..(group_size() - 1)].to_vec());
         }
     }
 
