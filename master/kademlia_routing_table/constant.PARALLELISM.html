@@ -9,6 +9,7 @@
 
     <title>kademlia_routing_table::PARALLELISM - Rust</title>
 
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
     <link rel="stylesheet" type="text/css" href="../main.css">
 
     <link rel="shortcut icon" href="http://maidsafe.net/img/favicon.ico">
@@ -45,9 +46,10 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-13' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#74' title='goto source code'>[src]</a></span></h1>
-<pre class='rust const'>pub const PARALLELISM: <a href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><code> = </code><code>4</code></pre><div class='docblock'><p>Defines the number of contacts which should be returned by the <code>target_nodes</code> function for a
-target which is outwith our close group and is not a contact in the table.</p>
+        </span><a id='src-14' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#165' title='goto source code'>[src]</a></span></h1>
+<pre class='rust const'>pub const PARALLELISM: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><code> = </code><code>4</code></pre><div class='docblock'><p>The number of nodes a message is sent to in each hop for redundancy.</p>
+
+<p>See <a href="struct.RoutingTable.html#method.target_nodes"><code>target_nodes</code></a> for details.</p>
 </div></section>
     <section id='search' class="content hidden"></section>
 
@@ -107,6 +109,6 @@ target which is outwith our close group and is not a contact in the table.</p>
     <script src="../jquery.js"></script>
     <script src="../main.js"></script>
     
-    <script async src="../search-index.js"></script>
+    <script defer src="../search-index.js"></script>
 </body>
 </html>
