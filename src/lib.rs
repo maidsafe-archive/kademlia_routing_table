@@ -34,13 +34,88 @@ unused_qualifications, unused_results, variant_size_differences)]
 #![allow(box_pointers, fat_ptr_transmutes, missing_copy_implementations,
 missing_debug_implementations)]
 
-//! # Kademlia Routing Table
+//! A routing table to manage connections for a node in a [Kademlia][1] distributed hash table.
 //!
-//! Kademlia Routing Table implementation.
-///
-/// Note: Bucket index and distance refers to the common leading bits between two addreses
-/// Therefor the largest bucket index is the closest "distance" and the lowest bucket  index
-/// covers the most number of potential nodes (xor address space)
+//! [1]: https://en.wikipedia.org/wiki/Kademlia
+//!
+//!
+//! # Addresses and distance functions
+//!
+//! Nodes in the network are addressed with a [`XorName`][2], a 512-bit unsigned integer. The
+//! *[XOR][3] distance* between two nodes with addresses `x` and `y` is `x ^ y`. This
+//! [distance function][4] has the property that no two points ever have the same distance from a
+//! given point, i. e. if `x ^ y == x ^ z`, then `y == z`. This property allows us to define the
+//! *close group* of an address as the [`GROUP_SIZE`][5] closest nodes to that address,
+//! guaranteeing that the close group will always have exactly `GROUP_SIZE` members (unless, of
+//! course, the whole network has less than `GROUP_SIZE` nodes).
+//!
+//! [2]: ../xor_name/struct.XorName.html
+//! [3]: https://en.wikipedia.org/wiki/Exclusive_or#Bitwise_operation
+//! [4]: https://en.wikipedia.org/wiki/Metric_%28mathematics%29
+//! [5]: constant.GROUP_SIZE.html
+//!
+//! The routing table is associated with a node with some name `x`, and manages a number of
+//! connections to other nodes, sorting them into up to 512 *buckets*, depending on their XOR
+//! distance from `x`:
+//!
+//! * If 2<sup>512</sup> > `x ^ y` >= 2<sup>511</sup>, then y is in bucket 0.
+//! * If 2<sup>511</sup> > `x ^ y` >= 2<sup>510</sup>, then y is in bucket 1.
+//! * If 2<sup>510</sup> > `x ^ y` >= 2<sup>509</sup>, then y is in bucket 2.
+//! * ...
+//! * If 2 > `x ^ y` >= 1, then y is in bucket 511.
+//!
+//! Equivalently, `y` is in bucket `n` if the longest common prefix of `x` and `y` has length `n`,
+//! i. e. the first binary digit in which `x` and `y` disagree is the `(n + 1)`-th one. We call the
+//! length of the remainder, without the common prefix, the *bucket distance* of `x` and `y`. Hence
+//! `x` and `y` have bucket distance `512 - n` if and only if `y` belongs in bucket number `n`.
+//!
+//! The bucket distance is coarser than the XOR distance: Whenever the bucket distance from `y` to
+//! `x` is less than the bucket distance from `z` to `x`, then `y ^ x < z ^ x`. But not vice-versa:
+//! Often `y ^ x < z ^ x`, even if the bucket distances are equal. The XOR distance ranges from 0
+//! to 2<sup>512</sup> (exclusive), while the bucket distance ranges from 0 to 512 (inclusive).
+//!
+//!
+//! # Guarantees for routing
+//!
+//! The routing table provides functions to decide, for a message with a given destination, which
+//! nodes in the table to pass the message on to, so that it is guaranteed that:
+//!
+//! * If the destination is the address of a node, the message will reach that node after at most
+//!   511 hops.
+//! * Otherwise the message will reach every member of the close group of the destination address,
+//!   i. e. all `GROUP_SIZE` nodes in the network that are XOR-closest to that address, and each
+//!   node knows whether it belongs to that group.
+//!
+//! However, to be able to make these guarantees, the routing table must be filled with
+//! sufficiently many connections. Specifically, for the first property to be true, the first of
+//! the following invariants is needed, and for the second property, the second, stronger one, must
+//! be ensured:
+//!
+//! * Each bucket `n` must have an entry if a node with bucket distance `512 - n` exists in the
+//!   network.
+//! * Whenever a bucket `n` has fewer than `GROUP_SIZE` entries, it contains *all* nodes in the
+//!   network with bucket distance `512 - n`.
+//! 
+//! The user of this crate therefore needs to make sure that whenever a node joins or leaves, all
+//! affected nodes in the network update their routing tables accordingly.
+//!
+//!
+//! # Resilience against malicious or malfunctioning nodes
+//!
+//! In each hop during routing, messages are passed on to `PARALLELISM` other nodes, so that even
+//! if `PARALLELISM - 1` nodes between the source and destination fail, they are still successfully
+//! delivered.
+//!
+//! The concept of close groups exists to provide resilience even against failures of the source or
+//! destination itself: If every member of a group tries to send the same message, it will arrive
+//! even if some members fail. And if a message is sent to a whole group, it will arrive in most,
+//! even if some of them malfunction.
+//!
+//! Close groups can thus be used as inherently redundant authorities in the network that messages
+//! can be sent to and received from, using a consensus algorithm: A message from a group authority
+//! is considered to be legitimate, if at least `QUORUM_SIZE` group members have sent (and
+//! cryptographically signed) a message with the same content.
+
 #[macro_use]
 extern crate log;
 
@@ -56,63 +131,93 @@ extern crate xor_name;
 use itertools::*;
 use xor_name::XorName;
 
-/// Defines the size of close group
+/// The size of a close group.
+///
+/// The `GROUP_SIZE` XOR-closest nodes to an address constitute the *close group* with that
+/// address.
 pub const GROUP_SIZE: u8 = 8;
 
-/// Defines the size of close group
+/// The size of a close group.
+///
+/// The `group_size()` XOR-closest nodes to an address constitute the *close group* with that
+/// address.
 pub fn group_size() -> usize {
     GROUP_SIZE as usize
 }
 
-/// Used as number of nodes agreed to represnet a quorum
+/// The number of nodes in a group that represent a quorum.
+///
+/// A message from a close group should be considered legitimate if at least `QUORUM_SIZE` members
+/// sent it.
 const QUORUM_SIZE: u8 = 5;
-// Quorum size as usize
+
+/// The number of nodes in a group that represent a quorum.
+///
+/// A message from a close group should be considered legitimate if at least `quorum_size()`
+/// members sent it.
 fn quorum_size() -> usize {
     QUORUM_SIZE as usize
 }
-/// Defines the number of contacts which should be returned by the `target_nodes` function for a
-/// target which is outwith our close group and is not a contact in the table.
+
+/// The number of nodes a message is sent to in each hop for redundancy.
+///
+/// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.
 pub const PARALLELISM: u8 = 4;
 
-/// parallelism as u64
+/// The number of nodes a message is sent to in each hop for redundancy.
+///
+/// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.
 pub fn parallelism() -> usize {
     PARALLELISM as usize
 }
-/// Defines the target max number of contacts per bucket.  This is not a hard limit; buckets can
-/// exceed this size if required.
+
+/// The target number of entries per bucket.
+///
+/// The routing table's functionality relies on being given as many entries per bucket as
+/// exist in the network, up to this number.
 const BUCKET_SIZE: u8 = 2;
 
-/// Bucket size
+/// The target number of entries per bucket.
+///
+/// The routing table's functionality relies on being given as many entries per bucket as
+/// exist in the network, up to this number.
 pub fn bucket_size() -> usize {
     BUCKET_SIZE as usize
 }
 
-/// Defines the target max number of contacts for the whole routing table. This is not a hard limit;
-/// the table size can exceed this size if required.
+/// The target number of routing table entries in total.
+///
+/// To optimize performance in small networks, the table will attempt to always retain at least
+/// `OPTIMAL_TABLE_SIZE` entries, even if some buckets have more than `BUCKET_SIZE` entries.
 const OPTIMAL_TABLE_SIZE: u8 = 64;
 
-/// optimal table size as usize
+/// The target number of routing table entries in total.
+///
+/// To optimize performance in small networks, the table will attempt to always retain at least
+/// `optimal_table_size()` entries, even if some buckets have more than `bucket_size()` entries.
 pub fn optimal_table_size() -> usize {
     OPTIMAL_TABLE_SIZE as usize
 }
-/// required trait for the info held on a node by routing_table
+/// A trait for anything that has a `XorName` and can thus be addressed in the network.
+///
+/// The node information in the routing table is required to implement this.
 pub trait HasName {
-    /// return xor_name for this type
+    /// Returns the `XorName` representing this item's address in the network.
     fn name(&self) -> &XorName;
 }
 
-/// Allows user defined data for routing table
+/// A routing table entry representing a node and the connections to that node.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NodeInfo<T, U> {
-    /// container for node in routing table
+    /// The information identifying the node.
     pub public_id: T,
-    /// connection object, may be socket etc.
+    /// The connections to the node, e. g. sockets or other kinds of connection handles.
     pub connections: Vec<U>,
     bucket_index: usize,
 }
 
 impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
-    /// constructor
+    /// Creates a new node entry with the given ID and connections.
     pub fn new(public_id: T, connections: Vec<U>) -> NodeInfo<T, U> {
         NodeInfo {
             public_id: public_id,
@@ -121,13 +226,18 @@ impl<T: PartialEq + HasName + ::std::fmt::Debug, U: PartialEq> NodeInfo<T, U> {
         }
     }
 
-    /// name of routing table entry
+    /// Returns the `XorName` of the peer node.
     pub fn name(&self) -> &XorName {
         self.public_id.name()
     }
 }
 
-/// The RoutingTable class is used to maintain a list of contacts to which the node is connected.
+/// A routing table to manage connections for a node.
+///
+/// It maintains a list of `NodeInfo`s representing connections to peer nodes, and provides
+/// algorithms for routing messages.
+///
+/// See the [crate documentation](index.html) for details.
 pub struct RoutingTable<T, U> {
     nodes: Vec<NodeInfo<T, U>>,
     our_name: XorName,
@@ -136,8 +246,7 @@ pub struct RoutingTable<T, U> {
 
 impl<T, U> RoutingTable<T, U>
     where T: PartialEq + HasName + ::std::fmt::Debug + ::std::clone::Clone,
-          U: PartialEq + ::std::fmt::Debug + ::std::clone::Clone
-{
+          U: PartialEq + ::std::fmt::Debug + ::std::clone::Clone {
     /// Creates a new routing table for the node with the given name.
     pub fn new(our_name: &XorName) -> RoutingTable<T, U> {
         RoutingTable {
