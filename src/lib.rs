@@ -138,11 +138,6 @@ use xor_name::XorName;
 /// address.
 pub const GROUP_SIZE: usize = 8;
 
-/// **Deprecated**. Use `GROUP_SIZE`.
-pub fn group_size() -> usize {
-    GROUP_SIZE
-}
-
 /// The number of nodes in a group that represent a quorum.
 ///
 /// A message from a close group should be considered legitimate if at least `QUORUM_SIZE` members
@@ -154,21 +149,11 @@ const QUORUM_SIZE: usize = 5;
 /// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.
 pub const PARALLELISM: usize = 4;
 
-/// **Deprecated**. Use `PARALLELISM`.
-pub fn parallelism() -> usize {
-    PARALLELISM
-}
-
 /// The target number of entries per bucket.
 ///
 /// The routing table's functionality relies on being given as many entries per bucket as
 /// exist in the network, up to this number.
 const BUCKET_SIZE: usize = GROUP_SIZE;
-
-/// **Deprecated**. Use `BUCKET_SIZE`.
-pub fn bucket_size() -> usize {
-    BUCKET_SIZE
-}
 
 /// The target number of routing table entries in total.
 ///
@@ -176,10 +161,6 @@ pub fn bucket_size() -> usize {
 /// `OPTIMAL_TABLE_SIZE` entries, even if some buckets have more than `BUCKET_SIZE` entries.
 const OPTIMAL_TABLE_SIZE: usize = 64;
 
-/// **Deprecated**. Use `OPTIMAL_TABLE_SIZE`.
-pub fn optimal_table_size() -> usize {
-    OPTIMAL_TABLE_SIZE
-}
 /// A trait for anything that has a `XorName` and can thus be addressed in the network.
 ///
 /// The node information in the routing table is required to implement this.
