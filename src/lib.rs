@@ -135,68 +135,49 @@ use xor_name::XorName;
 ///
 /// The `GROUP_SIZE` XOR-closest nodes to an address constitute the *close group* with that
 /// address.
-pub const GROUP_SIZE: u8 = 8;
+pub const GROUP_SIZE: usize = 8;
 
-/// The size of a close group.
-///
-/// The `group_size()` XOR-closest nodes to an address constitute the *close group* with that
-/// address.
+/// **Deprecated**. Use `GROUP_SIZE`.
 pub fn group_size() -> usize {
-    GROUP_SIZE as usize
+    GROUP_SIZE
 }
 
 /// The number of nodes in a group that represent a quorum.
 ///
 /// A message from a close group should be considered legitimate if at least `QUORUM_SIZE` members
 /// sent it.
-const QUORUM_SIZE: u8 = 5;
-
-/// The number of nodes in a group that represent a quorum.
-///
-/// A message from a close group should be considered legitimate if at least `quorum_size()`
-/// members sent it.
-fn quorum_size() -> usize {
-    QUORUM_SIZE as usize
-}
+const QUORUM_SIZE: usize = 5;
 
 /// The number of nodes a message is sent to in each hop for redundancy.
 ///
 /// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.
-pub const PARALLELISM: u8 = 4;
+pub const PARALLELISM: usize = 4;
 
-/// The number of nodes a message is sent to in each hop for redundancy.
-///
-/// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.
+/// **Deprecated**. Use `PARALLELISM`.
 pub fn parallelism() -> usize {
-    PARALLELISM as usize
+    PARALLELISM
 }
 
 /// The target number of entries per bucket.
 ///
 /// The routing table's functionality relies on being given as many entries per bucket as
 /// exist in the network, up to this number.
-const BUCKET_SIZE: u8 = 2;
+const BUCKET_SIZE: usize = GROUP_SIZE;
 
-/// The target number of entries per bucket.
-///
-/// The routing table's functionality relies on being given as many entries per bucket as
-/// exist in the network, up to this number.
+/// **Deprecated**. Use `BUCKET_SIZE`.
 pub fn bucket_size() -> usize {
-    BUCKET_SIZE as usize
+    BUCKET_SIZE
 }
 
 /// The target number of routing table entries in total.
 ///
 /// To optimize performance in small networks, the table will attempt to always retain at least
 /// `OPTIMAL_TABLE_SIZE` entries, even if some buckets have more than `BUCKET_SIZE` entries.
-const OPTIMAL_TABLE_SIZE: u8 = 64;
+const OPTIMAL_TABLE_SIZE: usize = 64;
 
-/// The target number of routing table entries in total.
-///
-/// To optimize performance in small networks, the table will attempt to always retain at least
-/// `optimal_table_size()` entries, even if some buckets have more than `bucket_size()` entries.
+/// **Deprecated**. Use `OPTIMAL_TABLE_SIZE`.
 pub fn optimal_table_size() -> usize {
-    OPTIMAL_TABLE_SIZE as usize
+    OPTIMAL_TABLE_SIZE
 }
 /// A trait for anything that has a `XorName` and can thus be addressed in the network.
 ///
@@ -267,7 +248,7 @@ impl<T, U> RoutingTable<T, U>
                    self.nodes,
                    their_info);
             return (false, None);
-        } else if self.nodes.len() < optimal_table_size() {
+        } else if self.nodes.len() < OPTIMAL_TABLE_SIZE {
             self.push_back_then_sort(their_info);
             return (true, None);
         } else if self.furthest_close_node()
@@ -318,7 +299,7 @@ impl<T, U> RoutingTable<T, U>
     pub fn want_to_add(&self, their_name: &XorName) -> bool {
         if self.our_name == *their_name || self.get(&their_name).is_some() {
             false
-        } else if self.nodes.len() < optimal_table_size() {
+        } else if self.nodes.len() < OPTIMAL_TABLE_SIZE {
             true
         } else if self.furthest_close_node()
                .map_or(true, |node| self.is_closer(their_name, node.name())) {
@@ -333,7 +314,7 @@ impl<T, U> RoutingTable<T, U>
     pub fn dynamic_quorum_size(&self) -> usize {
         let factor: f32 = QUORUM_SIZE as f32 / GROUP_SIZE as f32;
         ::std::cmp::min((self.nodes.len() as f32 * factor).round() as usize,
-                        quorum_size())
+                        QUORUM_SIZE)
     }
 
     /// This unconditionally removes the contact from the table.
@@ -378,13 +359,13 @@ impl<T, U> RoutingTable<T, U>
 
     /// Returns a collection of nodes to which a message should be sent onwards.
     ///
-    /// It will return `group_size()` contacts if we are close to the `target`. Otherwise, it will
+    /// It will return `GROUP_SIZE` contacts if we are close to the `target`. Otherwise, it will
     /// return only the target node itself, if it is in our contacts. If not, it returns the
-    /// `parallelism()` closest contacts to the target.
+    /// `PARALLELISM` closest contacts to the target.
     pub fn target_nodes(&self, target: &XorName) -> Vec<NodeInfo<T, U>> {
         // if in range of close_group send to all close_group
         if self.is_close(target) {
-            return self.closest_nodes_to(target, group_size());
+            return self.closest_nodes_to(target, GROUP_SIZE);
         }
 
         // if not in close group but connected then send direct
@@ -394,32 +375,32 @@ impl<T, U> RoutingTable<T, U>
 
         // not in close group or routing table so send to closest known nodes up to parallelism
         // count
-        self.closest_nodes_to(target, parallelism())
+        self.closest_nodes_to(target, PARALLELISM)
     }
 
-    /// This returns our close group, i.e. the 'group_size()' contacts closest to our name (or the
-    /// entire table if we hold less than 'group_size()' contacts in total) sorted by closeness to us.
+    /// This returns our close group, i.e. the `GROUP_SIZE` contacts closest to our name (or the
+    /// entire table if we hold less than `GROUP_SIZE` contacts in total) sorted by closeness to us.
     pub fn our_close_group(&self) -> Vec<NodeInfo<T, U>> {
-        self.nodes.iter().take(group_size()).cloned().collect()
+        self.nodes.iter().take(GROUP_SIZE).cloned().collect()
     }
 
-    /// Returns `true` if there are fewer than `group_size()` nodes in our routing table that are
+    /// Returns `true` if there are fewer than `GROUP_SIZE` nodes in our routing table that are
     /// closer to `name` than we are.
     ///
     /// In other words, it returns `true` whenever we cannot rule out that we might be among the
-    /// `group_size()` closest nodes to `name`.
+    /// `GROUP_SIZE` closest nodes to `name`.
     ///
-    /// If the routing table is filled in such a way that each bucket contains `group_size()`
+    /// If the routing table is filled in such a way that each bucket contains `GROUP_SIZE`
     /// elements unless there aren't enough such nodes in the network, then this criterion is
     /// actually sufficient! In that case, `true` is returned if and only if we are among the
-    /// `group_size()` closest node to `name` in the network.
+    /// `GROUP_SIZE` closest node to `name` in the network.
     pub fn is_close(&self, name: &XorName) -> bool {
         self.nodes
             .iter()
             .filter(|node| {
                 ::xor_name::closer_to_target_or_equal(node.name(), &self.our_name, name)
             })
-            .count() < group_size()
+            .count() < GROUP_SIZE
     }
 
     /// Returns `true` if `lhs` is closer to this node's name that `rhs`.
@@ -459,7 +440,7 @@ impl<T, U> RoutingTable<T, U>
 
     // The node in your close group furthest from you
     fn furthest_close_node(&self) -> Option<&NodeInfo<T, U>> {
-        self.nodes.get(group_size() - 1).or(self.nodes.last())
+        self.nodes.get(GROUP_SIZE - 1).or(self.nodes.last())
     }
 
     // set the index number of the furthest close node and memoise it in the Routingtable struct
@@ -475,7 +456,7 @@ impl<T, U> RoutingTable<T, U>
     // bucket from us) checking for overfilled ones and returning the table index of the furthest
     // contact within that bucket.  No contacts within our close group will be considered.
     fn find_candidate_for_removal(&self) -> Option<usize> {
-        assert!(self.nodes.len() >= optimal_table_size());
+        assert!(self.nodes.len() >= OPTIMAL_TABLE_SIZE);
 
         let mut number_in_bucket = 0usize;
         let mut current_bucket = 0usize;
@@ -486,7 +467,7 @@ impl<T, U> RoutingTable<T, U>
 
         // Stop iterating at our furthest close group member since we won't remove any peer in our
         // close group
-        let finish = group_size();
+        let finish = GROUP_SIZE;
 
         while counter >= finish {
             let bucket_index = self.nodes[counter].bucket_index;
@@ -500,7 +481,7 @@ impl<T, U> RoutingTable<T, U>
 
             // Check for an excess of contacts in this bucket.
             number_in_bucket += 1;
-            if number_in_bucket > bucket_size() {
+            if number_in_bucket > BUCKET_SIZE {
                 break;
             }
 
@@ -562,11 +543,18 @@ impl<T, U> RoutingTable<T, U>
 
 #[cfg(test)]
 mod test {
-    use super::{BUCKET_SIZE, bucket_size, group_size, HasName, NodeInfo, RoutingTable,
-                optimal_table_size, parallelism};
+    use super::{BUCKET_SIZE, GROUP_SIZE, HasName, NodeInfo, RoutingTable, OPTIMAL_TABLE_SIZE,
+                PARALLELISM};
     use std::collections;
     use itertools::Itertools;
     use xor_name::XorName;
+
+    #[test]
+    fn constant_constraints() {
+        // These are required for the RoutingTable to make its guarantees.
+        assert!(BUCKET_SIZE == GROUP_SIZE);
+        assert!(BUCKET_SIZE >= PARALLELISM);
+    }
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     struct TestNodeInfo {
@@ -626,7 +614,7 @@ mod test {
                 table: RoutingTable::new(node_info.name()),
                 node_info: node_info,
                 name: name,
-                initial_count: (::rand::random::<usize>() % (group_size() - 1)) + 1,
+                initial_count: (::rand::random::<usize>() % (GROUP_SIZE - 1)) + 1,
                 added_names: Vec::new(),
             }
         }
@@ -643,13 +631,13 @@ mod test {
         }
 
         fn complete_filling_table(&mut self) {
-            for i in self.initial_count..optimal_table_size() {
+            for i in self.initial_count..OPTIMAL_TABLE_SIZE {
                 self.node_info.public_id.set_name(get_contact(&self.name, i, 1));
                 self.added_names.push(self.node_info.name().clone());
                 assert!(self.table.add_node(self.node_info.clone()).0);
             }
 
-            assert_eq!(optimal_table_size(), self.table.len());
+            assert_eq!(OPTIMAL_TABLE_SIZE, self.table.len());
             assert!(are_nodes_sorted(&self.table), "Nodes are not sorted");
         }
 
@@ -715,22 +703,22 @@ mod test {
         assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(test.table.len(), 1);
 
-        // Add further 'optimal_table_size()' - 1 contacts (should all succeed with no removals).
+        // Add further 'OPTIMAL_TABLE_SIZE' - 1 contacts (should all succeed with no removals).
         // Set this up so that buckets 1 and 2 have BUCKET_SIZE + 2 contacts each and all others
         // have 0 or 1 contacts.
 
         // Fill buckets 1 and 2 with two excess contacts each.
         for bucket_nr in 1..3 {
-            for d in 0..(bucket_size() + 2) {
+            for d in 0..(BUCKET_SIZE + 2) {
                 test.node_info.public_id.set_name(get_contact(&test.name, bucket_nr, d as u8));
                 assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
                 assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
             }
-            assert_eq!(bucket_nr * (bucket_size() + 2) + 1, test.table.len());
+            assert_eq!(bucket_nr * (BUCKET_SIZE + 2) + 1, test.table.len());
         }
 
         let len_with_3_buckets = test.table.len();
-        let optimal_len = optimal_table_size();
+        let optimal_len = OPTIMAL_TABLE_SIZE;
 
         // Add remaining contacts
         for bucket_nr in 3..(3 + optimal_len - len_with_3_buckets) {
@@ -755,10 +743,10 @@ mod test {
             assert_eq!((false, None), test.table.add_node(test.node_info.clone()));
             assert_eq!(optimal_len, test.table.len());
         }
-        assert_eq!(get_contact(&test.name, 1, BUCKET_SIZE + 1), dropped[0]);
-        assert_eq!(get_contact(&test.name, 1, BUCKET_SIZE), dropped[1]);
-        assert_eq!(get_contact(&test.name, 2, BUCKET_SIZE + 1), dropped[2]);
-        assert_eq!(get_contact(&test.name, 2, BUCKET_SIZE), dropped[3]);
+        assert_eq!(get_contact(&test.name, 1, BUCKET_SIZE as u8 + 1), dropped[0]);
+        assert_eq!(get_contact(&test.name, 1, BUCKET_SIZE as u8), dropped[1]);
+        assert_eq!(get_contact(&test.name, 2, BUCKET_SIZE as u8 + 1), dropped[2]);
+        assert_eq!(get_contact(&test.name, 2, BUCKET_SIZE as u8), dropped[3]);
 
         // Try to add far contacts again (should fail)
         for far_contact in dropped {
@@ -767,7 +755,7 @@ mod test {
             assert_eq!(optimal_len, test.table.len());
         }
 
-        // Add final close contact to push len() of table above optimal_table_size()
+        // Add final close contact to push len() of table above OPTIMAL_TABLE_SIZE
         test.node_info.public_id.set_name(get_contact(&test.name, optimal_len, 1));
         assert_eq!((true, None), test.table.add_node(test.node_info.clone()));
         assert_eq!(optimal_len + 1, test.table.len());
@@ -796,24 +784,24 @@ mod test {
         assert!(test.table.add_node(new_node_0).0);
         assert!(!test.table.want_to_add(&get_contact(&test.name, 0, 2)));
 
-        // Add further 'optimal_table_size()' - 1 contacts (should all succeed with no removals).
+        // Add further 'OPTIMAL_TABLE_SIZE' - 1 contacts (should all succeed with no removals).
         // Set this up so that buckets 1 and 2 have BUCKET_SIZE + 2 contacts each and all others
         // have 0 or 1 contacts.
 
         // Fill buckets 1 and 2 with two excess contacts each.
         for bucket_nr in 1..3 {
-            for d in 0..(bucket_size() + 2) {
+            for d in 0..(BUCKET_SIZE + 2) {
                 let mut new_node = create_random_node_info();
                 new_node.public_id.set_name(get_contact(&test.name, bucket_nr, d as u8));
                 assert!(test.table.want_to_add(new_node.name()));
                 assert!(test.table.add_node(new_node).0);
                 assert!(!test.table.want_to_add(&get_contact(&test.name, bucket_nr, d as u8)));
             }
-            assert_eq!(bucket_nr * (bucket_size() + 2) + 1, test.table.len());
+            assert_eq!(bucket_nr * (BUCKET_SIZE + 2) + 1, test.table.len());
         }
 
         let len_with_3_buckets = test.table.len();
-        let optimal_len = optimal_table_size();
+        let optimal_len = OPTIMAL_TABLE_SIZE;
 
         // Add remaining contacts
         for bucket_nr in 3..(3 + optimal_len - len_with_3_buckets) {
@@ -841,7 +829,7 @@ mod test {
         assert!(!test.table.want_to_add(&get_contact(&test.name, 1, 2)));
         assert!(!test.table.want_to_add(&get_contact(&test.name, 1, 1)));
 
-        // Check final close contact which would push len() of table above optimal_table_size()
+        // Check final close contact which would push len() of table above OPTIMAL_TABLE_SIZE
         assert!(test.table.want_to_add(&get_contact(&test.name, optimal_len, 1)));
     }
 
@@ -860,16 +848,16 @@ mod test {
 
         // Try with invalid Address
         test.table.drop_node(&XorName::new([0u8; 64]));
-        assert_eq!(optimal_table_size(), test.table.len());
+        assert_eq!(OPTIMAL_TABLE_SIZE, test.table.len());
 
         // Try with our Name
         let drop_name = test.table.our_name.clone();
         test.table.drop_node(&drop_name);
-        assert_eq!(optimal_table_size(), test.table.len());
+        assert_eq!(OPTIMAL_TABLE_SIZE, test.table.len());
 
         // Try with Address of node not in table
         test.table.drop_node(&get_contact(&test.name, 0, 2));
-        assert_eq!(optimal_table_size(), test.table.len());
+        assert_eq!(OPTIMAL_TABLE_SIZE, test.table.len());
 
         // Remove all nodes one at a time in random order
         let mut rng = ::rand::thread_rng();
@@ -897,7 +885,7 @@ mod test {
         let mut target_nodes = test.table.target_nodes(&rand::random());
         assert_eq!(target_nodes.len(), 0);
 
-        // Partially fill the table with <group_size() contacts
+        // Partially fill the table with <GROUP_SIZE contacts
         test.partially_fill_table();
 
         // Check we get all contacts returned
@@ -915,14 +903,14 @@ mod test {
             assert!(assert_checker == 1);
         }
 
-        // Complete filling the table up to optimal_table_size() contacts
+        // Complete filling the table up to OPTIMAL_TABLE_SIZE contacts
         test.complete_filling_table();
 
         // Try with our ID (should return closest to us, i.e. buckets 63 to 32)
         target_nodes = test.table.target_nodes(&test.table.our_name);
-        assert_eq!(group_size(), target_nodes.len());
+        assert_eq!(GROUP_SIZE, target_nodes.len());
 
-        for i in ((optimal_table_size() - group_size())..optimal_table_size() - 1).rev() {
+        for i in ((OPTIMAL_TABLE_SIZE - GROUP_SIZE)..OPTIMAL_TABLE_SIZE - 1).rev() {
             let mut assert_checker = 0;
             for j in 0..target_nodes.len() {
                 if *target_nodes[j].name() == get_contact(&test.name, i, 1) {
@@ -934,13 +922,13 @@ mod test {
         }
 
         // Try with nodes far from us, first time *not* in table and second time *in* table (should
-        // return 'parallelism()' contacts closest to target first time and the single actual target
+        // return 'PARALLELISM' contacts closest to target first time and the single actual target
         // the second time)
         let mut target: XorName;
         for count in 0..2 {
-            for i in 0..(optimal_table_size() - group_size()) {
+            for i in 0..(OPTIMAL_TABLE_SIZE - GROUP_SIZE) {
                 let (target, expected_len) = if count == 0 {
-                    (get_contact(&test.name, i, 2).clone(), parallelism())
+                    (get_contact(&test.name, i, 2).clone(), PARALLELISM)
                 } else {
                     (get_contact(&test.name, i, 1).clone(), 1)
                 };
@@ -960,16 +948,16 @@ mod test {
         }
 
         // Try with nodes close to us, first time *not* in table and second time *in* table (should
-        // return group_size() closest to target)
+        // return GROUP_SIZE closest to target)
         for count in 0..2 {
-            for i in (optimal_table_size() - group_size() + 1)..optimal_table_size() {
+            for i in (OPTIMAL_TABLE_SIZE - GROUP_SIZE + 1)..OPTIMAL_TABLE_SIZE {
                 target = if count == 0 {
                     get_contact(&test.name, i, 0).clone()
                 } else {
                     get_contact(&test.name, i, 1).clone()
                 };
                 target_nodes = test.table.target_nodes(&target);
-                assert_eq!(group_size(), target_nodes.len());
+                assert_eq!(GROUP_SIZE, target_nodes.len());
                 for i in 0..target_nodes.len() {
                     let mut assert_checker = 0;
                     for j in 0..test.added_names.len() {
@@ -1003,7 +991,7 @@ mod test {
         }
 
         test.complete_filling_table();
-        assert_eq!(group_size(), test.table.our_close_group().len());
+        assert_eq!(GROUP_SIZE, test.table.our_close_group().len());
 
         for close_node in &test.table.our_close_group() {
             assert_eq!(1,
@@ -1015,7 +1003,7 @@ mod test {
     fn our_close_group_and_is_close() {
         let mut tables = collections::HashMap::new();
         // Create nodes such that each can exactly fill up its routing table.
-        for _ in 0..(optimal_table_size() + 1) {
+        for _ in 0..(OPTIMAL_TABLE_SIZE + 1) {
             let node_info = create_random_node_info();
             let table = RoutingTable::<TestNodeInfo, u64>::new(node_info.name());
             let _ = tables.insert(node_info.name().clone(), table);
@@ -1028,15 +1016,15 @@ mod test {
                     let _ = tables.get_mut(name0).unwrap().add_node(to_node_info(name1));
                 }
             }
-            assert_eq!(optimal_table_size(), tables[name0].len());
+            assert_eq!(OPTIMAL_TABLE_SIZE, tables[name0].len());
         }
         // Check close groups of addresses that are not nodes.
         for _ in 0..1000 {
             let name = ::rand::random();
             let close_group_size = tables.values().filter(|t| t.is_close(&name)).count();
-            assert_eq!(group_size(), close_group_size);
+            assert_eq!(GROUP_SIZE, close_group_size);
             // TODO: Find a way to ensure at least the following for more than 65 nodes.
-            // assert!(quorum_size() <= close_group_size && close_group_size < 2 * quorum_size(),
+            // assert!(QUORUM_SIZE <= close_group_size && close_group_size < 2 * QUORUM_SIZE,
             //         "Close group has {} elements", close_group_size);
         }
         // Check close groups of the nodes' addresses.
@@ -1045,7 +1033,7 @@ mod test {
                                             .filter(|t| t.is_close(&name))
                                             .map(|t| t.our_name().clone())
                                             .sorted_by(&mut *make_sort_predicate(name.clone()));
-            assert_eq!(group_size(), close_group.len());
+            assert_eq!(GROUP_SIZE, close_group.len());
             let our_close_group: Vec<_> = tables[&name]
                                               .our_close_group()
                                               .into_iter()
@@ -1053,7 +1041,7 @@ mod test {
                                               .collect();
             // The node itself is not in `our_close_group`, but it is in `close_group`:
             assert_eq!(close_group[1..].to_vec(),
-                       our_close_group[..(group_size() - 1)].to_vec());
+                       our_close_group[..(GROUP_SIZE - 1)].to_vec());
         }
     }
 
@@ -1075,7 +1063,7 @@ mod test {
         for it in tables.iter() {
             addresses.sort_by(&mut *make_sort_predicate(it.our_name.clone()));
             let mut groups = it.our_close_group();
-            assert_eq!(groups.len(), group_size());
+            assert_eq!(groups.len(), GROUP_SIZE);
 
             // TODO(Spandan) vec.dedup does not compile - manually doing it
             if groups.len() > 1 {
@@ -1091,9 +1079,9 @@ mod test {
                 assert_eq!(new_end, groups.len());
             }
 
-            assert_eq!(groups.len(), group_size());
+            assert_eq!(groups.len(), GROUP_SIZE);
 
-            for i in 0..group_size() {
+            for i in 0..GROUP_SIZE {
                 assert!(groups[i].name() == &addresses[i + 1]);
             }
         }
@@ -1136,7 +1124,7 @@ mod test {
         for i in 0..tables.len() {
             addresses.sort_by(&mut *make_sort_predicate(tables[i].our_name.clone()));
             let group = tables[i].our_close_group();
-            assert_eq!(group.len(), ::std::cmp::min(group_size(), tables[i].len()));
+            assert_eq!(group.len(), ::std::cmp::min(GROUP_SIZE, tables[i].len()));
         }
     }
 
@@ -1161,10 +1149,10 @@ mod test {
         for i in 0..tables.len() {
             addresses.sort_by(&mut *make_sort_predicate(tables[i].our_name.clone()));
             // if target is in close group return the whole close group excluding target
-            for j in 1..group_size() {
+            for j in 1..GROUP_SIZE {
                 if tables[i].is_close(&addresses[j]) {
                     let target_close_group = tables[i].target_nodes(&addresses[j]);
-                    assert_eq!(group_size(), target_close_group.len());
+                    assert_eq!(GROUP_SIZE, target_close_group.len());
                     tested_close_target = true;
                 }
             }
@@ -1214,7 +1202,7 @@ mod test {
         }
         // EXPECT_TRUE(asymm::MatchingKeys(info_.dht_public_id.public_key(),
         //                                 *table_.GetPublicKey(info_.name())));
-        assert_eq!(optimal_table_size(), test.table.nodes.len());
+        assert_eq!(OPTIMAL_TABLE_SIZE, test.table.nodes.len());
     }
 
     #[test]
