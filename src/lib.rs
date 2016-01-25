@@ -129,6 +129,7 @@ extern crate rand;
 extern crate xor_name;
 
 use itertools::*;
+use std::cmp;
 use xor_name::XorName;
 
 /// The size of a close group.
@@ -309,12 +310,18 @@ impl<T, U> RoutingTable<T, U>
         }
     }
 
-    /// Returns the current calculated quorum size. This is dependent on the current routing table
-    /// size.
+    /// Returns the current calculated quorum size.
+    ///
+    /// If it is known that the network has at least `GROUP_SIZE` nodes, this returns the constant
+    /// `QUORUM_SIZE`. For networks smaller than that, the quorum might not be reachable, so a
+    /// smaller number is computed which represents a strict majority in the current network.
     pub fn dynamic_quorum_size(&self) -> usize {
-        let factor: f32 = QUORUM_SIZE as f32 / GROUP_SIZE as f32;
-        ::std::cmp::min((self.nodes.len() as f32 * factor).round() as usize,
-                        QUORUM_SIZE)
+        let network_size = self.nodes.len() + 1; // Routing table entries plus this node itself.
+        if network_size >= GROUP_SIZE {
+            QUORUM_SIZE
+        } else {
+            cmp::max(network_size * QUORUM_SIZE / GROUP_SIZE, network_size / 2 + 1)
+        }
     }
 
     /// This unconditionally removes the contact from the table.
@@ -545,6 +552,7 @@ impl<T, U> RoutingTable<T, U>
 mod test {
     use super::{BUCKET_SIZE, GROUP_SIZE, HasName, NodeInfo, RoutingTable, OPTIMAL_TABLE_SIZE,
                 PARALLELISM};
+    use std::cmp;
     use std::collections;
     use itertools::Itertools;
     use xor_name::XorName;
@@ -679,7 +687,7 @@ mod test {
         }
     }
 
-    fn make_sort_predicate(target: XorName) -> Box<FnMut(&XorName, &XorName) -> ::std::cmp::Ordering> {
+    fn make_sort_predicate(target: XorName) -> Box<FnMut(&XorName, &XorName) -> cmp::Ordering> {
         Box::new(move |lhs: &XorName, rhs: &XorName| target.cmp_closeness(lhs, rhs))
     }
 
@@ -1124,7 +1132,7 @@ mod test {
         for i in 0..tables.len() {
             addresses.sort_by(&mut *make_sort_predicate(tables[i].our_name.clone()));
             let group = tables[i].our_close_group();
-            assert_eq!(group.len(), ::std::cmp::min(GROUP_SIZE, tables[i].len()));
+            assert_eq!(group.len(), cmp::min(GROUP_SIZE, tables[i].len()));
         }
     }
 
