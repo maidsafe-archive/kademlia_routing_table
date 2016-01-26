@@ -303,6 +303,14 @@ impl<T, U> RoutingTable<T, U>
         }
     }
 
+    /// Returns the bucket index of the furthest close node.
+    pub fn furthest_close_bucket(&self) -> usize {
+        match self.nodes.iter().take(GROUP_SIZE - 1).last() {
+            None => xor_name::XOR_NAME_BITS - 1,
+            Some(node) => self.bucket_index(node.name()),
+        }
+    }
+
     /// Removes the contact from the table.
     ///
     /// Returns the dropped node if the contact was present in the table.
