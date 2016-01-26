@@ -318,11 +318,16 @@ impl<T, U> RoutingTable<T, U>
         self.binary_search(node_to_drop).ok().map(|i| self.nodes.remove(i))
     }
 
-    /// This should be called when a connection has dropped.  If the
-    /// affected entry has no connections after removing this one, the entry is removed from the
-    /// routing table and its name is returned.  If the entry still has at least one connection, or
-    /// an entry cannot be found for 'lost_connection', the function returns 'None'.
-    pub fn drop_connection(&mut self, lost_connection: &U) -> Option<XorName> {
+    /// This should be called when a connection has dropped.
+    ///
+    /// If the affected entry has no connections after removing this one, the entry is removed from
+    /// the routing table and its name is returned as the first entry in the result tuple. If the
+    /// entry still has at least one connection, or an entry cannot be found for `lost_connection`,
+    /// this is `None`.
+    ///
+    /// If an entry has been removed from a full bucket, the bucket index is returned as the second
+    /// entry of the result. It indicates that an attempt to refill that bucket has to be made.
+    pub fn drop_connection(&mut self, lost_connection: &U) -> (Option<XorName>, Option<usize>) {
         let remove_connection = |node_info: &mut NodeInfo<T, U>| {
             if let Some(index) = node_info.connections
                                           .iter()
@@ -335,10 +340,20 @@ impl<T, U> RoutingTable<T, U>
         };
         if let Some(node_index) = self.nodes.iter_mut().position(remove_connection) {
             if self.nodes[node_index].connections.is_empty() {
-                return Some(self.nodes.remove(node_index).name().clone());
+                let bucket_index = self.nodes[node_index].bucket_index;
+                let opt_bucket_index = if self.nodes
+                                          .iter()
+                                          .filter(|n| n.bucket_index == bucket_index)
+                                          .take(GROUP_SIZE)
+                                          .count() == GROUP_SIZE {
+                    Some(bucket_index)
+                } else {
+                    None
+                };
+                return (Some(self.nodes.remove(node_index).name().clone()), opt_bucket_index);
             }
         }
-        None
+        (None, None)
     }
 
     /// Returns the `n` nodes in our routing table that are closest to `target`.
