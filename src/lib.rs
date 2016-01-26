@@ -225,22 +225,34 @@ impl<T, U> RoutingTable<T, U>
 
     /// Adds a contact to the routing table, or updates it.
     ///
-    /// Returns `true` if the contact didn't already exist.
-    pub fn add_node(&mut self, mut node: NodeInfo<T, U>) -> bool {
+    /// Returns `None` if the contact already existed. Otherwise it returns the number of contacts
+    /// that need to be notified about the new node: If the bucket was already full, that's nobody,
+    /// but if it wasn't, everyone with a bucket index greater than the new nodes' must be
+    /// notified.
+    pub fn add_node(&mut self, mut node: NodeInfo<T, U>) -> Option<Vec<XorName>> {
         if node.name() == &self.our_name {
-            return false;
+            return None;
         }
         match self.binary_search(node.name()) {
             Ok(i) => {
                 // Node already exists! Update the entry:
                 self.nodes[i].connections.extend(node.connections);
-                false
+                None
             }
             Err(i) => {
                 // No existing entry, so set the node's bucket distance and insert it.
                 node.bucket_index = self.bucket_index(&node.name());
+                let nodes_to_notify = if self.is_bucket_full(node.bucket_index) {
+                    vec!()
+                } else {
+                    self.nodes
+                        .iter()
+                        .take_while(|n| n.bucket_index > node.bucket_index)
+                        .map(|n| n.name().clone())
+                        .collect()
+                };
                 self.nodes.insert(i, node);
-                true
+                Some(nodes_to_notify)
             }
         }
     }
@@ -340,20 +352,20 @@ impl<T, U> RoutingTable<T, U>
         };
         if let Some(node_index) = self.nodes.iter_mut().position(remove_connection) {
             if self.nodes[node_index].connections.is_empty() {
-                let bucket_index = self.nodes[node_index].bucket_index;
-                let opt_bucket_index = if self.nodes
-                                          .iter()
-                                          .filter(|n| n.bucket_index == bucket_index)
-                                          .take(GROUP_SIZE)
-                                          .count() == GROUP_SIZE {
-                    Some(bucket_index)
+                let bucket_index = if self.is_bucket_full(self.nodes[node_index].bucket_index) {
+                    Some(self.nodes[node_index].bucket_index)
                 } else {
                     None
                 };
-                return (Some(self.nodes.remove(node_index).name().clone()), opt_bucket_index);
+                return (Some(self.nodes.remove(node_index).name().clone()), bucket_index);
             }
         }
         (None, None)
+    }
+
+    /// Returns `true` if the bucket with the given index has at least `GROUP_SIZE` entries.
+    fn is_bucket_full(&self, index: usize) -> bool {
+        self.nodes.iter().filter(|n| n.bucket_index == index).take(GROUP_SIZE).count() == GROUP_SIZE
     }
 
     /// Returns the `n` nodes in our routing table that are closest to `target`.
@@ -567,7 +579,7 @@ mod test {
             for i in 0..self.initial_count {
                 self.node_info.public_id.set_name(get_contact(&self.name, i, 1));
                 self.added_names.push(self.node_info.name().clone());
-                assert!(self.table.add_node(self.node_info.clone()));
+                assert!(self.table.add_node(self.node_info.clone()).is_some());
             }
 
             assert_eq!(self.initial_count, self.table.len());
@@ -578,7 +590,7 @@ mod test {
             for i in self.initial_count..TABLE_SIZE {
                 self.node_info.public_id.set_name(get_contact(&self.name, i, 1));
                 self.added_names.push(self.node_info.name().clone());
-                assert!(self.table.add_node(self.node_info.clone()));
+                assert!(self.table.add_node(self.node_info.clone()).is_some());
             }
 
             assert_eq!(TABLE_SIZE, self.table.len());
@@ -635,16 +647,16 @@ mod test {
 
         // try with our name - should fail
         test.node_info.public_id.set_name(test.table.our_name);
-        assert!(!test.table.add_node(test.node_info.clone()));
+        assert!(test.table.add_node(test.node_info.clone()).is_none());
         assert_eq!(test.table.len(), 0);
 
         // add first contact
         test.node_info.public_id.set_name(get_contact(&test.name, 0, 2));
-        assert!(test.table.add_node(test.node_info.clone()));
+        assert!(test.table.add_node(test.node_info.clone()).is_some());
         assert_eq!(test.table.len(), 1);
 
         // try with the same contact - should fail
-        assert!(!test.table.add_node(test.node_info.clone()));
+        assert!(test.table.add_node(test.node_info.clone()).is_none());
         assert_eq!(test.table.len(), 1);
     }
 
@@ -666,7 +678,7 @@ mod test {
         // Add the first contact, and check it doesn't allow duplicates
         let mut new_node_0 = create_random_node_info();
         new_node_0.public_id.set_name(get_contact(&test.name, 0, 2));
-        assert!(test.table.add_node(new_node_0));
+        assert!(test.table.add_node(new_node_0).is_some());
         assert!(!test.table.want_to_add(&get_contact(&test.name, 0, 2)));
     }
 
@@ -992,7 +1004,7 @@ mod test {
         test.partially_fill_table();
         let test_node = create_random_node_info();
         test.node_info = test_node.clone();
-        assert!(test.table.add_node(test.node_info.clone()));
+        assert!(test.table.add_node(test.node_info.clone()).is_some());
 
         match test.public_id(test.node_info.name()) {
             Some(_) => {}
@@ -1011,7 +1023,7 @@ mod test {
         test.complete_filling_table();
         assert!(test.table.drop_node(&get_contact(&test.name, 0, 1)).is_some());
         test.node_info = test_node.clone();
-        assert!(test.table.add_node(test.node_info.clone()));
+        assert!(test.table.add_node(test.node_info.clone()).is_some());
 
         match test.public_id(test.node_info.name()) {
             Some(_) => {}
