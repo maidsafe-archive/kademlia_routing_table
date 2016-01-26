@@ -344,7 +344,7 @@ impl<T, U> RoutingTable<T, U>
     /// Returns the `n` nodes in our routing table that are closest to `target`.
     ///
     /// Returns fewer than `n` nodes if the routing table doesn't have enough entries.
-    fn closest_nodes_to(&self, target: &XorName, n: usize) -> Vec<NodeInfo<T, U>> {
+    pub fn closest_nodes_to(&self, target: &XorName, n: usize) -> Vec<NodeInfo<T, U>> {
         // TODO: Sorting *all* the nodes to get the n closest ones is inefficient!
         let mut result = self.nodes
                              .iter()
