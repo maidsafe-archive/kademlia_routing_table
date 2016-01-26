@@ -229,7 +229,7 @@ impl<T, U> RoutingTable<T, U>
     /// that need to be notified about the new node: If the bucket was already full, that's nobody,
     /// but if it wasn't, everyone with a bucket index greater than the new nodes' must be
     /// notified.
-    pub fn add_node(&mut self, mut node: NodeInfo<T, U>) -> Option<Vec<XorName>> {
+    pub fn add_node(&mut self, mut node: NodeInfo<T, U>) -> Option<Vec<NodeInfo<T, U>>> {
         if node.name() == &self.our_name {
             return None;
         }
@@ -248,7 +248,7 @@ impl<T, U> RoutingTable<T, U>
                     self.nodes
                         .iter()
                         .take_while(|n| n.bucket_index > node.bucket_index)
-                        .map(|n| n.name().clone())
+                        .cloned()
                         .collect()
                 };
                 self.nodes.insert(i, node);
