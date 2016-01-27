@@ -539,7 +539,6 @@ impl<T, U> RoutingTable<T, U>
         !self.is_bucket_full(bucket_index)
             || self.nodes
                    .iter()
-                   .rev()
                    .take(GROUP_SIZE - 1)
                    .take_while(|n| n.bucket_index > bucket_index)
                    .count() < GROUP_SIZE - 1
