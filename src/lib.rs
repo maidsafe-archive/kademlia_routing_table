@@ -732,6 +732,63 @@ mod test {
     }
 
     #[test]
+    fn add_node_to_full_bucket() {
+        // add node to a full bucket whose nodes share close group with us
+        let mut test = TestEnvironment::new();
+
+        for i in 0..GROUP_SIZE {
+            test.node_info.public_id.set_name(get_contact(&test.name, 1, i as u8));
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
+        }
+
+        test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
+        let r = test.table.add_node(test.node_info.clone()).unwrap();
+        assert_eq!(r.0, Vec::new());
+        assert_eq!(r.1, true);
+
+        // add node to a full bucket whose nodes do not share close group with us
+        test = TestEnvironment::new();
+
+        for i in 0..GROUP_SIZE {
+            test.node_info.public_id.set_name(get_contact(&test.name, 1, i as u8));
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
+        }
+
+        for i in 0..GROUP_SIZE {
+            test.node_info.public_id.set_name(get_contact(&test.name, 2, i as u8));
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
+        }
+
+        test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
+        let r = test.table.add_node(test.node_info.clone()).unwrap();
+        assert_eq!(r.0, Vec::new());
+        assert_eq!(r.1, false);
+    }
+
+    #[test]
+    fn add_node_to_bucket_that_is_not_full() {
+        let mut test = TestEnvironment::new();
+
+        for i in 0..(GROUP_SIZE / 2) {
+            test.node_info.public_id.set_name(get_contact(&test.name, 1, i as u8));
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
+        }
+
+        let name_to_notify0 = get_contact(&test.name, 2, 0);
+        test.node_info.public_id.set_name(name_to_notify0);
+        assert!(test.table.add_node(test.node_info.clone()).is_some());
+
+        let name_to_notify1 = get_contact(&test.name, 3, 0);
+        test.node_info.public_id.set_name(name_to_notify1);
+        assert!(test.table.add_node(test.node_info.clone()).is_some());
+
+        test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
+        let r = test.table.add_node(test.node_info.clone()).unwrap();
+        assert!(r.0.iter().any(|n| *n.name() == name_to_notify0));
+        assert!(r.0.iter().any(|n| *n.name() == name_to_notify1));
+    }
+
+    #[test]
     fn add_connection() {
         let mut test = TestEnvironment::new();
         let mut node0 = create_random_node_info();
@@ -813,41 +870,68 @@ mod test {
         let conn2 = 3;
 
         let mut node = create_random_node_info();
+        node.connections.push(1);
+        node.connections.push(2);
         let name = node.name().clone();
         node.connections.push(conn0);
         node.connections.push(conn1);
         assert!(test.table.add_node(node).is_some());
 
-        // Try droping non-existing connection
-        assert_eq!(test.table.drop_connection(&conn2), None);
+        // Try to drop non-existing connection.
+        assert_eq!(test.table.drop_connection(&3), None);
 
-        // The node still has some connections after the drop
-        assert_eq!(test.table.drop_connection(&conn0), None);
+        // The node still has some connection left after the drop
+        assert_eq!(test.table.drop_connection(&1), None);
+        assert!(test.table.get(&name).unwrap().connections.len() > 0);
 
-        // The node has no connections left, so it should be removed
-        assert_eq!(test.table.drop_connection(&conn1), Some((name, None, true)));
+        // The node has no more connections and should be removed.
+        assert_eq!(test.table.drop_connection(&2), Some((name, None, true)));
         assert!(test.table.get(&name).is_none());
 
-        // Fill one bucket and then drop connection from a node in that bucket.
-        let bucket_index = 0;
-        let mut node = create_named_node_info(get_contact(test.node_info.name(), bucket_index, 0));
-        let name = node.name().clone();
-        node.connections.push(conn0);
-        assert!(test.table.add_node(node).is_some());
+        // Try dropping connection of a node in full bucket
+        let bucket_index = 100;
+        for i in 0..GROUP_SIZE {
+            let name = get_contact(test.node_info.name(), bucket_index, i as u8);
+            let mut node = create_named_node_info(name);
+            node.connections.push(1 + i as u64);
 
-        for i in 1..GROUP_SIZE {
-            assert!(test.table
-                        .add_node(create_named_node_info(get_contact(test.node_info
-                                                                         .name(),
-                                                                     bucket_index,
-                                                                     i as u8)))
-                        .is_some());
+            assert!(test.table.add_node(node).is_some());
         }
 
-        assert!(test.table.is_bucket_full(bucket_index));
-        assert_eq!(test.table.drop_connection(&conn0), Some((name, Some(bucket_index), true)));
+        let r = test.table.drop_connection(&1).unwrap();
+        assert_eq!(r.1, Some(bucket_index));
+        assert_eq!(r.2, true);
 
-        // TODO: test the case when the third element of the returned tuple should be false.
+        // Try dropping connection of node in full bucket whose nodes do not share
+        // close group with us.
+        test = TestEnvironment::new();
+        let mut connection_assigned = false;
+
+        // ...full bucket, close to us
+        for i in 0..GROUP_SIZE {
+            let name = get_contact(test.node_info.name(), 1, i as u8);
+            let node = create_named_node_info(name);
+            assert!(test.table.add_node(node).is_some());
+        }
+        assert!(test.table.is_bucket_full(1));
+
+        // ...full bucket, further away from us
+        for i in 0..GROUP_SIZE {
+            let name = get_contact(test.node_info.name(), 0, i as u8);
+            let mut node = create_named_node_info(name);
+
+            if !connection_assigned {
+                node.connections.push(1);
+                connection_assigned = true;
+            }
+
+            assert!(test.table.add_node(node).is_some());
+        }
+        assert!(test.table.is_bucket_full(0));
+
+        let r = test.table.drop_connection(&1).unwrap();
+        assert_eq!(r.1, Some(0));
+        assert_eq!(r.2, false);
     }
 
     #[test]
