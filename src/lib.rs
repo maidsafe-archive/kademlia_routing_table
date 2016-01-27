@@ -527,7 +527,7 @@ impl<T, U> RoutingTable<T, U>
     fn binary_search(&self, name: &XorName) -> Result<usize, usize> {
         self.nodes.binary_search_by(|other| self.our_name.cmp_distance(other.name(), name))
     }
-    
+
     /// Returns whether we share any close groups with the nodes in the given bucket.
     ///
     /// If the bucket is not full or we have less than `GROUP_SIZE - 1` contacts with a greater
@@ -566,27 +566,27 @@ mod test {
     }
 
     #[derive(Clone, Debug, PartialEq, Eq)]
-    struct TestNodeInfo {
+    struct TestPublicId {
         name: XorName,
     }
 
-    impl TestNodeInfo {
-        fn new() -> TestNodeInfo {
-            TestNodeInfo { name: rand::random::<XorName>() }
+    impl TestPublicId {
+        fn new() -> TestPublicId {
+            TestPublicId { name: rand::random::<XorName>() }
         }
         fn set_name(&mut self, name: XorName) {
             self.name = name;
         }
     }
 
-    impl HasName for TestNodeInfo {
+    impl HasName for TestPublicId {
         fn name(&self) -> &XorName {
             &self.name
         }
     }
 
-    fn to_node_info(name: &XorName) -> NodeInfo<TestNodeInfo, u64> {
-        NodeInfo::new(TestNodeInfo { name: name.clone() }, vec![])
+    fn to_node_info(name: &XorName) -> NodeInfo<TestPublicId, u64> {
+        NodeInfo::new(TestPublicId { name: name.clone() }, vec![])
     }
 
     /// Creates a name in the `index`-th bucket of the table with the given name, where
@@ -617,8 +617,8 @@ mod test {
     }
 
     struct TestEnvironment {
-        table: RoutingTable<TestNodeInfo, u64>,
-        node_info: NodeInfo<TestNodeInfo, u64>,
+        table: RoutingTable<TestPublicId, u64>,
+        node_info: NodeInfo<TestPublicId, u64>,
         name: XorName,
         initial_count: usize,
         added_names: Vec<XorName>,
@@ -632,7 +632,7 @@ mod test {
                 table: RoutingTable::new(node_info.name()),
                 node_info: node_info,
                 name: name,
-                initial_count: (::rand::random::<usize>() % (GROUP_SIZE - 1)) + 1,
+                initial_count: (rand::random::<usize>() % (GROUP_SIZE - 1)) + 1,
                 added_names: Vec::new(),
             }
         }
@@ -659,33 +659,42 @@ mod test {
             assert!(are_nodes_sorted(&self.table), "Nodes are not sorted");
         }
 
-        fn public_id(&self, name: &XorName) -> Option<TestNodeInfo> {
+        fn public_id(&self, name: &XorName) -> Option<TestPublicId> {
             assert!(are_nodes_sorted(&self.table), "Nodes are not sorted");
-            match self.table.nodes.iter().find(|node_info| node_info.name() == name) {
-                Some(node) => Some(node.public_id.clone()),
-                None => None,
-            }
+            self.table
+                .nodes
+                .iter()
+                .find(|node_info| node_info.name() == name)
+                .map(|node| node.public_id.clone())
         }
     }
 
-    fn create_random_node_info() -> NodeInfo<TestNodeInfo, u64> {
+    fn create_random_node_info() -> NodeInfo<TestPublicId, u64> {
         NodeInfo {
-            public_id: TestNodeInfo::new(),
+            public_id: TestPublicId::new(),
             connections: Vec::new(),
             bucket_index: 0,
         }
     }
 
-    fn create_random_routing_tables(num_of_tables: usize) -> Vec<RoutingTable<TestNodeInfo, u64>> {
+    fn create_named_node_info(name: XorName) -> NodeInfo<TestPublicId, u64> {
+        NodeInfo {
+            public_id: TestPublicId { name: name },
+            connections: Vec::new(),
+            bucket_index: 0,
+        }
+    }
+
+    fn create_random_routing_tables(num_of_tables: usize) -> Vec<RoutingTable<TestPublicId, u64>> {
         use rand;
-        let mut vector: Vec<RoutingTable<TestNodeInfo, u64>> = Vec::with_capacity(num_of_tables);
+        let mut vector: Vec<RoutingTable<TestPublicId, u64>> = Vec::with_capacity(num_of_tables);
         for _ in 0..num_of_tables {
             vector.push(RoutingTable::new(&rand::random()));
         }
         vector
     }
 
-    fn are_nodes_sorted(routing_table: &RoutingTable<TestNodeInfo, u64>) -> bool {
+    fn are_nodes_sorted(routing_table: &RoutingTable<TestPublicId, u64>) -> bool {
         if routing_table.nodes.len() < 2 {
             true
         } else {
@@ -724,7 +733,22 @@ mod test {
 
     #[test]
     fn add_connection() {
-        // TODO: implement
+        let mut test = TestEnvironment::new();
+        let mut node0 = create_random_node_info();
+        let name0 = node0.name().clone();
+        node0.connections.push(1);
+
+        assert!(test.table.add_node(node0).is_some());
+
+        // try adding connection to non-existing node - should fail
+        let name1 = rand::random();
+        assert!(!test.table.add_connection(&name1, 2));
+
+        // try adding connection that already exist - should fail
+        assert!(!test.table.add_connection(&name0, 1));
+
+        // try adding new connection
+        assert!(test.table.add_connection(&name0, 2));
     }
 
     #[test]
@@ -783,7 +807,47 @@ mod test {
 
     #[test]
     fn drop_connection() {
-        // implement
+        let mut test = TestEnvironment::new();
+        let conn0 = 1;
+        let conn1 = 2;
+        let conn2 = 3;
+
+        let mut node = create_random_node_info();
+        let name = node.name().clone();
+        node.connections.push(conn0);
+        node.connections.push(conn1);
+        assert!(test.table.add_node(node).is_some());
+
+        // Try droping non-existing connection
+        assert_eq!(test.table.drop_connection(&conn2), None);
+
+        // The node still has some connections after the drop
+        assert_eq!(test.table.drop_connection(&conn0), None);
+
+        // The node has no connections left, so it should be removed
+        assert_eq!(test.table.drop_connection(&conn1), Some((name, None, true)));
+        assert!(test.table.get(&name).is_none());
+
+        // Fill one bucket and then drop connection from a node in that bucket.
+        let bucket_index = 0;
+        let mut node = create_named_node_info(get_contact(test.node_info.name(), bucket_index, 0));
+        let name = node.name().clone();
+        node.connections.push(conn0);
+        assert!(test.table.add_node(node).is_some());
+
+        for i in 1..GROUP_SIZE {
+            assert!(test.table
+                        .add_node(create_named_node_info(get_contact(test.node_info
+                                                                         .name(),
+                                                                     bucket_index,
+                                                                     i as u8)))
+                        .is_some());
+        }
+
+        assert!(test.table.is_bucket_full(bucket_index));
+        assert_eq!(test.table.drop_connection(&conn0), Some((name, Some(bucket_index), true)));
+
+        // TODO: test the case when the third element of the returned tuple should be false.
     }
 
     #[test]
@@ -919,7 +983,7 @@ mod test {
         let mut tables = collections::HashMap::new();
         for _ in 0..TABLE_SIZE {
             let node_info = create_random_node_info();
-            let table = RoutingTable::<TestNodeInfo, u64>::new(node_info.name());
+            let table = RoutingTable::<TestPublicId, u64>::new(node_info.name());
             let _ = tables.insert(node_info.name().clone(), table);
         }
         let keys: Vec<XorName> = tables.keys().cloned().collect();
@@ -1103,7 +1167,7 @@ mod test {
     fn bucket_index() {
         // Set our name for routing table to max possible value (in binary, all `1`s)
         let our_name = XorName::new([255u8; xor_name::XOR_NAME_LEN]);
-        let routing_table = RoutingTable::<TestNodeInfo, u64>::new(&our_name);
+        let routing_table = RoutingTable::<TestPublicId, u64>::new(&our_name);
 
         // Iterate through each u8 element of a target name identical to ours and set it to each
         // possible value for u8 other than 255 (since that which would a target name identical to
