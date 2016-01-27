@@ -391,6 +391,33 @@ impl<T, U> RoutingTable<T, U>
         result
     }
 
+    /// Returns whether we are close to one of `name`'s bucket addresses or to `name` itself.
+    pub fn is_close_to_bucket_of(&self, name: &XorName) -> bool {
+        // We are close to `name` if all buckets where `name` disagrees with us have less than
+        // GROUP_SIZE entries in total. Therefore we are close to a bucket address of `name`, if
+        // removing the largest such bucket gets us below GROUP_SIZE.
+        let mut closer_contacts: usize = 0;
+        let mut largest_bucket: usize = 0;
+        let mut current_bucket: usize = 0;
+        let mut current_bucket_index: usize = 0;
+        for node in self.nodes.iter() {
+            let i = node.bucket_index;
+            if (self.our_name().0[i / 8] ^ name.0[i / 8]) & (1 << (7 - i % 8)) != 0 {
+                if i != current_bucket_index {
+                    largest_bucket = cmp::max(largest_bucket, current_bucket);
+                    current_bucket = 0;
+                    current_bucket_index = i;
+                    if closer_contacts >= largest_bucket + GROUP_SIZE {
+                        return false;
+                    }
+                }
+                closer_contacts += 1;
+                current_bucket += 1;
+            }
+        }
+        closer_contacts < largest_bucket + GROUP_SIZE
+    }
+
     /// Returns a collection of nodes to which a message should be sent onwards.
     ///
     /// If the message is addressed at a group and we are a member of that group, this returns all
@@ -569,7 +596,16 @@ mod test {
     fn get_contact(table_name: &XorName, index: usize, distance: u8) -> XorName {
         let XorName(mut arr) = table_name.clone();
         // Invert all bits starting with the `index`th one, so the bucket distance is `index`.
-        arr[index / 8] = arr[index / 8] ^ (1 << (8 - index % 8) - 1);
+        arr[index / 8] = arr[index / 8] ^ match index % 8 {
+            0 => 0b11111111,
+            1 => 0b01111111,
+            2 => 0b00111111,
+            3 => 0b00011111,
+            4 => 0b00001111,
+            5 => 0b00000111,
+            6 => 0b00000011,
+            _ => 0b00000001,
+        };
         for i in (index / 8 + 1)..(arr.len() - 1) {
             arr[i] = arr[i] ^ 255;
         }
@@ -1119,5 +1155,51 @@ mod test {
         // Check the bucket index of our own name is 512
         assert_eq!(::xor_name::XOR_NAME_LEN * 8,
                    routing_table.bucket_index(&our_name));
+    }
+
+    #[test]
+    fn is_close_to_bucket_of() {
+        let mut test = TestEnvironment::new();
+
+        assert!(test.table.is_close_to_bucket_of(&rand::random()));
+
+        // Fill the first buckets with [GROUP_SIZE - 1, GROUP_SIZE - 1, GROUP_SIZE, GROUP_SIZE, 1]
+        // elements
+        for i in 0..(GROUP_SIZE - 1) {
+            test.node_info.public_id.set_name(get_contact(&test.name, 0, i as u8));
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
+        }
+        for i in 0..(GROUP_SIZE - 1) {
+            test.node_info.public_id.set_name(get_contact(&test.name, 1, i as u8));
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
+        }
+        for i in 0..GROUP_SIZE {
+            test.node_info.public_id.set_name(get_contact(&test.name, 2, i as u8));
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
+        }
+        for i in 0..GROUP_SIZE {
+            test.node_info.public_id.set_name(get_contact(&test.name, 3, i as u8));
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
+        }
+        test.node_info.public_id.set_name(get_contact(&test.name, 4, 0));
+        assert!(test.table.add_node(test.node_info.clone()).is_some());
+
+        let name = get_contact(&test.name, 2, 1);
+        assert!(!test.table.is_close(&name));
+        assert!(!test.table.is_close_to_bucket_of(&name));
+
+        let name = get_contact(&test.name, 3, 99);
+        assert!(!test.table.is_close(&name));
+        assert!(test.table.is_close(&name.with_flipped_bit(3).unwrap()));
+        assert!(!test.table.is_close_to_bucket_of(&name));
+
+        let name = test.name.with_flipped_bit(2).unwrap().with_flipped_bit(3).unwrap();
+        assert!(!test.table.is_close(&name));
+        assert!(!test.table.is_close_to_bucket_of(&name));
+
+        let name = test.name.with_flipped_bit(0).unwrap().with_flipped_bit(1).unwrap();
+        assert!(!test.table.is_close(&name));
+        assert!(test.table.is_close(&name.with_flipped_bit(1).unwrap()));
+        assert!(test.table.is_close_to_bucket_of(&name));
     }
 }
