@@ -225,11 +225,13 @@ impl<T, U> RoutingTable<T, U>
 
     /// Adds a contact to the routing table, or updates it.
     ///
-    /// Returns `None` if the contact already existed. Otherwise it returns the number of contacts
-    /// that need to be notified about the new node: If the bucket was already full, that's nobody,
-    /// but if it wasn't, everyone with a bucket index greater than the new nodes' must be
-    /// notified.
-    pub fn add_node(&mut self, mut node: NodeInfo<T, U>) -> Option<Vec<NodeInfo<T, U>>> {
+    /// Returns `None` if the contact already existed. Otherwise it returns a tuple:
+    ///
+    /// * The list of contacts that need to be notified about the new node: If the bucket was
+    ///   already full, that's nobody, but if it wasn't, everyone with a bucket index greater than
+    ///   the new nodes' must be notified.
+    /// * Whether we are together in any close group with that contact.
+    pub fn add_node(&mut self, mut node: NodeInfo<T, U>) -> Option<(Vec<NodeInfo<T, U>>, bool)> {
         if node.name() == &self.our_name {
             return None;
         }
@@ -241,18 +243,19 @@ impl<T, U> RoutingTable<T, U>
             }
             Err(i) => {
                 // No existing entry, so set the node's bucket distance and insert it.
-                node.bucket_index = self.bucket_index(&node.name());
-                let nodes_to_notify = if self.is_bucket_full(node.bucket_index) {
+                let bucket_index = self.bucket_index(&node.name());
+                node.bucket_index = bucket_index;
+                let nodes_to_notify = if self.is_bucket_full(bucket_index) {
                     vec!()
                 } else {
                     self.nodes
                         .iter()
-                        .take_while(|n| n.bucket_index > node.bucket_index)
+                        .take_while(|n| n.bucket_index > bucket_index)
                         .cloned()
                         .collect()
                 };
                 self.nodes.insert(i, node);
-                Some(nodes_to_notify)
+                Some((nodes_to_notify, self.is_in_any_close_group_with(bucket_index)))
             }
         }
     }
@@ -333,14 +336,17 @@ impl<T, U> RoutingTable<T, U>
 
     /// This should be called when a connection has dropped.
     ///
-    /// If the affected entry has no connections after removing this one, the entry is removed from
-    /// the routing table and its name is returned as the first entry in the result tuple. If the
-    /// entry still has at least one connection, or an entry cannot be found for `lost_connection`,
-    /// this is `None`.
+    /// If no entry with that connection is found, `None` is returned. If the affected entry still
+    /// has connections left after removing this one, the entry remains in the table and the result
+    /// is also `None`. Otherwise, the entry is removed from the routing table and a tuple with
+    /// three components is returned:
     ///
-    /// If an entry has been removed from a full bucket, the bucket index is returned as the second
-    /// entry of the result. It indicates that an attempt to refill that bucket has to be made.
-    pub fn drop_connection(&mut self, lost_connection: &U) -> (Option<XorName>, Option<usize>) {
+    /// * The name of the dropped node.
+    /// * `Some(i)` if the entry has been removed from a full bucket with index `i`, indicating that
+    ///   an attempt to refill that bucket has to be made.
+    /// * Whether we were together in any close group with that contact.
+    pub fn drop_connection(&mut self, lost_connection: &U)
+            -> Option<(XorName, Option<usize>, bool)> {
         let remove_connection = |node_info: &mut NodeInfo<T, U>| {
             if let Some(index) = node_info.connections
                                           .iter()
@@ -353,15 +359,18 @@ impl<T, U> RoutingTable<T, U>
         };
         if let Some(node_index) = self.nodes.iter_mut().position(remove_connection) {
             if self.nodes[node_index].connections.is_empty() {
-                let bucket_index = if self.is_bucket_full(self.nodes[node_index].bucket_index) {
-                    Some(self.nodes[node_index].bucket_index)
+                let bucket_index = self.nodes[node_index].bucket_index;
+                let opt_bucket_index = if self.is_bucket_full(bucket_index) {
+                    Some(bucket_index)
                 } else {
                     None
                 };
-                return (Some(self.nodes.remove(node_index).name().clone()), bucket_index);
+                let common_groups = self.is_in_any_close_group_with(bucket_index);
+                let name = self.nodes.remove(node_index).name().clone();
+                return Some((name, opt_bucket_index, common_groups));
             }
         }
-        (None, None)
+        None
     }
 
     /// Returns `true` if the bucket with the given index has at least `GROUP_SIZE` entries.
@@ -490,6 +499,23 @@ impl<T, U> RoutingTable<T, U>
     /// `name` exists and `i` is the index where it would be inserted into the ordered node list.
     fn binary_search(&self, name: &XorName) -> Result<usize, usize> {
         self.nodes.binary_search_by(|other| self.our_name.cmp_closeness(other.name(), name))
+    }
+    
+    /// Returns whether we share any close groups with the nodes in the given bucket.
+    ///
+    /// If the bucket is not full or we have less than `GROUP_SIZE - 1` contacts with a greater
+    /// bucket index, then for _every_ node in that bucket there exists an address which both that
+    /// node and our own node are in the close group of. In that case, the result is `true`.
+    ///
+    /// Otherwise, no such address exists and `false` is returned.
+    fn is_in_any_close_group_with(&self, bucket_index: usize) -> bool {
+        !self.is_bucket_full(bucket_index)
+            || self.nodes
+                   .iter()
+                   .rev()
+                   .take(GROUP_SIZE - 1)
+                   .take_while(|n| n.bucket_index > bucket_index)
+                   .count() < GROUP_SIZE - 1
     }
 }
 
