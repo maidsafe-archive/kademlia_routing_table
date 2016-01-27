@@ -677,14 +677,6 @@ mod test {
         }
     }
 
-    fn create_named_node_info(name: XorName) -> NodeInfo<TestPublicId, u64> {
-        NodeInfo {
-            public_id: TestPublicId { name: name },
-            connections: Vec::new(),
-            bucket_index: 0,
-        }
-    }
-
     fn create_random_routing_tables(num_of_tables: usize) -> Vec<RoutingTable<TestPublicId, u64>> {
         use rand;
         let mut vector: Vec<RoutingTable<TestPublicId, u64>> = Vec::with_capacity(num_of_tables);
@@ -784,6 +776,7 @@ mod test {
 
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
         let r = test.table.add_node(test.node_info.clone()).unwrap();
+        assert!(r.0.len() == 2);
         assert!(r.0.iter().any(|n| *n.name() == name_to_notify0));
         assert!(r.0.iter().any(|n| *n.name() == name_to_notify1));
     }
@@ -865,16 +858,10 @@ mod test {
     #[test]
     fn drop_connection() {
         let mut test = TestEnvironment::new();
-        let conn0 = 1;
-        let conn1 = 2;
-        let conn2 = 3;
-
         let mut node = create_random_node_info();
         node.connections.push(1);
         node.connections.push(2);
         let name = node.name().clone();
-        node.connections.push(conn0);
-        node.connections.push(conn1);
         assert!(test.table.add_node(node).is_some());
 
         // Try to drop non-existing connection.
@@ -891,11 +878,11 @@ mod test {
         // Try dropping connection of a node in full bucket
         let bucket_index = 100;
         for i in 0..GROUP_SIZE {
-            let name = get_contact(test.node_info.name(), bucket_index, i as u8);
-            let mut node = create_named_node_info(name);
-            node.connections.push(1 + i as u64);
+            let name = get_contact(&test.name, bucket_index, i as u8);
+            test.node_info.public_id.set_name(name);
+            test.node_info.connections = vec![1 + i as u64];
 
-            assert!(test.table.add_node(node).is_some());
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
 
         let r = test.table.drop_connection(&1).unwrap();
@@ -909,23 +896,26 @@ mod test {
 
         // ...full bucket, close to us
         for i in 0..GROUP_SIZE {
-            let name = get_contact(test.node_info.name(), 1, i as u8);
-            let node = create_named_node_info(name);
-            assert!(test.table.add_node(node).is_some());
+            let name = get_contact(&test.name, 1, i as u8);
+            test.node_info.public_id.set_name(name);
+            test.node_info.connections = Vec::new();
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
         assert!(test.table.is_bucket_full(1));
 
         // ...full bucket, further away from us
         for i in 0..GROUP_SIZE {
-            let name = get_contact(test.node_info.name(), 0, i as u8);
-            let mut node = create_named_node_info(name);
+            let name = get_contact(&test.name, 0, i as u8);
+            test.node_info.public_id.set_name(name);
 
             if !connection_assigned {
-                node.connections.push(1);
+                test.node_info.connections = vec![1];
                 connection_assigned = true;
+            } else {
+                test.node_info.connections = Vec::new();
             }
 
-            assert!(test.table.add_node(node).is_some());
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
         assert!(test.table.is_bucket_full(0));
 
