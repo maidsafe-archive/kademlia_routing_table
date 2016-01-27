@@ -386,7 +386,7 @@ impl<T, U> RoutingTable<T, U>
         let mut result = self.nodes
                              .iter()
                              .cloned()
-                             .sorted_by(|a, b| target.cmp_closeness(&a.name(), &b.name()));
+                             .sorted_by(|a, b| target.cmp_distance(&a.name(), &b.name()));
         result.truncate(n);
         result
     }
@@ -498,7 +498,7 @@ impl<T, U> RoutingTable<T, U>
     /// Returns `Ok(i)` if `self.nodes[i]` has the given `name`, or `Err(i)` if no node with that
     /// `name` exists and `i` is the index where it would be inserted into the ordered node list.
     fn binary_search(&self, name: &XorName) -> Result<usize, usize> {
-        self.nodes.binary_search_by(|other| self.our_name.cmp_closeness(other.name(), name))
+        self.nodes.binary_search_by(|other| self.our_name.cmp_distance(other.name(), name))
     }
     
     /// Returns whether we share any close groups with the nodes in the given bucket.
@@ -663,7 +663,7 @@ mod test {
     }
 
     fn make_sort_predicate(target: XorName) -> Box<FnMut(&XorName, &XorName) -> cmp::Ordering> {
-        Box::new(move |lhs: &XorName, rhs: &XorName| target.cmp_closeness(lhs, rhs))
+        Box::new(move |lhs: &XorName, rhs: &XorName| target.cmp_distance(lhs, rhs))
     }
 
     #[test]
