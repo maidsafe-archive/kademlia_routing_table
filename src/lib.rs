@@ -246,7 +246,7 @@ impl<T, U> RoutingTable<T, U>
                 let bucket_index = self.bucket_index(&node.name());
                 node.bucket_index = bucket_index;
                 let nodes_to_notify = if self.is_bucket_full(bucket_index) {
-                    vec!()
+                    vec![]
                 } else {
                     self.nodes
                         .iter()
@@ -255,7 +255,8 @@ impl<T, U> RoutingTable<T, U>
                         .collect()
                 };
                 self.nodes.insert(i, node);
-                Some((nodes_to_notify, self.is_in_any_close_group_with(bucket_index)))
+                Some((nodes_to_notify,
+                      self.is_in_any_close_group_with(bucket_index)))
             }
         }
     }
@@ -345,8 +346,9 @@ impl<T, U> RoutingTable<T, U>
     /// * `Some(i)` if the entry has been removed from a full bucket with index `i`, indicating that
     ///   an attempt to refill that bucket has to be made.
     /// * Whether we were together in any close group with that contact.
-    pub fn drop_connection(&mut self, lost_connection: &U)
-            -> Option<(XorName, Option<usize>, bool)> {
+    pub fn drop_connection(&mut self,
+                           lost_connection: &U)
+                           -> Option<(XorName, Option<usize>, bool)> {
         let remove_connection = |node_info: &mut NodeInfo<T, U>| {
             if let Some(index) = node_info.connections
                                           .iter()
@@ -536,12 +538,12 @@ impl<T, U> RoutingTable<T, U>
     ///
     /// Otherwise, no such address exists and `false` is returned.
     fn is_in_any_close_group_with(&self, bucket_index: usize) -> bool {
-        !self.is_bucket_full(bucket_index)
-            || self.nodes
-                   .iter()
-                   .take(GROUP_SIZE - 1)
-                   .take_while(|n| n.bucket_index > bucket_index)
-                   .count() < GROUP_SIZE - 1
+        !self.is_bucket_full(bucket_index) ||
+        self.nodes
+            .iter()
+            .take(GROUP_SIZE - 1)
+            .take_while(|n| n.bucket_index > bucket_index)
+            .count() < GROUP_SIZE - 1
     }
 }
 
@@ -595,7 +597,8 @@ mod test {
     fn get_contact(table_name: &XorName, index: usize, distance: u8) -> XorName {
         let XorName(mut arr) = table_name.clone();
         // Invert all bits starting with the `index`th one, so the bucket distance is `index`.
-        arr[index / 8] = arr[index / 8] ^ match index % 8 {
+        arr[index / 8] = arr[index / 8] ^
+                         match index % 8 {
             0 => 0b11111111,
             1 => 0b01111111,
             2 => 0b00111111,
@@ -734,9 +737,8 @@ mod test {
         }
 
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
-        let r = test.table.add_node(test.node_info.clone()).unwrap();
-        assert_eq!(r.0, Vec::new());
-        assert_eq!(r.1, true);
+        assert_eq!(test.table.add_node(test.node_info.clone()),
+                   Some((Vec::new(), true)));
 
         // add node to a full bucket whose nodes do not share close group with us
         test = TestEnvironment::new();
@@ -752,9 +754,8 @@ mod test {
         }
 
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
-        let r = test.table.add_node(test.node_info.clone()).unwrap();
-        assert_eq!(r.0, Vec::new());
-        assert_eq!(r.1, false);
+        assert_eq!(test.table.add_node(test.node_info.clone()),
+                   Some((Vec::new(), false)));
     }
 
     #[test]
@@ -775,10 +776,10 @@ mod test {
         assert!(test.table.add_node(test.node_info.clone()).is_some());
 
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
-        let r = test.table.add_node(test.node_info.clone()).unwrap();
-        assert!(r.0.len() == 2);
-        assert!(r.0.iter().any(|n| *n.name() == name_to_notify0));
-        assert!(r.0.iter().any(|n| *n.name() == name_to_notify1));
+        let (nodes_to_notify, _) = test.table.add_node(test.node_info.clone()).unwrap();
+        assert!(nodes_to_notify.len() == 2);
+        assert!(nodes_to_notify.iter().any(|n| *n.name() == name_to_notify0));
+        assert!(nodes_to_notify.iter().any(|n| *n.name() == name_to_notify1));
     }
 
     #[test]
@@ -885,14 +886,13 @@ mod test {
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
 
-        let r = test.table.drop_connection(&1).unwrap();
-        assert_eq!(r.1, Some(bucket_index));
-        assert_eq!(r.2, true);
+        let (_, opt_bucket_index, common_group) = test.table.drop_connection(&1).unwrap();
+        assert_eq!(opt_bucket_index, Some(bucket_index));
+        assert_eq!(common_group, true);
 
         // Try dropping connection of node in full bucket whose nodes do not share
         // close group with us.
         test = TestEnvironment::new();
-        let mut connection_assigned = false;
 
         // ...full bucket, close to us
         for i in 0..GROUP_SIZE {
@@ -904,24 +904,22 @@ mod test {
         assert!(test.table.is_bucket_full(1));
 
         // ...full bucket, further away from us
-        for i in 0..GROUP_SIZE {
+        let name = get_contact(&test.name, 0, 0);
+        test.node_info.public_id.set_name(name);
+        test.node_info.connections = vec![1];
+        assert!(test.table.add_node(test.node_info.clone()).is_some());
+
+        for i in 1..GROUP_SIZE {
             let name = get_contact(&test.name, 0, i as u8);
             test.node_info.public_id.set_name(name);
-
-            if !connection_assigned {
-                test.node_info.connections = vec![1];
-                connection_assigned = true;
-            } else {
-                test.node_info.connections = Vec::new();
-            }
-
+            test.node_info.connections = Vec::new();
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
         assert!(test.table.is_bucket_full(0));
 
-        let r = test.table.drop_connection(&1).unwrap();
-        assert_eq!(r.1, Some(0));
-        assert_eq!(r.2, false);
+        let (_, opt_bucket_index, common_group) = test.table.drop_connection(&1).unwrap();
+        assert_eq!(opt_bucket_index, Some(0));
+        assert_eq!(common_group, false);
     }
 
     #[test]
