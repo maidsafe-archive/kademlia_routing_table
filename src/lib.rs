@@ -304,6 +304,17 @@ impl<T, U> RoutingTable<T, U>
             .count() < GROUP_SIZE
     }
 
+    /// Returns whether we can allow the given contact to connect to us.
+    ///
+    /// The connection is allowed if:
+    ///
+    /// * they already are one of our contacts,
+    /// * we need them in our routing table to satisfy the invariant or
+    /// * we are in the close group of one of their bucket addresses.
+    pub fn allow_connection(&self, name: &XorName) -> bool {
+        self.get(name).is_some() || self.want_to_add(name) || self.is_close_to_bucket_of(name)
+    }
+
     /// Returns the current calculated quorum size.
     ///
     /// If it is known that the network has at least `GROUP_SIZE` nodes, this returns the constant
@@ -394,7 +405,7 @@ impl<T, U> RoutingTable<T, U>
     }
 
     /// Returns whether we are close to one of `name`'s bucket addresses or to `name` itself.
-    pub fn is_close_to_bucket_of(&self, name: &XorName) -> bool {
+    fn is_close_to_bucket_of(&self, name: &XorName) -> bool {
         // We are close to `name` if all buckets where `name` disagrees with us have less than
         // GROUP_SIZE entries in total. Therefore we are close to a bucket address of `name`, if
         // removing the largest such bucket gets us below GROUP_SIZE.
