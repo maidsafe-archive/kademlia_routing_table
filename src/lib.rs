@@ -641,24 +641,23 @@ mod test {
         }
 
         fn partially_fill_table(&mut self) {
-            for i in 0..self.initial_count {
-                self.node_info.public_id.set_name(get_contact(&self.name, i, 1));
-                self.added_names.push(self.node_info.name().clone());
-                assert!(self.table.add_node(self.node_info.clone()).is_some());
-            }
-
-            assert_eq!(self.initial_count, self.table.len());
-            assert!(are_nodes_sorted(&self.table), "Nodes are not sorted");
+            let count = self.initial_count;
+            self.fill_table(0, count)
         }
 
         fn complete_filling_table(&mut self) {
-            for i in self.initial_count..TABLE_SIZE {
+            let count = self.initial_count;
+            self.fill_table(count, TABLE_SIZE)
+        }
+
+        fn fill_table(&mut self, first_bucket: usize, total_buckets: usize) {
+            for i in first_bucket..total_buckets {
                 self.node_info.public_id.set_name(get_contact(&self.name, i, 1));
                 self.added_names.push(self.node_info.name().clone());
                 assert!(self.table.add_node(self.node_info.clone()).is_some());
             }
 
-            assert_eq!(TABLE_SIZE, self.table.len());
+            assert_eq!(total_buckets, self.table.len());
             assert!(are_nodes_sorted(&self.table), "Nodes are not sorted");
         }
 
@@ -681,7 +680,6 @@ mod test {
     }
 
     fn create_random_routing_tables(num_of_tables: usize) -> Vec<RoutingTable<TestPublicId, u64>> {
-        use rand;
         let mut vector: Vec<RoutingTable<TestPublicId, u64>> = Vec::with_capacity(num_of_tables);
         for _ in 0..num_of_tables {
             vector.push(RoutingTable::new(&rand::random()));
@@ -736,9 +734,14 @@ mod test {
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
 
+        let prev_node_count = test.table.len();
+
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
         assert_eq!(test.table.add_node(test.node_info.clone()),
                    Some((Vec::new(), true)));
+
+        // Adding a node should not remove exiting nodes
+        assert_eq!(test.table.len(), prev_node_count + 1);
 
         // add node to a full bucket whose nodes do not share close group with us
         test = TestEnvironment::new();
@@ -753,9 +756,14 @@ mod test {
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
 
+        let prev_node_count = test.table.len();
+
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
         assert_eq!(test.table.add_node(test.node_info.clone()),
                    Some((Vec::new(), false)));
+
+        // Adding a node should not remove exiting nodes
+        assert_eq!(test.table.len(), prev_node_count + 1);
     }
 
     #[test]
@@ -817,6 +825,14 @@ mod test {
         new_node_0.public_id.set_name(get_contact(&test.name, 0, 2));
         assert!(test.table.add_node(new_node_0).is_some());
         assert!(!test.table.want_to_add(&get_contact(&test.name, 0, 2)));
+
+        // Shoud return false if the bucket is full
+        for i in 0..GROUP_SIZE {
+            test.node_info.public_id.set_name(get_contact(&test.name, 1, i as u8));
+            assert!(test.table.add_node(test.node_info.clone()).is_some());
+        }
+
+        assert!(!test.table.want_to_add(&get_contact(&test.name, 1, 255)));
     }
 
     #[test]
@@ -925,7 +941,6 @@ mod test {
     #[test]
     fn target_nodes() {
         // modernise
-        use rand;
         let mut test = TestEnvironment::new();
 
         // Check on empty table
@@ -942,14 +957,8 @@ mod test {
         assert_eq!(test.initial_count, target_nodes.len());
 
         for i in 0..test.initial_count {
-            let mut assert_checker = 0;
-            for j in 0..target_nodes.len() {
-                if *target_nodes[j].name() == get_contact(&test.name, i, 1) {
-                    assert_checker = 1;
-                    break;
-                }
-            }
-            assert!(assert_checker == 1);
+            let expected_name = get_contact(&test.name, i, 1);
+            assert!(target_nodes.iter().any(|node| *node.name() == expected_name));
         }
 
         // Complete filling the table up to TABLE_SIZE contacts
@@ -961,14 +970,8 @@ mod test {
         assert_eq!(GROUP_SIZE - 1, target_nodes.len());
 
         for i in ((TABLE_SIZE - GROUP_SIZE + 1)..TABLE_SIZE - 1).rev() {
-            let mut assert_checker = 0;
-            for j in 0..target_nodes.len() {
-                if *target_nodes[j].name() == get_contact(&test.name, i, 1) {
-                    assert_checker = 1;
-                    break;
-                }
-            }
-            assert!(assert_checker == 1);
+            let expected_name = get_contact(&test.name, i, 1);
+            assert!(target_nodes.iter().any(|node| *node.name() == expected_name));
         }
 
         // Try with nodes far from us, first time *not* in table and second time *in* table (should
@@ -985,15 +988,9 @@ mod test {
                 target_nodes = test.table.target_nodes(Destination::Node(&target),
                                                        HopType::OriginalSender);
                 assert_eq!(expected_len, target_nodes.len());
+
                 for i in 0..target_nodes.len() {
-                    let mut assert_checker = 0;
-                    for j in 0..test.added_names.len() {
-                        if *target_nodes[i].name() == test.added_names[j] {
-                            assert_checker = 1;
-                            continue;
-                        }
-                    }
-                    assert!(assert_checker == 1);
+                    assert!(test.added_names.iter().any(|name| name == target_nodes[i].name()));
                 }
             }
         }
@@ -1010,15 +1007,9 @@ mod test {
                 target_nodes = test.table.target_nodes(Destination::Group(&target),
                                                        HopType::OriginalSender);
                 assert_eq!(GROUP_SIZE - 1, target_nodes.len());
+
                 for i in 0..target_nodes.len() {
-                    let mut assert_checker = 0;
-                    for j in 0..test.added_names.len() {
-                        if *target_nodes[i].name() == test.added_names[j] {
-                            assert_checker = 1;
-                            continue;
-                        }
-                    }
-                    assert!(assert_checker == 1);
+                    assert!(test.added_names.iter().any(|name| name == target_nodes[i].name()));
                 }
             }
         }
