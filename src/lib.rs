@@ -681,7 +681,6 @@ mod test {
     }
 
     fn create_random_routing_tables(num_of_tables: usize) -> Vec<RoutingTable<TestPublicId, u64>> {
-        use rand;
         let mut vector: Vec<RoutingTable<TestPublicId, u64>> = Vec::with_capacity(num_of_tables);
         for _ in 0..num_of_tables {
             vector.push(RoutingTable::new(&rand::random()));
@@ -925,7 +924,6 @@ mod test {
     #[test]
     fn target_nodes() {
         // modernise
-        use rand;
         let mut test = TestEnvironment::new();
 
         // Check on empty table
