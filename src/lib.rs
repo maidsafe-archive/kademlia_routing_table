@@ -734,14 +734,12 @@ mod test {
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
 
-        let prev_node_count = test.table.len();
-
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
         assert_eq!(test.table.add_node(test.node_info.clone()),
                    Some((Vec::new(), true)));
 
-        // Adding a node should not remove exiting nodes
-        assert_eq!(test.table.len(), prev_node_count + 1);
+        // Adding a node should not remove existing nodes
+        assert_eq!(test.table.len(), GROUP_SIZE + 1);
 
         // add node to a full bucket whose nodes do not share close group with us
         test = TestEnvironment::new();
@@ -756,14 +754,12 @@ mod test {
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
 
-        let prev_node_count = test.table.len();
-
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
         assert_eq!(test.table.add_node(test.node_info.clone()),
                    Some((Vec::new(), false)));
 
-        // Adding a node should not remove exiting nodes
-        assert_eq!(test.table.len(), prev_node_count + 1);
+        // Adding a node should not remove existing nodes
+        assert_eq!(test.table.len(), 2 * GROUP_SIZE + 1);
     }
 
     #[test]
