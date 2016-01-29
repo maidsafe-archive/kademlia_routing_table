@@ -197,7 +197,7 @@ pub enum HopType {
     /// We are the original sender. The message should be sent to `PARALLELISM` contacts.
     OriginalSender,
     /// We have already relayed the given number of copies of this message.
-    CopyNr(usize),
+    CopyNum(usize),
 }
 
 /// A routing table to manage connections for a node.
@@ -417,10 +417,10 @@ impl<T, U> RoutingTable<T, U>
             Destination::Group(target) => {
                 if self.is_close(target) {
                     return match hop_type {
-                        HopType::OriginalSender | HopType::CopyNr(0) => {
+                        HopType::OriginalSender | HopType::CopyNum(0) => {
                             self.closest_nodes_to(target, GROUP_SIZE - 1)
                         }
-                        HopType::CopyNr(_) => vec![],
+                        HopType::CopyNum(_) => vec![],
                     };
                 }
                 target
@@ -428,8 +428,8 @@ impl<T, U> RoutingTable<T, U>
             Destination::Node(target) => {
                 if let Ok(i) = self.binary_search(target) {
                     return match hop_type {
-                        HopType::OriginalSender | HopType::CopyNr(0) => vec![self.nodes[i].clone()],
-                        HopType::CopyNr(_) => vec![],
+                        HopType::OriginalSender | HopType::CopyNum(0) => vec![self.nodes[i].clone()],
+                        HopType::CopyNum(_) => vec![],
                     };
                 }
                 target
@@ -437,7 +437,7 @@ impl<T, U> RoutingTable<T, U>
         };
         match hop_type {
             HopType::OriginalSender => self.closest_nodes_to(target, PARALLELISM),
-            HopType::CopyNr(nr) => {
+            HopType::CopyNum(nr) => {
                 self.closest_nodes_to(target, nr + 1)
                     .last()
                     .into_iter()
@@ -1180,7 +1180,7 @@ mod test {
             for j in 1..GROUP_SIZE {
                 if tables[i].is_close(&addresses[j]) {
                     let dst = Destination::Group(&addresses[j]);
-                    let target_close_group = tables[i].target_nodes(dst, HopType::CopyNr(0));
+                    let target_close_group = tables[i].target_nodes(dst, HopType::CopyNum(0));
                     assert_eq!(GROUP_SIZE - 1, target_close_group.len());
                     tested_close_target = true;
                 }
