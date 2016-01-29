@@ -351,8 +351,7 @@ impl<T, U> RoutingTable<T, U>
     /// Removes the contact from the table.
     ///
     /// Returns the dropped node if the contact was present in the table.
-    #[cfg(test)]
-    fn drop_node(&mut self, node_to_drop: &XorName) -> Option<NodeInfo<T, U>> {
+    pub fn drop_node(&mut self, node_to_drop: &XorName) -> Option<NodeInfo<T, U>> {
         self.binary_search(node_to_drop).ok().map(|i| self.nodes.remove(i))
     }
 
