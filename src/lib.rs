@@ -130,7 +130,9 @@ extern crate xor_name;
 
 use itertools::*;
 use std::cmp;
-use std::fmt;
+use std::collections::HashSet;
+use std::hash::Hash;
+use std::fmt::Debug;
 use xor_name::XorName;
 
 /// The size of a close group.
@@ -160,17 +162,22 @@ pub trait HasName {
 
 /// A routing table entry representing a node and the connections to that node.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NodeInfo<T, U> {
+pub struct NodeInfo<T, U>
+    where U: Eq + Hash
+{
     /// The information identifying the node.
     pub public_id: T,
     /// The connections to the node, e. g. sockets or other kinds of connection handles.
-    pub connections: Vec<U>,
+    pub connections: HashSet<U>,
     bucket_index: usize,
 }
 
-impl<T: PartialEq + HasName + fmt::Debug, U: PartialEq> NodeInfo<T, U> {
+impl<T, U> NodeInfo<T, U>
+    where T: PartialEq + HasName + Debug,
+          U: Eq + Hash
+{
     /// Creates a new node entry with the given ID and connections.
-    pub fn new(public_id: T, connections: Vec<U>) -> NodeInfo<T, U> {
+    pub fn new(public_id: T, connections: HashSet<U>) -> NodeInfo<T, U> {
         NodeInfo {
             public_id: public_id,
             connections: connections,
@@ -206,14 +213,16 @@ pub enum HopType {
 /// algorithms for routing messages.
 ///
 /// See the [crate documentation](index.html) for details.
-pub struct RoutingTable<T, U> {
+pub struct RoutingTable<T, U>
+    where U: Eq + Hash
+{
     nodes: Vec<NodeInfo<T, U>>,
     our_name: XorName,
 }
 
 impl<T, U> RoutingTable<T, U>
-    where T: PartialEq + HasName + fmt::Debug + Clone,
-          U: PartialEq + fmt::Debug + Clone
+    where T: PartialEq + HasName + Debug + Clone,
+          U: Eq + Debug + Clone + Hash
 {
     /// Creates a new routing table for the node with the given name.
     pub fn new(our_name: &XorName) -> RoutingTable<T, U> {
@@ -272,7 +281,7 @@ impl<T, U> RoutingTable<T, U>
                     return false;
                 }
 
-                node_info.connections.push(connection);
+                node_info.connections.insert(connection);
                 true
             }
             None => {
@@ -361,14 +370,7 @@ impl<T, U> RoutingTable<T, U>
                            lost_connection: &U)
                            -> Option<(XorName, Option<usize>, bool)> {
         let remove_connection = |node_info: &mut NodeInfo<T, U>| {
-            if let Some(index) = node_info.connections
-                                          .iter()
-                                          .position(|connection| connection == lost_connection) {
-                let _ = node_info.connections.remove(index);
-                true
-            } else {
-                false
-            }
+            node_info.connections.remove(lost_connection)
         };
         if let Some(node_index) = self.nodes.iter_mut().position(remove_connection) {
             if self.nodes[node_index].connections.is_empty() {
@@ -428,7 +430,9 @@ impl<T, U> RoutingTable<T, U>
             Destination::Node(target) => {
                 if let Ok(i) = self.binary_search(target) {
                     return match hop_type {
-                        HopType::OriginalSender | HopType::CopyNum(0) => vec![self.nodes[i].clone()],
+                        HopType::OriginalSender | HopType::CopyNum(0) => {
+                            vec![self.nodes[i].clone()]
+                        }
                         HopType::CopyNum(_) => vec![],
                     };
                 }
@@ -565,7 +569,7 @@ mod test {
     use super::*;
     use rand;
     use std::cmp;
-    use std::collections;
+    use std::collections::{HashMap, HashSet};
     use itertools::Itertools;
     use xor_name;
     use xor_name::XorName;
@@ -599,7 +603,7 @@ mod test {
     }
 
     fn to_node_info(name: &XorName) -> NodeInfo<TestPublicId, u64> {
-        NodeInfo::new(TestPublicId { name: name.clone() }, vec![])
+        NodeInfo::new(TestPublicId { name: name.clone() }, HashSet::new())
     }
 
     /// Creates a name in the `index`-th bucket of the table with the given name, where
@@ -685,7 +689,7 @@ mod test {
     fn create_random_node_info() -> NodeInfo<TestPublicId, u64> {
         NodeInfo {
             public_id: TestPublicId::new(),
-            connections: Vec::new(),
+            connections: HashSet::new(),
             bucket_index: 0,
         }
     }
@@ -802,7 +806,7 @@ mod test {
         let mut test = TestEnvironment::new();
         let mut node0 = create_random_node_info();
         let name0 = node0.name().clone();
-        node0.connections.push(1);
+        node0.connections.insert(1);
 
         assert!(test.table.add_node(node0).is_some());
 
@@ -883,8 +887,8 @@ mod test {
     fn drop_connection() {
         let mut test = TestEnvironment::new();
         let mut node = create_random_node_info();
-        node.connections.push(1);
-        node.connections.push(2);
+        node.connections.insert(1);
+        node.connections.insert(2);
         let name = node.name().clone();
         assert!(test.table.add_node(node).is_some());
 
@@ -893,7 +897,7 @@ mod test {
 
         // The node still has some connection left after the drop
         assert_eq!(test.table.drop_connection(&1), None);
-        assert!(test.table.get(&name).unwrap().connections.len() > 0);
+        assert!(!test.table.get(&name).unwrap().connections.is_empty());
 
         // The node has no more connections and should be removed.
         assert_eq!(test.table.drop_connection(&2), Some((name, None, true)));
@@ -904,7 +908,7 @@ mod test {
         for i in 0..GROUP_SIZE {
             let name = get_contact(&test.name, bucket_index, i as u8);
             test.node_info.public_id.set_name(name);
-            test.node_info.connections = vec![1 + i as u64];
+            test.node_info.connections = vec![1 + i as u64].into_iter().collect();
 
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
@@ -921,7 +925,7 @@ mod test {
         for i in 0..GROUP_SIZE {
             let name = get_contact(&test.name, 1, i as u8);
             test.node_info.public_id.set_name(name);
-            test.node_info.connections = Vec::new();
+            test.node_info.connections = HashSet::new();
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
         assert!(test.table.is_bucket_full(1));
@@ -929,13 +933,13 @@ mod test {
         // ...full bucket, further away from us
         let name = get_contact(&test.name, 0, 0);
         test.node_info.public_id.set_name(name);
-        test.node_info.connections = vec![1];
+        test.node_info.connections = vec![1].into_iter().collect();
         assert!(test.table.add_node(test.node_info.clone()).is_some());
 
         for i in 1..GROUP_SIZE {
             let name = get_contact(&test.name, 0, i as u8);
             test.node_info.public_id.set_name(name);
-            test.node_info.connections = Vec::new();
+            test.node_info.connections = HashSet::new();
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
         assert!(test.table.is_bucket_full(0));
@@ -1050,7 +1054,7 @@ mod test {
 
     #[test]
     fn our_close_group_and_is_close() {
-        let mut tables = collections::HashMap::new();
+        let mut tables = HashMap::new();
         for _ in 0..TABLE_SIZE {
             let node_info = create_random_node_info();
             let table = RoutingTable::<TestPublicId, u64>::new(node_info.name());
