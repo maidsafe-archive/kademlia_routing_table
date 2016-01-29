@@ -181,10 +181,12 @@ impl<T, U> NodeInfo<T, U>
           U: Eq + Hash
 {
     /// Creates a new node entry with the given ID and connections.
-    pub fn new(public_id: T, connections: HashSet<U>) -> NodeInfo<T, U> {
+    pub fn new<V>(public_id: T, connections: V) -> NodeInfo<T, U> 
+        where V: IntoIterator<Item = U>
+    {
         NodeInfo {
             public_id: public_id,
-            connections: connections,
+            connections: connections.into_iter().collect(),
             bucket_index: 0,
         }
     }
@@ -600,7 +602,7 @@ mod test {
     }
 
     fn to_node_info(name: &XorName) -> NodeInfo<TestPublicId, u64> {
-        NodeInfo::new(TestPublicId { name: name.clone() }, HashSet::new())
+        NodeInfo::new(TestPublicId { name: name.clone() }, None)
     }
 
     /// Creates a name in the `index`-th bucket of the table with the given name, where
