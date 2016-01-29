@@ -46,7 +46,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-84' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#241-245' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-80' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#204-208' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct RoutingTable&lt;T, U&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>A routing table to manage connections for a node.</p>
@@ -70,8 +70,11 @@ adding the contact to our routing table, i.e. would this contact improve our tab
 checking procedure is the same as for <code>add_node</code>, except for the lack of a public key to
 check in step 1.</p>
 </div><h4 id='method.dynamic_quorum_size' class='method'><code>fn <a href='#method.dynamic_quorum_size' class='fnname'>dynamic_quorum_size</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></h4>
-<div class='docblock'><p>Returns the current calculated quorum size. This is dependent on the current routing table
-size.</p>
+<div class='docblock'><p>Returns the current calculated quorum size.</p>
+
+<p>If it is known that the network has at least <code>GROUP_SIZE</code> nodes, this returns the constant
+<code>QUORUM_SIZE</code>. For networks smaller than that, the quorum might not be reachable, so a
+smaller number is computed which represents a strict majority in the current network.</p>
 </div><h4 id='method.drop_node' class='method'><code>fn <a href='#method.drop_node' class='fnname'>drop_node</a>(&amp;mut self, node_to_drop: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>)</code></h4>
 <div class='docblock'><p>This unconditionally removes the contact from the table.</p>
 </div><h4 id='method.drop_connection' class='method'><code>fn <a href='#method.drop_connection' class='fnname'>drop_connection</a>(&amp;mut self, lost_connection: &amp;U) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>&gt;</code></h4>
@@ -82,23 +85,23 @@ an entry cannot be found for &#39;lost_connection&#39;, the function returns &#3
 </div><h4 id='method.target_nodes' class='method'><code>fn <a href='#method.target_nodes' class='fnname'>target_nodes</a>(&amp;self, target: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.NodeInfo.html' title='kademlia_routing_table::NodeInfo'>NodeInfo</a>&lt;T, U&gt;&gt;</code></h4>
 <div class='docblock'><p>Returns a collection of nodes to which a message should be sent onwards.</p>
 
-<p>It will return <code>group_size()</code> contacts if we are close to the <code>target</code>. Otherwise, it will
+<p>It will return <code>GROUP_SIZE</code> contacts if we are close to the <code>target</code>. Otherwise, it will
 return only the target node itself, if it is in our contacts. If not, it returns the
-<code>parallelism()</code> closest contacts to the target.</p>
+<code>PARALLELISM</code> closest contacts to the target.</p>
 </div><h4 id='method.our_close_group' class='method'><code>fn <a href='#method.our_close_group' class='fnname'>our_close_group</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.NodeInfo.html' title='kademlia_routing_table::NodeInfo'>NodeInfo</a>&lt;T, U&gt;&gt;</code></h4>
-<div class='docblock'><p>This returns our close group, i.e. the &#39;group_size()&#39; contacts closest to our name (or the
-entire table if we hold less than &#39;group_size()&#39; contacts in total) sorted by closeness to us.</p>
+<div class='docblock'><p>This returns our close group, i.e. the <code>GROUP_SIZE</code> contacts closest to our name (or the
+entire table if we hold less than <code>GROUP_SIZE</code> contacts in total) sorted by closeness to us.</p>
 </div><h4 id='method.is_close' class='method'><code>fn <a href='#method.is_close' class='fnname'>is_close</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
-<div class='docblock'><p>Returns <code>true</code> if there are fewer than <code>group_size()</code> nodes in our routing table that are
+<div class='docblock'><p>Returns <code>true</code> if there are fewer than <code>GROUP_SIZE</code> nodes in our routing table that are
 closer to <code>name</code> than we are.</p>
 
 <p>In other words, it returns <code>true</code> whenever we cannot rule out that we might be among the
-<code>group_size()</code> closest nodes to <code>name</code>.</p>
+<code>GROUP_SIZE</code> closest nodes to <code>name</code>.</p>
 
-<p>If the routing table is filled in such a way that each bucket contains <code>group_size()</code>
+<p>If the routing table is filled in such a way that each bucket contains <code>GROUP_SIZE</code>
 elements unless there aren&#39;t enough such nodes in the network, then this criterion is
 actually sufficient! In that case, <code>true</code> is returned if and only if we are among the
-<code>group_size()</code> closest node to <code>name</code> in the network.</p>
+<code>GROUP_SIZE</code> closest node to <code>name</code> in the network.</p>
 </div><h4 id='method.len' class='method'><code>fn <a href='#method.len' class='fnname'>len</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></h4>
 <div class='docblock'><p>Number of entries in the routing table.</p>
 </div><h4 id='method.is_empty' class='method'><code>fn <a href='#method.is_empty' class='fnname'>is_empty</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>

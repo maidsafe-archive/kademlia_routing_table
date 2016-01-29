@@ -1294,29 +1294,6 @@
 <span id="1251">1251</span>
 <span id="1252">1252</span>
 <span id="1253">1253</span>
-<span id="1254">1254</span>
-<span id="1255">1255</span>
-<span id="1256">1256</span>
-<span id="1257">1257</span>
-<span id="1258">1258</span>
-<span id="1259">1259</span>
-<span id="1260">1260</span>
-<span id="1261">1261</span>
-<span id="1262">1262</span>
-<span id="1263">1263</span>
-<span id="1264">1264</span>
-<span id="1265">1265</span>
-<span id="1266">1266</span>
-<span id="1267">1267</span>
-<span id="1268">1268</span>
-<span id="1269">1269</span>
-<span id="1270">1270</span>
-<span id="1271">1271</span>
-<span id="1272">1272</span>
-<span id="1273">1273</span>
-<span id="1274">1274</span>
-<span id="1275">1275</span>
-<span id="1276">1276</span>
 </pre><pre class='rust '>
 <span class='comment'>// Copyright 2015 MaidSafe.net limited.</span>
 <span class='comment'>//</span>
@@ -1449,75 +1426,38 @@
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>xor_name</span>;
 
 <span class='kw'>use</span> <span class='ident'>itertools</span>::<span class='op'>*</span>;
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>cmp</span>;
 <span class='kw'>use</span> <span class='ident'>xor_name</span>::<span class='ident'>XorName</span>;
 
 <span class='doccomment'>/// The size of a close group.</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// The `GROUP_SIZE` XOR-closest nodes to an address constitute the *close group* with that</span>
 <span class='doccomment'>/// address.</span>
-<span class='kw'>pub</span> <span class='kw'>const</span> <span class='ident'>GROUP_SIZE</span>: <span class='ident'>u8</span> <span class='op'>=</span> <span class='number'>8</span>;
-
-<span class='doccomment'>/// The size of a close group.</span>
-<span class='doccomment'>///</span>
-<span class='doccomment'>/// The `group_size()` XOR-closest nodes to an address constitute the *close group* with that</span>
-<span class='doccomment'>/// address.</span>
-<span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>group_size</span>() <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-    <span class='ident'>GROUP_SIZE</span> <span class='kw'>as</span> <span class='ident'>usize</span>
-}
+<span class='kw'>pub</span> <span class='kw'>const</span> <span class='ident'>GROUP_SIZE</span>: <span class='ident'>usize</span> <span class='op'>=</span> <span class='number'>8</span>;
 
 <span class='doccomment'>/// The number of nodes in a group that represent a quorum.</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// A message from a close group should be considered legitimate if at least `QUORUM_SIZE` members</span>
 <span class='doccomment'>/// sent it.</span>
-<span class='kw'>const</span> <span class='ident'>QUORUM_SIZE</span>: <span class='ident'>u8</span> <span class='op'>=</span> <span class='number'>5</span>;
-
-<span class='doccomment'>/// The number of nodes in a group that represent a quorum.</span>
-<span class='doccomment'>///</span>
-<span class='doccomment'>/// A message from a close group should be considered legitimate if at least `quorum_size()`</span>
-<span class='doccomment'>/// members sent it.</span>
-<span class='kw'>fn</span> <span class='ident'>quorum_size</span>() <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-    <span class='ident'>QUORUM_SIZE</span> <span class='kw'>as</span> <span class='ident'>usize</span>
-}
+<span class='kw'>const</span> <span class='ident'>QUORUM_SIZE</span>: <span class='ident'>usize</span> <span class='op'>=</span> <span class='number'>5</span>;
 
 <span class='doccomment'>/// The number of nodes a message is sent to in each hop for redundancy.</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.</span>
-<span class='kw'>pub</span> <span class='kw'>const</span> <span class='ident'>PARALLELISM</span>: <span class='ident'>u8</span> <span class='op'>=</span> <span class='number'>4</span>;
-
-<span class='doccomment'>/// The number of nodes a message is sent to in each hop for redundancy.</span>
-<span class='doccomment'>///</span>
-<span class='doccomment'>/// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.</span>
-<span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>parallelism</span>() <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-    <span class='ident'>PARALLELISM</span> <span class='kw'>as</span> <span class='ident'>usize</span>
-}
+<span class='kw'>pub</span> <span class='kw'>const</span> <span class='ident'>PARALLELISM</span>: <span class='ident'>usize</span> <span class='op'>=</span> <span class='number'>4</span>;
 
 <span class='doccomment'>/// The target number of entries per bucket.</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// The routing table&#39;s functionality relies on being given as many entries per bucket as</span>
 <span class='doccomment'>/// exist in the network, up to this number.</span>
-<span class='kw'>const</span> <span class='ident'>BUCKET_SIZE</span>: <span class='ident'>u8</span> <span class='op'>=</span> <span class='number'>2</span>;
-
-<span class='doccomment'>/// The target number of entries per bucket.</span>
-<span class='doccomment'>///</span>
-<span class='doccomment'>/// The routing table&#39;s functionality relies on being given as many entries per bucket as</span>
-<span class='doccomment'>/// exist in the network, up to this number.</span>
-<span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>bucket_size</span>() <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-    <span class='ident'>BUCKET_SIZE</span> <span class='kw'>as</span> <span class='ident'>usize</span>
-}
+<span class='kw'>const</span> <span class='ident'>BUCKET_SIZE</span>: <span class='ident'>usize</span> <span class='op'>=</span> <span class='ident'>GROUP_SIZE</span>;
 
 <span class='doccomment'>/// The target number of routing table entries in total.</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// To optimize performance in small networks, the table will attempt to always retain at least</span>
 <span class='doccomment'>/// `OPTIMAL_TABLE_SIZE` entries, even if some buckets have more than `BUCKET_SIZE` entries.</span>
-<span class='kw'>const</span> <span class='ident'>OPTIMAL_TABLE_SIZE</span>: <span class='ident'>u8</span> <span class='op'>=</span> <span class='number'>64</span>;
+<span class='kw'>const</span> <span class='ident'>OPTIMAL_TABLE_SIZE</span>: <span class='ident'>usize</span> <span class='op'>=</span> <span class='number'>64</span>;
 
-<span class='doccomment'>/// The target number of routing table entries in total.</span>
-<span class='doccomment'>///</span>
-<span class='doccomment'>/// To optimize performance in small networks, the table will attempt to always retain at least</span>
-<span class='doccomment'>/// `optimal_table_size()` entries, even if some buckets have more than `bucket_size()` entries.</span>
-<span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>optimal_table_size</span>() <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-    <span class='ident'>OPTIMAL_TABLE_SIZE</span> <span class='kw'>as</span> <span class='ident'>usize</span>
-}
 <span class='doccomment'>/// A trait for anything that has a `XorName` and can thus be addressed in the network.</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// The node information in the routing table is required to implement this.</span>
@@ -1587,7 +1527,7 @@
                    <span class='self'>self</span>.<span class='ident'>nodes</span>,
                    <span class='ident'>their_info</span>);
             <span class='kw'>return</span> (<span class='boolval'>false</span>, <span class='prelude-val'>None</span>);
-        } <span class='kw'>else</span> <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>() <span class='op'>&lt;</span> <span class='ident'>optimal_table_size</span>() {
+        } <span class='kw'>else</span> <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>() <span class='op'>&lt;</span> <span class='ident'>OPTIMAL_TABLE_SIZE</span> {
             <span class='self'>self</span>.<span class='ident'>push_back_then_sort</span>(<span class='ident'>their_info</span>);
             <span class='kw'>return</span> (<span class='boolval'>true</span>, <span class='prelude-val'>None</span>);
         } <span class='kw'>else</span> <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>furthest_close_node</span>()
@@ -1638,7 +1578,7 @@
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>want_to_add</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>their_name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
         <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>our_name</span> <span class='op'>==</span> <span class='op'>*</span><span class='ident'>their_name</span> <span class='op'>||</span> <span class='self'>self</span>.<span class='ident'>get</span>(<span class='kw-2'>&amp;</span><span class='ident'>their_name</span>).<span class='ident'>is_some</span>() {
             <span class='boolval'>false</span>
-        } <span class='kw'>else</span> <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>() <span class='op'>&lt;</span> <span class='ident'>optimal_table_size</span>() {
+        } <span class='kw'>else</span> <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>() <span class='op'>&lt;</span> <span class='ident'>OPTIMAL_TABLE_SIZE</span> {
             <span class='boolval'>true</span>
         } <span class='kw'>else</span> <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>furthest_close_node</span>()
                .<span class='ident'>map_or</span>(<span class='boolval'>true</span>, <span class='op'>|</span><span class='ident'>node</span><span class='op'>|</span> <span class='self'>self</span>.<span class='ident'>is_closer</span>(<span class='ident'>their_name</span>, <span class='ident'>node</span>.<span class='ident'>name</span>())) {
@@ -1648,12 +1588,18 @@
         }
     }
 
-    <span class='doccomment'>/// Returns the current calculated quorum size. This is dependent on the current routing table</span>
-    <span class='doccomment'>/// size.</span>
+    <span class='doccomment'>/// Returns the current calculated quorum size.</span>
+    <span class='doccomment'>///</span>
+    <span class='doccomment'>/// If it is known that the network has at least `GROUP_SIZE` nodes, this returns the constant</span>
+    <span class='doccomment'>/// `QUORUM_SIZE`. For networks smaller than that, the quorum might not be reachable, so a</span>
+    <span class='doccomment'>/// smaller number is computed which represents a strict majority in the current network.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>dynamic_quorum_size</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-        <span class='kw'>let</span> <span class='ident'>factor</span>: <span class='ident'>f32</span> <span class='op'>=</span> <span class='ident'>QUORUM_SIZE</span> <span class='kw'>as</span> <span class='ident'>f32</span> <span class='op'>/</span> <span class='ident'>GROUP_SIZE</span> <span class='kw'>as</span> <span class='ident'>f32</span>;
-        ::<span class='ident'>std</span>::<span class='ident'>cmp</span>::<span class='ident'>min</span>((<span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>() <span class='kw'>as</span> <span class='ident'>f32</span> <span class='op'>*</span> <span class='ident'>factor</span>).<span class='ident'>round</span>() <span class='kw'>as</span> <span class='ident'>usize</span>,
-                        <span class='ident'>quorum_size</span>())
+        <span class='kw'>let</span> <span class='ident'>network_size</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>() <span class='op'>+</span> <span class='number'>1</span>; <span class='comment'>// Routing table entries plus this node itself.</span>
+        <span class='kw'>if</span> <span class='ident'>network_size</span> <span class='op'>&gt;=</span> <span class='ident'>GROUP_SIZE</span> {
+            <span class='ident'>QUORUM_SIZE</span>
+        } <span class='kw'>else</span> {
+            <span class='ident'>cmp</span>::<span class='ident'>max</span>(<span class='ident'>network_size</span> <span class='op'>*</span> <span class='ident'>QUORUM_SIZE</span> <span class='op'>/</span> <span class='ident'>GROUP_SIZE</span>, <span class='ident'>network_size</span> <span class='op'>/</span> <span class='number'>2</span> <span class='op'>+</span> <span class='number'>1</span>)
+        }
     }
 
     <span class='doccomment'>/// This unconditionally removes the contact from the table.</span>
@@ -1698,13 +1644,13 @@
 
     <span class='doccomment'>/// Returns a collection of nodes to which a message should be sent onwards.</span>
     <span class='doccomment'>///</span>
-    <span class='doccomment'>/// It will return `group_size()` contacts if we are close to the `target`. Otherwise, it will</span>
+    <span class='doccomment'>/// It will return `GROUP_SIZE` contacts if we are close to the `target`. Otherwise, it will</span>
     <span class='doccomment'>/// return only the target node itself, if it is in our contacts. If not, it returns the</span>
-    <span class='doccomment'>/// `parallelism()` closest contacts to the target.</span>
+    <span class='doccomment'>/// `PARALLELISM` closest contacts to the target.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>target_nodes</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>target</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>NodeInfo</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;&gt;</span> {
         <span class='comment'>// if in range of close_group send to all close_group</span>
         <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>is_close</span>(<span class='ident'>target</span>) {
-            <span class='kw'>return</span> <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>group_size</span>());
+            <span class='kw'>return</span> <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>GROUP_SIZE</span>);
         }
 
         <span class='comment'>// if not in close group but connected then send direct</span>
@@ -1714,32 +1660,32 @@
 
         <span class='comment'>// not in close group or routing table so send to closest known nodes up to parallelism</span>
         <span class='comment'>// count</span>
-        <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>parallelism</span>())
+        <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>PARALLELISM</span>)
     }
 
-    <span class='doccomment'>/// This returns our close group, i.e. the &#39;group_size()&#39; contacts closest to our name (or the</span>
-    <span class='doccomment'>/// entire table if we hold less than &#39;group_size()&#39; contacts in total) sorted by closeness to us.</span>
+    <span class='doccomment'>/// This returns our close group, i.e. the `GROUP_SIZE` contacts closest to our name (or the</span>
+    <span class='doccomment'>/// entire table if we hold less than `GROUP_SIZE` contacts in total) sorted by closeness to us.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>our_close_group</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>NodeInfo</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;&gt;</span> {
-        <span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>iter</span>().<span class='ident'>take</span>(<span class='ident'>group_size</span>()).<span class='ident'>cloned</span>().<span class='ident'>collect</span>()
+        <span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>iter</span>().<span class='ident'>take</span>(<span class='ident'>GROUP_SIZE</span>).<span class='ident'>cloned</span>().<span class='ident'>collect</span>()
     }
 
-    <span class='doccomment'>/// Returns `true` if there are fewer than `group_size()` nodes in our routing table that are</span>
+    <span class='doccomment'>/// Returns `true` if there are fewer than `GROUP_SIZE` nodes in our routing table that are</span>
     <span class='doccomment'>/// closer to `name` than we are.</span>
     <span class='doccomment'>///</span>
     <span class='doccomment'>/// In other words, it returns `true` whenever we cannot rule out that we might be among the</span>
-    <span class='doccomment'>/// `group_size()` closest nodes to `name`.</span>
+    <span class='doccomment'>/// `GROUP_SIZE` closest nodes to `name`.</span>
     <span class='doccomment'>///</span>
-    <span class='doccomment'>/// If the routing table is filled in such a way that each bucket contains `group_size()`</span>
+    <span class='doccomment'>/// If the routing table is filled in such a way that each bucket contains `GROUP_SIZE`</span>
     <span class='doccomment'>/// elements unless there aren&#39;t enough such nodes in the network, then this criterion is</span>
     <span class='doccomment'>/// actually sufficient! In that case, `true` is returned if and only if we are among the</span>
-    <span class='doccomment'>/// `group_size()` closest node to `name` in the network.</span>
+    <span class='doccomment'>/// `GROUP_SIZE` closest node to `name` in the network.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
         <span class='self'>self</span>.<span class='ident'>nodes</span>
             .<span class='ident'>iter</span>()
             .<span class='ident'>filter</span>(<span class='op'>|</span><span class='ident'>node</span><span class='op'>|</span> {
                 ::<span class='ident'>xor_name</span>::<span class='ident'>closer_to_target_or_equal</span>(<span class='ident'>node</span>.<span class='ident'>name</span>(), <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>our_name</span>, <span class='ident'>name</span>)
             })
-            .<span class='ident'>count</span>() <span class='op'>&lt;</span> <span class='ident'>group_size</span>()
+            .<span class='ident'>count</span>() <span class='op'>&lt;</span> <span class='ident'>GROUP_SIZE</span>
     }
 
     <span class='doccomment'>/// Returns `true` if `lhs` is closer to this node&#39;s name that `rhs`.</span>
@@ -1779,7 +1725,7 @@
 
     <span class='comment'>// The node in your close group furthest from you</span>
     <span class='kw'>fn</span> <span class='ident'>furthest_close_node</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='kw-2'>&amp;</span><span class='ident'>NodeInfo</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;&gt;</span> {
-        <span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>get</span>(<span class='ident'>group_size</span>() <span class='op'>-</span> <span class='number'>1</span>).<span class='ident'>or</span>(<span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>last</span>())
+        <span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>get</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>).<span class='ident'>or</span>(<span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>last</span>())
     }
 
     <span class='comment'>// set the index number of the furthest close node and memoise it in the Routingtable struct</span>
@@ -1795,7 +1741,7 @@
     <span class='comment'>// bucket from us) checking for overfilled ones and returning the table index of the furthest</span>
     <span class='comment'>// contact within that bucket.  No contacts within our close group will be considered.</span>
     <span class='kw'>fn</span> <span class='ident'>find_candidate_for_removal</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>usize</span><span class='op'>&gt;</span> {
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>() <span class='op'>&gt;=</span> <span class='ident'>optimal_table_size</span>());
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='self'>self</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>() <span class='op'>&gt;=</span> <span class='ident'>OPTIMAL_TABLE_SIZE</span>);
 
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>number_in_bucket</span> <span class='op'>=</span> <span class='number'>0usize</span>;
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>current_bucket</span> <span class='op'>=</span> <span class='number'>0usize</span>;
@@ -1806,7 +1752,7 @@
 
         <span class='comment'>// Stop iterating at our furthest close group member since we won&#39;t remove any peer in our</span>
         <span class='comment'>// close group</span>
-        <span class='kw'>let</span> <span class='ident'>finish</span> <span class='op'>=</span> <span class='ident'>group_size</span>();
+        <span class='kw'>let</span> <span class='ident'>finish</span> <span class='op'>=</span> <span class='ident'>GROUP_SIZE</span>;
 
         <span class='kw'>while</span> <span class='ident'>counter</span> <span class='op'>&gt;=</span> <span class='ident'>finish</span> {
             <span class='kw'>let</span> <span class='ident'>bucket_index</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>nodes</span>[<span class='ident'>counter</span>].<span class='ident'>bucket_index</span>;
@@ -1820,7 +1766,7 @@
 
             <span class='comment'>// Check for an excess of contacts in this bucket.</span>
             <span class='ident'>number_in_bucket</span> <span class='op'>+=</span> <span class='number'>1</span>;
-            <span class='kw'>if</span> <span class='ident'>number_in_bucket</span> <span class='op'>&gt;</span> <span class='ident'>bucket_size</span>() {
+            <span class='kw'>if</span> <span class='ident'>number_in_bucket</span> <span class='op'>&gt;</span> <span class='ident'>BUCKET_SIZE</span> {
                 <span class='kw'>break</span>;
             }
 
@@ -1882,11 +1828,19 @@
 
 <span class='attribute'>#[<span class='ident'>cfg</span>(<span class='ident'>test</span>)]</span>
 <span class='kw'>mod</span> <span class='ident'>test</span> {
-    <span class='kw'>use</span> <span class='ident'>super</span>::{<span class='ident'>BUCKET_SIZE</span>, <span class='ident'>bucket_size</span>, <span class='ident'>group_size</span>, <span class='ident'>HasName</span>, <span class='ident'>NodeInfo</span>, <span class='ident'>RoutingTable</span>,
-                <span class='ident'>optimal_table_size</span>, <span class='ident'>parallelism</span>};
+    <span class='kw'>use</span> <span class='ident'>super</span>::{<span class='ident'>BUCKET_SIZE</span>, <span class='ident'>GROUP_SIZE</span>, <span class='ident'>HasName</span>, <span class='ident'>NodeInfo</span>, <span class='ident'>RoutingTable</span>, <span class='ident'>OPTIMAL_TABLE_SIZE</span>,
+                <span class='ident'>PARALLELISM</span>};
+    <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>cmp</span>;
     <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>collections</span>;
     <span class='kw'>use</span> <span class='ident'>itertools</span>::<span class='ident'>Itertools</span>;
     <span class='kw'>use</span> <span class='ident'>xor_name</span>::<span class='ident'>XorName</span>;
+
+    <span class='attribute'>#[<span class='ident'>test</span>]</span>
+    <span class='kw'>fn</span> <span class='ident'>constant_constraints</span>() {
+        <span class='comment'>// These are required for the RoutingTable to make its guarantees.</span>
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>BUCKET_SIZE</span> <span class='op'>==</span> <span class='ident'>GROUP_SIZE</span>);
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>BUCKET_SIZE</span> <span class='op'>&gt;=</span> <span class='ident'>PARALLELISM</span>);
+    }
 
     <span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Clone</span>, <span class='ident'>Debug</span>, <span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>)]</span>
     <span class='kw'>struct</span> <span class='ident'>TestNodeInfo</span> {
@@ -1946,7 +1900,7 @@
                 <span class='ident'>table</span>: <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='ident'>node_info</span>.<span class='ident'>name</span>()),
                 <span class='ident'>node_info</span>: <span class='ident'>node_info</span>,
                 <span class='ident'>name</span>: <span class='ident'>name</span>,
-                <span class='ident'>initial_count</span>: (::<span class='ident'>rand</span>::<span class='ident'>random</span>::<span class='op'>&lt;</span><span class='ident'>usize</span><span class='op'>&gt;</span>() <span class='op'>%</span> (<span class='ident'>group_size</span>() <span class='op'>-</span> <span class='number'>1</span>)) <span class='op'>+</span> <span class='number'>1</span>,
+                <span class='ident'>initial_count</span>: (::<span class='ident'>rand</span>::<span class='ident'>random</span>::<span class='op'>&lt;</span><span class='ident'>usize</span><span class='op'>&gt;</span>() <span class='op'>%</span> (<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>)) <span class='op'>+</span> <span class='number'>1</span>,
                 <span class='ident'>added_names</span>: <span class='ident'>Vec</span>::<span class='ident'>new</span>(),
             }
         }
@@ -1963,13 +1917,13 @@
         }
 
         <span class='kw'>fn</span> <span class='ident'>complete_filling_table</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>) {
-            <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='self'>self</span>.<span class='ident'>initial_count</span>..<span class='ident'>optimal_table_size</span>() {
+            <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='self'>self</span>.<span class='ident'>initial_count</span>..<span class='ident'>OPTIMAL_TABLE_SIZE</span> {
                 <span class='self'>self</span>.<span class='ident'>node_info</span>.<span class='ident'>public_id</span>.<span class='ident'>set_name</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>));
                 <span class='self'>self</span>.<span class='ident'>added_names</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>node_info</span>.<span class='ident'>name</span>().<span class='ident'>clone</span>());
                 <span class='macro'>assert</span><span class='macro'>!</span>(<span class='self'>self</span>.<span class='ident'>table</span>.<span class='ident'>add_node</span>(<span class='self'>self</span>.<span class='ident'>node_info</span>.<span class='ident'>clone</span>()).<span class='number'>0</span>);
             }
 
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>optimal_table_size</span>(), <span class='self'>self</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>OPTIMAL_TABLE_SIZE</span>, <span class='self'>self</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
             <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>are_nodes_sorted</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>table</span>), <span class='string'>&quot;Nodes are not sorted&quot;</span>);
         }
 
@@ -2011,7 +1965,7 @@
         }
     }
 
-    <span class='kw'>fn</span> <span class='ident'>make_sort_predicate</span>(<span class='ident'>target</span>: <span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>Box</span><span class='op'>&lt;</span><span class='ident'>FnMut</span>(<span class='kw-2'>&amp;</span><span class='ident'>XorName</span>, <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> ::<span class='ident'>std</span>::<span class='ident'>cmp</span>::<span class='ident'>Ordering</span><span class='op'>&gt;</span> {
+    <span class='kw'>fn</span> <span class='ident'>make_sort_predicate</span>(<span class='ident'>target</span>: <span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>Box</span><span class='op'>&lt;</span><span class='ident'>FnMut</span>(<span class='kw-2'>&amp;</span><span class='ident'>XorName</span>, <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>cmp</span>::<span class='ident'>Ordering</span><span class='op'>&gt;</span> {
         <span class='ident'>Box</span>::<span class='ident'>new</span>(<span class='kw'>move</span> <span class='op'>|</span><span class='ident'>lhs</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>, <span class='ident'>rhs</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span><span class='op'>|</span> <span class='ident'>target</span>.<span class='ident'>cmp_closeness</span>(<span class='ident'>lhs</span>, <span class='ident'>rhs</span>))
     }
 
@@ -2035,22 +1989,22 @@
         <span class='macro'>assert_eq</span><span class='macro'>!</span>((<span class='boolval'>false</span>, <span class='prelude-val'>None</span>), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add_node</span>(<span class='ident'>test</span>.<span class='ident'>node_info</span>.<span class='ident'>clone</span>()));
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>(), <span class='number'>1</span>);
 
-        <span class='comment'>// Add further &#39;optimal_table_size()&#39; - 1 contacts (should all succeed with no removals).</span>
+        <span class='comment'>// Add further &#39;OPTIMAL_TABLE_SIZE&#39; - 1 contacts (should all succeed with no removals).</span>
         <span class='comment'>// Set this up so that buckets 1 and 2 have BUCKET_SIZE + 2 contacts each and all others</span>
         <span class='comment'>// have 0 or 1 contacts.</span>
 
         <span class='comment'>// Fill buckets 1 and 2 with two excess contacts each.</span>
         <span class='kw'>for</span> <span class='ident'>bucket_nr</span> <span class='kw'>in</span> <span class='number'>1</span>..<span class='number'>3</span> {
-            <span class='kw'>for</span> <span class='ident'>d</span> <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>bucket_size</span>() <span class='op'>+</span> <span class='number'>2</span>) {
+            <span class='kw'>for</span> <span class='ident'>d</span> <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>BUCKET_SIZE</span> <span class='op'>+</span> <span class='number'>2</span>) {
                 <span class='ident'>test</span>.<span class='ident'>node_info</span>.<span class='ident'>public_id</span>.<span class='ident'>set_name</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>bucket_nr</span>, <span class='ident'>d</span> <span class='kw'>as</span> <span class='ident'>u8</span>));
                 <span class='macro'>assert_eq</span><span class='macro'>!</span>((<span class='boolval'>true</span>, <span class='prelude-val'>None</span>), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add_node</span>(<span class='ident'>test</span>.<span class='ident'>node_info</span>.<span class='ident'>clone</span>()));
                 <span class='macro'>assert_eq</span><span class='macro'>!</span>((<span class='boolval'>false</span>, <span class='prelude-val'>None</span>), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add_node</span>(<span class='ident'>test</span>.<span class='ident'>node_info</span>.<span class='ident'>clone</span>()));
             }
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>bucket_nr</span> <span class='op'>*</span> (<span class='ident'>bucket_size</span>() <span class='op'>+</span> <span class='number'>2</span>) <span class='op'>+</span> <span class='number'>1</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>bucket_nr</span> <span class='op'>*</span> (<span class='ident'>BUCKET_SIZE</span> <span class='op'>+</span> <span class='number'>2</span>) <span class='op'>+</span> <span class='number'>1</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
         }
 
         <span class='kw'>let</span> <span class='ident'>len_with_3_buckets</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>();
-        <span class='kw'>let</span> <span class='ident'>optimal_len</span> <span class='op'>=</span> <span class='ident'>optimal_table_size</span>();
+        <span class='kw'>let</span> <span class='ident'>optimal_len</span> <span class='op'>=</span> <span class='ident'>OPTIMAL_TABLE_SIZE</span>;
 
         <span class='comment'>// Add remaining contacts</span>
         <span class='kw'>for</span> <span class='ident'>bucket_nr</span> <span class='kw'>in</span> <span class='number'>3</span>..(<span class='number'>3</span> <span class='op'>+</span> <span class='ident'>optimal_len</span> <span class='op'>-</span> <span class='ident'>len_with_3_buckets</span>) {
@@ -2075,10 +2029,10 @@
             <span class='macro'>assert_eq</span><span class='macro'>!</span>((<span class='boolval'>false</span>, <span class='prelude-val'>None</span>), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add_node</span>(<span class='ident'>test</span>.<span class='ident'>node_info</span>.<span class='ident'>clone</span>()));
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>optimal_len</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
         }
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='ident'>BUCKET_SIZE</span> <span class='op'>+</span> <span class='number'>1</span>), <span class='ident'>dropped</span>[<span class='number'>0</span>]);
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='ident'>BUCKET_SIZE</span>), <span class='ident'>dropped</span>[<span class='number'>1</span>]);
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>2</span>, <span class='ident'>BUCKET_SIZE</span> <span class='op'>+</span> <span class='number'>1</span>), <span class='ident'>dropped</span>[<span class='number'>2</span>]);
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>2</span>, <span class='ident'>BUCKET_SIZE</span>), <span class='ident'>dropped</span>[<span class='number'>3</span>]);
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='ident'>BUCKET_SIZE</span> <span class='kw'>as</span> <span class='ident'>u8</span> <span class='op'>+</span> <span class='number'>1</span>), <span class='ident'>dropped</span>[<span class='number'>0</span>]);
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='ident'>BUCKET_SIZE</span> <span class='kw'>as</span> <span class='ident'>u8</span>), <span class='ident'>dropped</span>[<span class='number'>1</span>]);
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>2</span>, <span class='ident'>BUCKET_SIZE</span> <span class='kw'>as</span> <span class='ident'>u8</span> <span class='op'>+</span> <span class='number'>1</span>), <span class='ident'>dropped</span>[<span class='number'>2</span>]);
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>2</span>, <span class='ident'>BUCKET_SIZE</span> <span class='kw'>as</span> <span class='ident'>u8</span>), <span class='ident'>dropped</span>[<span class='number'>3</span>]);
 
         <span class='comment'>// Try to add far contacts again (should fail)</span>
         <span class='kw'>for</span> <span class='ident'>far_contact</span> <span class='kw'>in</span> <span class='ident'>dropped</span> {
@@ -2087,7 +2041,7 @@
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>optimal_len</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
         }
 
-        <span class='comment'>// Add final close contact to push len() of table above optimal_table_size()</span>
+        <span class='comment'>// Add final close contact to push len() of table above OPTIMAL_TABLE_SIZE</span>
         <span class='ident'>test</span>.<span class='ident'>node_info</span>.<span class='ident'>public_id</span>.<span class='ident'>set_name</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>optimal_len</span>, <span class='number'>1</span>));
         <span class='macro'>assert_eq</span><span class='macro'>!</span>((<span class='boolval'>true</span>, <span class='prelude-val'>None</span>), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add_node</span>(<span class='ident'>test</span>.<span class='ident'>node_info</span>.<span class='ident'>clone</span>()));
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>optimal_len</span> <span class='op'>+</span> <span class='number'>1</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
@@ -2116,24 +2070,24 @@
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add_node</span>(<span class='ident'>new_node_0</span>).<span class='number'>0</span>);
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>want_to_add</span>(<span class='kw-2'>&amp;</span><span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>, <span class='number'>2</span>)));
 
-        <span class='comment'>// Add further &#39;optimal_table_size()&#39; - 1 contacts (should all succeed with no removals).</span>
+        <span class='comment'>// Add further &#39;OPTIMAL_TABLE_SIZE&#39; - 1 contacts (should all succeed with no removals).</span>
         <span class='comment'>// Set this up so that buckets 1 and 2 have BUCKET_SIZE + 2 contacts each and all others</span>
         <span class='comment'>// have 0 or 1 contacts.</span>
 
         <span class='comment'>// Fill buckets 1 and 2 with two excess contacts each.</span>
         <span class='kw'>for</span> <span class='ident'>bucket_nr</span> <span class='kw'>in</span> <span class='number'>1</span>..<span class='number'>3</span> {
-            <span class='kw'>for</span> <span class='ident'>d</span> <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>bucket_size</span>() <span class='op'>+</span> <span class='number'>2</span>) {
+            <span class='kw'>for</span> <span class='ident'>d</span> <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>BUCKET_SIZE</span> <span class='op'>+</span> <span class='number'>2</span>) {
                 <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>new_node</span> <span class='op'>=</span> <span class='ident'>create_random_node_info</span>();
                 <span class='ident'>new_node</span>.<span class='ident'>public_id</span>.<span class='ident'>set_name</span>(<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>bucket_nr</span>, <span class='ident'>d</span> <span class='kw'>as</span> <span class='ident'>u8</span>));
                 <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>want_to_add</span>(<span class='ident'>new_node</span>.<span class='ident'>name</span>()));
                 <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add_node</span>(<span class='ident'>new_node</span>).<span class='number'>0</span>);
                 <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>want_to_add</span>(<span class='kw-2'>&amp;</span><span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>bucket_nr</span>, <span class='ident'>d</span> <span class='kw'>as</span> <span class='ident'>u8</span>)));
             }
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>bucket_nr</span> <span class='op'>*</span> (<span class='ident'>bucket_size</span>() <span class='op'>+</span> <span class='number'>2</span>) <span class='op'>+</span> <span class='number'>1</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>bucket_nr</span> <span class='op'>*</span> (<span class='ident'>BUCKET_SIZE</span> <span class='op'>+</span> <span class='number'>2</span>) <span class='op'>+</span> <span class='number'>1</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
         }
 
         <span class='kw'>let</span> <span class='ident'>len_with_3_buckets</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>();
-        <span class='kw'>let</span> <span class='ident'>optimal_len</span> <span class='op'>=</span> <span class='ident'>optimal_table_size</span>();
+        <span class='kw'>let</span> <span class='ident'>optimal_len</span> <span class='op'>=</span> <span class='ident'>OPTIMAL_TABLE_SIZE</span>;
 
         <span class='comment'>// Add remaining contacts</span>
         <span class='kw'>for</span> <span class='ident'>bucket_nr</span> <span class='kw'>in</span> <span class='number'>3</span>..(<span class='number'>3</span> <span class='op'>+</span> <span class='ident'>optimal_len</span> <span class='op'>-</span> <span class='ident'>len_with_3_buckets</span>) {
@@ -2161,7 +2115,7 @@
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>want_to_add</span>(<span class='kw-2'>&amp;</span><span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='number'>2</span>)));
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>want_to_add</span>(<span class='kw-2'>&amp;</span><span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='number'>1</span>)));
 
-        <span class='comment'>// Check final close contact which would push len() of table above optimal_table_size()</span>
+        <span class='comment'>// Check final close contact which would push len() of table above OPTIMAL_TABLE_SIZE</span>
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>want_to_add</span>(<span class='kw-2'>&amp;</span><span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>optimal_len</span>, <span class='number'>1</span>)));
     }
 
@@ -2180,16 +2134,16 @@
 
         <span class='comment'>// Try with invalid Address</span>
         <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>drop_node</span>(<span class='kw-2'>&amp;</span><span class='ident'>XorName</span>::<span class='ident'>new</span>([<span class='number'>0u8</span>; <span class='number'>64</span>]));
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>optimal_table_size</span>(), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>OPTIMAL_TABLE_SIZE</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
 
         <span class='comment'>// Try with our Name</span>
         <span class='kw'>let</span> <span class='ident'>drop_name</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>.<span class='ident'>clone</span>();
         <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>drop_node</span>(<span class='kw-2'>&amp;</span><span class='ident'>drop_name</span>);
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>optimal_table_size</span>(), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>OPTIMAL_TABLE_SIZE</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
 
         <span class='comment'>// Try with Address of node not in table</span>
         <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>drop_node</span>(<span class='kw-2'>&amp;</span><span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>, <span class='number'>2</span>));
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>optimal_table_size</span>(), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>OPTIMAL_TABLE_SIZE</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
 
         <span class='comment'>// Remove all nodes one at a time in random order</span>
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>rng</span> <span class='op'>=</span> ::<span class='ident'>rand</span>::<span class='ident'>thread_rng</span>();
@@ -2217,7 +2171,7 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>rand</span>::<span class='ident'>random</span>());
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>target_nodes</span>.<span class='ident'>len</span>(), <span class='number'>0</span>);
 
-        <span class='comment'>// Partially fill the table with &lt;group_size() contacts</span>
+        <span class='comment'>// Partially fill the table with &lt;GROUP_SIZE contacts</span>
         <span class='ident'>test</span>.<span class='ident'>partially_fill_table</span>();
 
         <span class='comment'>// Check we get all contacts returned</span>
@@ -2235,14 +2189,14 @@
             <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>assert_checker</span> <span class='op'>==</span> <span class='number'>1</span>);
         }
 
-        <span class='comment'>// Complete filling the table up to optimal_table_size() contacts</span>
+        <span class='comment'>// Complete filling the table up to OPTIMAL_TABLE_SIZE contacts</span>
         <span class='ident'>test</span>.<span class='ident'>complete_filling_table</span>();
 
         <span class='comment'>// Try with our ID (should return closest to us, i.e. buckets 63 to 32)</span>
         <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>);
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group_size</span>(), <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
 
-        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> ((<span class='ident'>optimal_table_size</span>() <span class='op'>-</span> <span class='ident'>group_size</span>())..<span class='ident'>optimal_table_size</span>() <span class='op'>-</span> <span class='number'>1</span>).<span class='ident'>rev</span>() {
+        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> ((<span class='ident'>OPTIMAL_TABLE_SIZE</span> <span class='op'>-</span> <span class='ident'>GROUP_SIZE</span>)..<span class='ident'>OPTIMAL_TABLE_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>).<span class='ident'>rev</span>() {
             <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>assert_checker</span> <span class='op'>=</span> <span class='number'>0</span>;
             <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>target_nodes</span>.<span class='ident'>len</span>() {
                 <span class='kw'>if</span> <span class='op'>*</span><span class='ident'>target_nodes</span>[<span class='ident'>j</span>].<span class='ident'>name</span>() <span class='op'>==</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>) {
@@ -2254,13 +2208,13 @@
         }
 
         <span class='comment'>// Try with nodes far from us, first time *not* in table and second time *in* table (should</span>
-        <span class='comment'>// return &#39;parallelism()&#39; contacts closest to target first time and the single actual target</span>
+        <span class='comment'>// return &#39;PARALLELISM&#39; contacts closest to target first time and the single actual target</span>
         <span class='comment'>// the second time)</span>
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>target</span>: <span class='ident'>XorName</span>;
         <span class='kw'>for</span> <span class='ident'>count</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='number'>2</span> {
-            <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>optimal_table_size</span>() <span class='op'>-</span> <span class='ident'>group_size</span>()) {
+            <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>OPTIMAL_TABLE_SIZE</span> <span class='op'>-</span> <span class='ident'>GROUP_SIZE</span>) {
                 <span class='kw'>let</span> (<span class='ident'>target</span>, <span class='ident'>expected_len</span>) <span class='op'>=</span> <span class='kw'>if</span> <span class='ident'>count</span> <span class='op'>==</span> <span class='number'>0</span> {
-                    (<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>2</span>).<span class='ident'>clone</span>(), <span class='ident'>parallelism</span>())
+                    (<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>2</span>).<span class='ident'>clone</span>(), <span class='ident'>PARALLELISM</span>)
                 } <span class='kw'>else</span> {
                     (<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>).<span class='ident'>clone</span>(), <span class='number'>1</span>)
                 };
@@ -2280,16 +2234,16 @@
         }
 
         <span class='comment'>// Try with nodes close to us, first time *not* in table and second time *in* table (should</span>
-        <span class='comment'>// return group_size() closest to target)</span>
+        <span class='comment'>// return GROUP_SIZE closest to target)</span>
         <span class='kw'>for</span> <span class='ident'>count</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='number'>2</span> {
-            <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> (<span class='ident'>optimal_table_size</span>() <span class='op'>-</span> <span class='ident'>group_size</span>() <span class='op'>+</span> <span class='number'>1</span>)..<span class='ident'>optimal_table_size</span>() {
+            <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> (<span class='ident'>OPTIMAL_TABLE_SIZE</span> <span class='op'>-</span> <span class='ident'>GROUP_SIZE</span> <span class='op'>+</span> <span class='number'>1</span>)..<span class='ident'>OPTIMAL_TABLE_SIZE</span> {
                 <span class='ident'>target</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='ident'>count</span> <span class='op'>==</span> <span class='number'>0</span> {
                     <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>0</span>).<span class='ident'>clone</span>()
                 } <span class='kw'>else</span> {
                     <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>).<span class='ident'>clone</span>()
                 };
                 <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>target</span>);
-                <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group_size</span>(), <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
+                <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
                 <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>target_nodes</span>.<span class='ident'>len</span>() {
                     <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>assert_checker</span> <span class='op'>=</span> <span class='number'>0</span>;
                     <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>test</span>.<span class='ident'>added_names</span>.<span class='ident'>len</span>() {
@@ -2323,7 +2277,7 @@
         }
 
         <span class='ident'>test</span>.<span class='ident'>complete_filling_table</span>();
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group_size</span>(), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_close_group</span>().<span class='ident'>len</span>());
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_close_group</span>().<span class='ident'>len</span>());
 
         <span class='kw'>for</span> <span class='ident'>close_node</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_close_group</span>() {
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='number'>1</span>,
@@ -2335,7 +2289,7 @@
     <span class='kw'>fn</span> <span class='ident'>our_close_group_and_is_close</span>() {
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>tables</span> <span class='op'>=</span> <span class='ident'>collections</span>::<span class='ident'>HashMap</span>::<span class='ident'>new</span>();
         <span class='comment'>// Create nodes such that each can exactly fill up its routing table.</span>
-        <span class='kw'>for</span> _ <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>optimal_table_size</span>() <span class='op'>+</span> <span class='number'>1</span>) {
+        <span class='kw'>for</span> _ <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>OPTIMAL_TABLE_SIZE</span> <span class='op'>+</span> <span class='number'>1</span>) {
             <span class='kw'>let</span> <span class='ident'>node_info</span> <span class='op'>=</span> <span class='ident'>create_random_node_info</span>();
             <span class='kw'>let</span> <span class='ident'>table</span> <span class='op'>=</span> <span class='ident'>RoutingTable</span>::<span class='op'>&lt;</span><span class='ident'>TestNodeInfo</span>, <span class='ident'>u64</span><span class='op'>&gt;</span>::<span class='ident'>new</span>(<span class='ident'>node_info</span>.<span class='ident'>name</span>());
             <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>insert</span>(<span class='ident'>node_info</span>.<span class='ident'>name</span>().<span class='ident'>clone</span>(), <span class='ident'>table</span>);
@@ -2348,15 +2302,15 @@
                     <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>get_mut</span>(<span class='ident'>name0</span>).<span class='ident'>unwrap</span>().<span class='ident'>add_node</span>(<span class='ident'>to_node_info</span>(<span class='ident'>name1</span>));
                 }
             }
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>optimal_table_size</span>(), <span class='ident'>tables</span>[<span class='ident'>name0</span>].<span class='ident'>len</span>());
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>OPTIMAL_TABLE_SIZE</span>, <span class='ident'>tables</span>[<span class='ident'>name0</span>].<span class='ident'>len</span>());
         }
         <span class='comment'>// Check close groups of addresses that are not nodes.</span>
         <span class='kw'>for</span> _ <span class='kw'>in</span> <span class='number'>0</span>..<span class='number'>1000</span> {
             <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> ::<span class='ident'>rand</span>::<span class='ident'>random</span>();
             <span class='kw'>let</span> <span class='ident'>close_group_size</span> <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>values</span>().<span class='ident'>filter</span>(<span class='op'>|</span><span class='ident'>t</span><span class='op'>|</span> <span class='ident'>t</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>)).<span class='ident'>count</span>();
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group_size</span>(), <span class='ident'>close_group_size</span>);
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span>, <span class='ident'>close_group_size</span>);
             <span class='comment'>// TODO: Find a way to ensure at least the following for more than 65 nodes.</span>
-            <span class='comment'>// assert!(quorum_size() &lt;= close_group_size &amp;&amp; close_group_size &lt; 2 * quorum_size(),</span>
+            <span class='comment'>// assert!(QUORUM_SIZE &lt;= close_group_size &amp;&amp; close_group_size &lt; 2 * QUORUM_SIZE,</span>
             <span class='comment'>//         &quot;Close group has {} elements&quot;, close_group_size);</span>
         }
         <span class='comment'>// Check close groups of the nodes&#39; addresses.</span>
@@ -2365,7 +2319,7 @@
                                             .<span class='ident'>filter</span>(<span class='op'>|</span><span class='ident'>t</span><span class='op'>|</span> <span class='ident'>t</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>))
                                             .<span class='ident'>map</span>(<span class='op'>|</span><span class='ident'>t</span><span class='op'>|</span> <span class='ident'>t</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>())
                                             .<span class='ident'>sorted_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>name</span>.<span class='ident'>clone</span>()));
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group_size</span>(), <span class='ident'>close_group</span>.<span class='ident'>len</span>());
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span>, <span class='ident'>close_group</span>.<span class='ident'>len</span>());
             <span class='kw'>let</span> <span class='ident'>our_close_group</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span>_<span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>name</span>]
                                               .<span class='ident'>our_close_group</span>()
                                               .<span class='ident'>into_iter</span>()
@@ -2373,7 +2327,7 @@
                                               .<span class='ident'>collect</span>();
             <span class='comment'>// The node itself is not in `our_close_group`, but it is in `close_group`:</span>
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>close_group</span>[<span class='number'>1</span>..].<span class='ident'>to_vec</span>(),
-                       <span class='ident'>our_close_group</span>[..(<span class='ident'>group_size</span>() <span class='op'>-</span> <span class='number'>1</span>)].<span class='ident'>to_vec</span>());
+                       <span class='ident'>our_close_group</span>[..(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>)].<span class='ident'>to_vec</span>());
         }
     }
 
@@ -2395,7 +2349,7 @@
         <span class='kw'>for</span> <span class='ident'>it</span> <span class='kw'>in</span> <span class='ident'>tables</span>.<span class='ident'>iter</span>() {
             <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>it</span>.<span class='ident'>our_name</span>.<span class='ident'>clone</span>()));
             <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>groups</span> <span class='op'>=</span> <span class='ident'>it</span>.<span class='ident'>our_close_group</span>();
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>groups</span>.<span class='ident'>len</span>(), <span class='ident'>group_size</span>());
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>groups</span>.<span class='ident'>len</span>(), <span class='ident'>GROUP_SIZE</span>);
 
             <span class='comment'>// TODO(Spandan) vec.dedup does not compile - manually doing it</span>
             <span class='kw'>if</span> <span class='ident'>groups</span>.<span class='ident'>len</span>() <span class='op'>&gt;</span> <span class='number'>1</span> {
@@ -2411,9 +2365,9 @@
                 <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>new_end</span>, <span class='ident'>groups</span>.<span class='ident'>len</span>());
             }
 
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>groups</span>.<span class='ident'>len</span>(), <span class='ident'>group_size</span>());
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>groups</span>.<span class='ident'>len</span>(), <span class='ident'>GROUP_SIZE</span>);
 
-            <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>group_size</span>() {
+            <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>GROUP_SIZE</span> {
                 <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>groups</span>[<span class='ident'>i</span>].<span class='ident'>name</span>() <span class='op'>==</span> <span class='kw-2'>&amp;</span><span class='ident'>addresses</span>[<span class='ident'>i</span> <span class='op'>+</span> <span class='number'>1</span>]);
             }
         }
@@ -2456,7 +2410,7 @@
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
             <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>.<span class='ident'>clone</span>()));
             <span class='kw'>let</span> <span class='ident'>group</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_close_group</span>();
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group</span>.<span class='ident'>len</span>(), ::<span class='ident'>std</span>::<span class='ident'>cmp</span>::<span class='ident'>min</span>(<span class='ident'>group_size</span>(), <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>len</span>()));
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group</span>.<span class='ident'>len</span>(), <span class='ident'>cmp</span>::<span class='ident'>min</span>(<span class='ident'>GROUP_SIZE</span>, <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>len</span>()));
         }
     }
 
@@ -2481,10 +2435,10 @@
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
             <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>.<span class='ident'>clone</span>()));
             <span class='comment'>// if target is in close group return the whole close group excluding target</span>
-            <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>1</span>..<span class='ident'>group_size</span>() {
+            <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>1</span>..<span class='ident'>GROUP_SIZE</span> {
                 <span class='kw'>if</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>addresses</span>[<span class='ident'>j</span>]) {
                     <span class='kw'>let</span> <span class='ident'>target_close_group</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>target_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>addresses</span>[<span class='ident'>j</span>]);
-                    <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group_size</span>(), <span class='ident'>target_close_group</span>.<span class='ident'>len</span>());
+                    <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span>, <span class='ident'>target_close_group</span>.<span class='ident'>len</span>());
                     <span class='ident'>tested_close_target</span> <span class='op'>=</span> <span class='boolval'>true</span>;
                 }
             }
@@ -2534,7 +2488,7 @@
         }
         <span class='comment'>// EXPECT_TRUE(asymm::MatchingKeys(info_.dht_public_id.public_key(),</span>
         <span class='comment'>//                                 *table_.GetPublicKey(info_.name())));</span>
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>optimal_table_size</span>(), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>());
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>OPTIMAL_TABLE_SIZE</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>nodes</span>.<span class='ident'>len</span>());
     }
 
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
