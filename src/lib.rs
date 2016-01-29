@@ -386,11 +386,6 @@ impl<T, U> RoutingTable<T, U>
         None
     }
 
-    /// Returns `true` if the bucket with the given index has at least `GROUP_SIZE` entries.
-    fn is_bucket_full(&self, index: usize) -> bool {
-        self.nodes.iter().filter(|n| n.bucket_index == index).take(GROUP_SIZE).count() == GROUP_SIZE
-    }
-
     /// Returns the `n` nodes in our routing table that are closest to `target`.
     ///
     /// Returns fewer than `n` nodes if the routing table doesn't have enough entries.
@@ -402,33 +397,6 @@ impl<T, U> RoutingTable<T, U>
                              .sorted_by(|a, b| target.cmp_distance(&a.name(), &b.name()));
         result.truncate(n);
         result
-    }
-
-    /// Returns whether we are close to one of `name`'s bucket addresses or to `name` itself.
-    fn is_close_to_bucket_of(&self, name: &XorName) -> bool {
-        // We are close to `name` if all buckets where `name` disagrees with us have less than
-        // GROUP_SIZE entries in total. Therefore we are close to a bucket address of `name`, if
-        // removing the largest such bucket gets us below GROUP_SIZE.
-        let mut closer_contacts: usize = 0;
-        let mut largest_bucket: usize = 0;
-        let mut current_bucket: usize = 0;
-        let mut current_bucket_index: usize = 0;
-        for node in self.nodes.iter() {
-            let i = node.bucket_index;
-            if (self.our_name().0[i / 8] ^ name.0[i / 8]) & (1 << (7 - i % 8)) != 0 {
-                if i != current_bucket_index {
-                    largest_bucket = cmp::max(largest_bucket, current_bucket);
-                    current_bucket = 0;
-                    current_bucket_index = i;
-                    if closer_contacts >= largest_bucket + GROUP_SIZE {
-                        return false;
-                    }
-                }
-                closer_contacts += 1;
-                current_bucket += 1;
-            }
-        }
-        closer_contacts < largest_bucket + GROUP_SIZE
     }
 
     /// Returns a collection of nodes to which a message should be sent onwards.
@@ -527,6 +495,38 @@ impl<T, U> RoutingTable<T, U>
             Ok(i) => self.nodes.get(i),
             Err(_) => None,
         }
+    }
+
+    /// Returns `true` if the bucket with the given index has at least `GROUP_SIZE` entries.
+    fn is_bucket_full(&self, index: usize) -> bool {
+        self.nodes.iter().filter(|n| n.bucket_index == index).take(GROUP_SIZE).count() == GROUP_SIZE
+    }
+
+    /// Returns whether we are close to one of `name`'s bucket addresses or to `name` itself.
+    fn is_close_to_bucket_of(&self, name: &XorName) -> bool {
+        // We are close to `name` if all buckets where `name` disagrees with us have less than
+        // GROUP_SIZE entries in total. Therefore we are close to a bucket address of `name`, if
+        // removing the largest such bucket gets us below GROUP_SIZE.
+        let mut closer_contacts: usize = 0;
+        let mut largest_bucket: usize = 0;
+        let mut current_bucket: usize = 0;
+        let mut current_bucket_index: usize = 0;
+        for node in self.nodes.iter() {
+            let i = node.bucket_index;
+            if (self.our_name().0[i / 8] ^ name.0[i / 8]) & (1 << (7 - i % 8)) != 0 {
+                if i != current_bucket_index {
+                    largest_bucket = cmp::max(largest_bucket, current_bucket);
+                    current_bucket = 0;
+                    current_bucket_index = i;
+                    if closer_contacts >= largest_bucket + GROUP_SIZE {
+                        return false;
+                    }
+                }
+                closer_contacts += 1;
+                current_bucket += 1;
+            }
+        }
+        closer_contacts < largest_bucket + GROUP_SIZE
     }
 
     // This is equivalent to the common leading bits of `self.our_name` and `name` where "leading
