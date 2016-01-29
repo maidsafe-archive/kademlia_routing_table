@@ -128,6 +128,10 @@ extern crate itertools;
 extern crate rand;
 extern crate xor_name;
 
+mod result;
+
+pub use result::{AddedNodeDetails, DroppedNodeDetails};
+
 use itertools::*;
 use std::cmp;
 use std::collections::HashSet;
@@ -234,13 +238,8 @@ impl<T, U> RoutingTable<T, U>
 
     /// Adds a contact to the routing table, or updates it.
     ///
-    /// Returns `None` if the contact already existed. Otherwise it returns a tuple:
-    ///
-    /// * The list of contacts that need to be notified about the new node: If the bucket was
-    ///   already full, that's nobody, but if it wasn't, everyone with a bucket index greater than
-    ///   the new nodes' must be notified.
-    /// * Whether we are together in any close group with that contact.
-    pub fn add_node(&mut self, mut node: NodeInfo<T, U>) -> Option<(Vec<NodeInfo<T, U>>, bool)> {
+    /// Returns `None` if the contact already existed. Otherwise it returns `AddedNodeDetails`.
+    pub fn add_node(&mut self, mut node: NodeInfo<T, U>) -> Option<AddedNodeDetails<T, U>> {
         if node.name() == &self.our_name {
             return None;
         }
@@ -254,7 +253,7 @@ impl<T, U> RoutingTable<T, U>
                 // No existing entry, so set the node's bucket distance and insert it.
                 let bucket_index = self.bucket_index(&node.name());
                 node.bucket_index = bucket_index;
-                let nodes_to_notify = if self.is_bucket_full(bucket_index) {
+                let must_notify = if self.is_bucket_full(bucket_index) {
                     vec![]
                 } else {
                     self.nodes
@@ -264,8 +263,10 @@ impl<T, U> RoutingTable<T, U>
                         .collect()
                 };
                 self.nodes.insert(i, node);
-                Some((nodes_to_notify,
-                      self.is_in_any_close_group_with(bucket_index)))
+                Some(AddedNodeDetails {
+                    must_notify: must_notify,
+                    common_groups: self.is_in_any_close_group_with(bucket_index),
+                })
             }
         }
     }
@@ -359,30 +360,27 @@ impl<T, U> RoutingTable<T, U>
     ///
     /// If no entry with that connection is found, `None` is returned. If the affected entry still
     /// has connections left after removing this one, the entry remains in the table and the result
-    /// is also `None`. Otherwise, the entry is removed from the routing table and a tuple with
-    /// three components is returned:
-    ///
-    /// * The name of the dropped node.
-    /// * `Some(i)` if the entry has been removed from a full bucket with index `i`, indicating that
-    ///   an attempt to refill that bucket has to be made.
-    /// * Whether we were together in any close group with that contact.
-    pub fn drop_connection(&mut self,
-                           lost_connection: &U)
-                           -> Option<(XorName, Option<usize>, bool)> {
+    /// is also `None`. Otherwise, the entry is removed from the routing table and
+    /// `DroppedNodeDetails` are returned.
+    pub fn drop_connection(&mut self, lost_connection: &U) -> Option<DroppedNodeDetails> {
         let remove_connection = |node_info: &mut NodeInfo<T, U>| {
             node_info.connections.remove(lost_connection)
         };
         if let Some(node_index) = self.nodes.iter_mut().position(remove_connection) {
             if self.nodes[node_index].connections.is_empty() {
                 let bucket_index = self.nodes[node_index].bucket_index;
-                let opt_bucket_index = if self.is_bucket_full(bucket_index) {
+                let incomplete_bucket = if self.is_bucket_full(bucket_index) {
                     Some(bucket_index)
                 } else {
                     None
                 };
                 let common_groups = self.is_in_any_close_group_with(bucket_index);
                 let name = self.nodes.remove(node_index).name().clone();
-                return Some((name, opt_bucket_index, common_groups));
+                return Some(DroppedNodeDetails {
+                    name: name,
+                    incomplete_bucket: incomplete_bucket,
+                    common_groups: common_groups,
+                });
             }
         }
         None
@@ -751,7 +749,10 @@ mod test {
 
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
         assert_eq!(test.table.add_node(test.node_info.clone()),
-                   Some((Vec::new(), true)));
+                   Some(AddedNodeDetails {
+                       must_notify: Vec::new(),
+                       common_groups: true
+                   }));
 
         // Adding a node should not remove existing nodes
         assert_eq!(test.table.len(), GROUP_SIZE + 1);
@@ -771,7 +772,10 @@ mod test {
 
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
         assert_eq!(test.table.add_node(test.node_info.clone()),
-                   Some((Vec::new(), false)));
+                   Some(AddedNodeDetails {
+                       must_notify: Vec::new(),
+                       common_groups: false
+                   }));
 
         // Adding a node should not remove existing nodes
         assert_eq!(test.table.len(), 2 * GROUP_SIZE + 1);
@@ -795,7 +799,7 @@ mod test {
         assert!(test.table.add_node(test.node_info.clone()).is_some());
 
         test.node_info.public_id.set_name(get_contact(&test.name, 1, 255));
-        let (nodes_to_notify, _) = test.table.add_node(test.node_info.clone()).unwrap();
+        let nodes_to_notify = test.table.add_node(test.node_info.clone()).unwrap().must_notify;
         assert!(nodes_to_notify.len() == 2);
         assert!(nodes_to_notify.iter().any(|n| *n.name() == name_to_notify0));
         assert!(nodes_to_notify.iter().any(|n| *n.name() == name_to_notify1));
@@ -900,7 +904,12 @@ mod test {
         assert!(!test.table.get(&name).unwrap().connections.is_empty());
 
         // The node has no more connections and should be removed.
-        assert_eq!(test.table.drop_connection(&2), Some((name, None, true)));
+        assert_eq!(test.table.drop_connection(&2),
+                   Some(DroppedNodeDetails {
+                       name: name,
+                       incomplete_bucket: None,
+                       common_groups: true
+                   }));
         assert!(test.table.get(&name).is_none());
 
         // Try dropping connection of a node in full bucket
@@ -913,9 +922,9 @@ mod test {
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
 
-        let (_, opt_bucket_index, common_group) = test.table.drop_connection(&1).unwrap();
-        assert_eq!(opt_bucket_index, Some(bucket_index));
-        assert_eq!(common_group, true);
+        let dropped_node_details = test.table.drop_connection(&1).unwrap();
+        assert_eq!(dropped_node_details.incomplete_bucket, Some(bucket_index));
+        assert_eq!(dropped_node_details.common_groups, true);
 
         // Try dropping connection of node in full bucket whose nodes do not share
         // close group with us.
@@ -944,9 +953,9 @@ mod test {
         }
         assert!(test.table.is_bucket_full(0));
 
-        let (_, opt_bucket_index, common_group) = test.table.drop_connection(&1).unwrap();
-        assert_eq!(opt_bucket_index, Some(0));
-        assert_eq!(common_group, false);
+        let dropped_node_details = test.table.drop_connection(&1).unwrap();
+        assert_eq!(dropped_node_details.incomplete_bucket, Some(0));
+        assert_eq!(dropped_node_details.common_groups, false);
     }
 
     #[test]
