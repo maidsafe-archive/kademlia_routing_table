@@ -287,7 +287,7 @@ impl<T, U> RoutingTable<T, U>
     /// Returns `false` if adding the contact in question would not bring the routing table closer
     /// to satisfy the invariant. It returns `true` if and only if the new contact would be among
     /// the `GROUP_SIZE` closest nodes in its bucket.
-    pub fn want_to_add(&self, their_name: &XorName) -> bool {
+    pub fn need_to_add(&self, their_name: &XorName) -> bool {
         if their_name == &self.our_name {
             return false;
         }
@@ -312,7 +312,7 @@ impl<T, U> RoutingTable<T, U>
     /// * we need them in our routing table to satisfy the invariant or
     /// * we are in the close group of one of their bucket addresses.
     pub fn allow_connection(&self, name: &XorName) -> bool {
-        self.get(name).is_some() || self.want_to_add(name) || self.is_close_to_bucket_of(name)
+        self.get(name).is_some() || self.need_to_add(name) || self.is_close_to_bucket_of(name)
     }
 
     /// Returns the current calculated quorum size.
@@ -818,20 +818,20 @@ mod test {
     }
 
     #[test]
-    fn want_to_add() {
+    fn need_to_add() {
         let mut test = TestEnvironment::new();
 
         // Try with our ID
-        assert!(!test.table.want_to_add(&test.table.our_name));
+        assert!(!test.table.need_to_add(&test.table.our_name));
 
         // Should return true for empty routing table
-        assert!(test.table.want_to_add(&get_contact(&test.name, 0, 2)));
+        assert!(test.table.need_to_add(&get_contact(&test.name, 0, 2)));
 
         // Add the first contact, and check it doesn't allow duplicates
         let mut new_node_0 = create_random_node_info();
         new_node_0.public_id.set_name(get_contact(&test.name, 0, 2));
         assert!(test.table.add_node(new_node_0).is_some());
-        assert!(!test.table.want_to_add(&get_contact(&test.name, 0, 2)));
+        assert!(!test.table.need_to_add(&get_contact(&test.name, 0, 2)));
 
         // Shoud return false if the bucket is full
         for i in 0..GROUP_SIZE {
@@ -839,7 +839,7 @@ mod test {
             assert!(test.table.add_node(test.node_info.clone()).is_some());
         }
 
-        assert!(!test.table.want_to_add(&get_contact(&test.name, 1, 255)));
+        assert!(!test.table.need_to_add(&get_contact(&test.name, 1, 255)));
     }
 
     #[test]
@@ -1060,7 +1060,7 @@ mod test {
         // Add each node to each other node's routing table.
         for name0 in keys.iter() {
             for name1 in keys.iter() {
-                if tables[name0].want_to_add(name1) {
+                if tables[name0].need_to_add(name1) {
                     let _ = tables.get_mut(name0).unwrap().add_node(to_node_info(name1));
                 }
             }
@@ -1101,7 +1101,7 @@ mod test {
             for j in 0..num_of_tables {
                 let mut node_info = create_random_node_info();
                 node_info.public_id.set_name(tables[j].our_name);
-                // TODO: Ask want_to_add first?
+                // TODO: Ask need_to_add first?
                 let _ = tables[i].add_node(node_info);
             }
         }
