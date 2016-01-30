@@ -181,7 +181,7 @@ impl<T, U> NodeInfo<T, U>
           U: Eq + Hash
 {
     /// Creates a new node entry with the given ID and connections.
-    pub fn new<V>(public_id: T, connections: V) -> NodeInfo<T, U> 
+    pub fn new<V>(public_id: T, connections: V) -> NodeInfo<T, U>
         where V: IntoIterator<Item = U>
     {
         NodeInfo {
@@ -353,7 +353,7 @@ impl<T, U> RoutingTable<T, U>
     /// Removes the contact from the table.
     ///
     /// Returns the dropped node if the contact was present in the table.
-    pub fn drop_node(&mut self, node_to_drop: &XorName) -> Option<NodeInfo<T, U>> {
+    pub fn remove(&mut self, node_to_drop: &XorName) -> Option<NodeInfo<T, U>> {
         self.binary_search(node_to_drop).ok().map(|i| self.nodes.remove(i))
     }
 
@@ -454,6 +454,8 @@ impl<T, U> RoutingTable<T, U>
     ///
     /// If the network is smaller than that, *all* nodes are returned.
     pub fn our_close_group(&self) -> Vec<NodeInfo<T, U>> {
+        // TODO: Test this thoroughly and remove it from here.
+        assert!(self.is_sorted());
         self.nodes.iter().take(GROUP_SIZE).cloned().collect()
     }
 
@@ -514,7 +516,7 @@ impl<T, U> RoutingTable<T, U>
         let mut largest_bucket: usize = 0;
         let mut current_bucket: usize = 0;
         let mut current_bucket_index: usize = 0;
-        for node in self.nodes.iter() {
+        for node in &self.nodes {
             let i = node.bucket_index;
             if (self.our_name().0[i / 8] ^ name.0[i / 8]) & (1 << (7 - i % 8)) != 0 {
                 if i != current_bucket_index {
@@ -558,6 +560,14 @@ impl<T, U> RoutingTable<T, U>
             .take(GROUP_SIZE - 1)
             .take_while(|n| n.bucket_index > bucket_index)
             .count() < GROUP_SIZE - 1
+    }
+
+    /// Returns whether the nodes are sorted from closest to furthest.
+    fn is_sorted(&self) -> bool {
+        self.nodes
+            .iter()
+            .zip(self.nodes.iter().skip(1))
+            .all(|(lhs, rhs)| xor_name::closer_to_target(lhs.name(), rhs.name(), &self.our_name))
     }
 }
 
@@ -752,7 +762,7 @@ mod test {
         assert_eq!(test.table.add_node(test.node_info.clone()),
                    Some(AddedNodeDetails {
                        must_notify: Vec::new(),
-                       common_groups: true
+                       common_groups: true,
                    }));
 
         // Adding a node should not remove existing nodes
@@ -775,7 +785,7 @@ mod test {
         assert_eq!(test.table.add_node(test.node_info.clone()),
                    Some(AddedNodeDetails {
                        must_notify: Vec::new(),
-                       common_groups: false
+                       common_groups: false,
                    }));
 
         // Adding a node should not remove existing nodes
@@ -852,7 +862,7 @@ mod test {
     }
 
     #[test]
-    fn drop_node() {
+    fn remove() {
         use rand::Rng;
 
         // Check on empty table
@@ -865,16 +875,16 @@ mod test {
         test.complete_filling_table();
 
         // Try with invalid Address
-        assert!(test.table.drop_node(&XorName::new([0u8; 64])).is_none());
+        assert!(test.table.remove(&XorName::new([0u8; 64])).is_none());
         assert_eq!(TABLE_SIZE, test.table.len());
 
         // Try with our Name
         let drop_name = test.table.our_name.clone();
-        assert!(test.table.drop_node(&drop_name).is_none());
+        assert!(test.table.remove(&drop_name).is_none());
         assert_eq!(TABLE_SIZE, test.table.len());
 
         // Try with Address of node not in table
-        assert!(test.table.drop_node(&get_contact(&test.name, 0, 2)).is_none());
+        assert!(test.table.remove(&get_contact(&test.name, 0, 2)).is_none());
         assert_eq!(TABLE_SIZE, test.table.len());
 
         // Remove all nodes one at a time in random order
@@ -883,7 +893,7 @@ mod test {
         let mut len = test.table.len();
         for name in test.added_names {
             len -= 1;
-            assert!(test.table.drop_node(&name).is_some());
+            assert!(test.table.remove(&name).is_some());
             assert_eq!(len, test.table.len());
         }
     }
@@ -909,7 +919,7 @@ mod test {
                    Some(DroppedNodeDetails {
                        name: name,
                        incomplete_bucket: None,
-                       common_groups: true
+                       common_groups: true,
                    }));
         assert!(test.table.get(&name).is_none());
 
@@ -1157,7 +1167,7 @@ mod test {
 
         for i in 0..tables.len() {
             for j in 0..drop_vec.len() {
-                let _ = tables[i].drop_node(&drop_vec[j]).is_some();
+                let _ = tables[i].remove(&drop_vec[j]).is_some();
             }
         }
         // remove IDs too
@@ -1229,9 +1239,9 @@ mod test {
         assert_eq!(test.initial_count + 1, test.table.nodes.len());
 
         // Check on fully filled the table
-        assert!(test.table.drop_node(test_node.name()).is_some());
+        assert!(test.table.remove(test_node.name()).is_some());
         test.complete_filling_table();
-        assert!(test.table.drop_node(&get_contact(&test.name, 0, 1)).is_some());
+        assert!(test.table.remove(&get_contact(&test.name, 0, 1)).is_some());
         test.node_info = test_node.clone();
         assert!(test.table.add_node(test.node_info.clone()).is_some());
 
