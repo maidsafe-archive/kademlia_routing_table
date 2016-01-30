@@ -46,7 +46,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-0' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#18-1253' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-0' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#18-1362' title='goto source code'>[src]</a></span></h1>
 <div class='docblock'><p>A routing table to manage connections for a node in a <a href="https://en.wikipedia.org/wiki/Kademlia">Kademlia</a> distributed hash table.</p>
 
 <h1 id='addresses-and-distance-functions' class='section-header'><a href='#addresses-and-distance-functions'>Addresses and distance functions</a></h1>
@@ -124,6 +124,24 @@ cryptographically signed) a message with the same content.</p>
 </div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table>
                     <tr class=' module-item'>
+                        <td><a class='struct' href='struct.AddedNodeDetails.html'
+                               title='kademlia_routing_table::AddedNodeDetails'>AddedNodeDetails</a></td>
+                        <td class='docblock short'>
+                             <p>This is returned by <code>RoutingTable::add_node</code> if a new node has been added.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.DroppedNodeDetails.html'
+                               title='kademlia_routing_table::DroppedNodeDetails'>DroppedNodeDetails</a></td>
+                        <td class='docblock short'>
+                             <p>This is returned by <code>RoutingTable::drop_connection</code> if a node was dropped.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
                         <td><a class='struct' href='struct.NodeInfo.html'
                                title='kademlia_routing_table::NodeInfo'>NodeInfo</a></td>
                         <td class='docblock short'>
@@ -137,6 +155,25 @@ cryptographically signed) a message with the same content.</p>
                                title='kademlia_routing_table::RoutingTable'>RoutingTable</a></td>
                         <td class='docblock short'>
                              <p>A routing table to manage connections for a node.</p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.Destination.html'
+                               title='kademlia_routing_table::Destination'>Destination</a></td>
+                        <td class='docblock short'>
+                             <p>A message destination.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.HopType.html'
+                               title='kademlia_routing_table::HopType'>HopType</a></td>
+                        <td class='docblock short'>
+                             <p>Specifies the number of times we have already passed on a particular message.</p>
 
                         </td>
                     </tr>
