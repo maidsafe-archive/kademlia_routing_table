@@ -1,5 +1,10 @@
 # kademlia_routing_table - Change Log
 
+## [0.1.0]
+- Major changes to the routing logic, so that some useful properties can be
+  guaranteed.
+- Expand the documentation.
+
 ## [0.0.5]
 - Change the close group definition to ensure quorum can always be reached.
 - Relay messages to the nodes closest to the target instead of our close group.
