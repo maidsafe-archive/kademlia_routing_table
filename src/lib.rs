@@ -39,6 +39,12 @@ missing_debug_implementations)]
 //! [1]: https://en.wikipedia.org/wiki/Kademlia
 //!
 //!
+//! This crate uses the Kademlia mechanism for routing messages in a peer-to-peer network, and
+//! generalises it to provide redundancy in every step: for senders, messages in transit and
+//! receivers. It contains the routing table and the functionality to decide via which of its
+//! entries to route a message, but not the networking functionality itself.
+//!
+//!
 //! # Addresses and distance functions
 //!
 //! Nodes in the network are addressed with a [`XorName`][2], a 512-bit unsigned integer. The
@@ -85,22 +91,23 @@ missing_debug_implementations)]
 //! * Otherwise the message will reach every member of the close group of the destination address,
 //!   i. e. all `GROUP_SIZE` nodes in the network that are XOR-closest to that address, and each
 //!   node knows whether it belongs to that group.
+//! * Each node in a given address' close group is connected to each other node in that group. In
+//!   particular, every node is connected to its own close group.
+//! * The number of total hop messages created for each message is at most PARALLELISM * 512.
+//! * For each node there are at most 512 * GROUP_SIZE other nodes in the network for which it can
+//!   obtain the IP address, at any point in time.
 //!
 //! However, to be able to make these guarantees, the routing table must be filled with
-//! sufficiently many connections. Specifically, for the first property to be true, the first of
-//! the following invariants is needed, and for the second property, the second, stronger one, must
-//! be ensured:
+//! sufficiently many connections. Specifically, the following invariant must be ensured:
 //!
-//! * Each bucket `n` must have an entry if a node with bucket distance `512 - n` exists in the
-//!   network.
-//! * Whenever a bucket `n` has fewer than `GROUP_SIZE` entries, it contains *all* nodes in the
-//!   network with bucket distance `512 - n`.
+//! > Whenever a bucket `n` has fewer than `GROUP_SIZE` entries, it contains *all* nodes in the
+//! > network with bucket distance `512 - n`.
 //!
 //! The user of this crate therefore needs to make sure that whenever a node joins or leaves, all
 //! affected nodes in the network update their routing tables accordingly.
 //!
 //!
-//! # Resilience against malicious or malfunctioning nodes
+//! # Resilience against malfunctioning nodes
 //!
 //! In each hop during routing, messages are passed on to `PARALLELISM` other nodes, so that even
 //! if `PARALLELISM - 1` nodes between the source and destination fail, they are still successfully
@@ -113,8 +120,8 @@ missing_debug_implementations)]
 //!
 //! Close groups can thus be used as inherently redundant authorities in the network that messages
 //! can be sent to and received from, using a consensus algorithm: A message from a group authority
-//! is considered to be legitimate, if at least `QUORUM_SIZE` group members have sent (and
-//! cryptographically signed) a message with the same content.
+//! is considered to be legitimate, if at least `QUORUM_SIZE` group members have sent a message with
+//! the same content.
 
 #[macro_use]
 extern crate log;
