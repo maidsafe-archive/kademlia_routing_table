@@ -1403,6 +1403,13 @@
 <span id="1360">1360</span>
 <span id="1361">1361</span>
 <span id="1362">1362</span>
+<span id="1363">1363</span>
+<span id="1364">1364</span>
+<span id="1365">1365</span>
+<span id="1366">1366</span>
+<span id="1367">1367</span>
+<span id="1368">1368</span>
+<span id="1369">1369</span>
 </pre><pre class='rust '>
 <span class='comment'>// Copyright 2015 MaidSafe.net limited.</span>
 <span class='comment'>//</span>
@@ -1443,6 +1450,12 @@
 <span class='doccomment'>//! A routing table to manage connections for a node in a [Kademlia][1] distributed hash table.</span>
 <span class='doccomment'>//!</span>
 <span class='doccomment'>//! [1]: https://en.wikipedia.org/wiki/Kademlia</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! This crate uses the Kademlia mechanism for routing messages in a peer-to-peer network, and</span>
+<span class='doccomment'>//! generalises it to provide redundancy in every step: for senders, messages in transit and</span>
+<span class='doccomment'>//! receivers. It contains the routing table and the functionality to decide via which of its</span>
+<span class='doccomment'>//! entries to route a message, but not the networking functionality itself.</span>
 <span class='doccomment'>//!</span>
 <span class='doccomment'>//!</span>
 <span class='doccomment'>//! # Addresses and distance functions</span>
@@ -1491,22 +1504,23 @@
 <span class='doccomment'>//! * Otherwise the message will reach every member of the close group of the destination address,</span>
 <span class='doccomment'>//!   i. e. all `GROUP_SIZE` nodes in the network that are XOR-closest to that address, and each</span>
 <span class='doccomment'>//!   node knows whether it belongs to that group.</span>
+<span class='doccomment'>//! * Each node in a given address&#39; close group is connected to each other node in that group. In</span>
+<span class='doccomment'>//!   particular, every node is connected to its own close group.</span>
+<span class='doccomment'>//! * The number of total hop messages created for each message is at most PARALLELISM * 512.</span>
+<span class='doccomment'>//! * For each node there are at most 512 * GROUP_SIZE other nodes in the network for which it can</span>
+<span class='doccomment'>//!   obtain the IP address, at any point in time.</span>
 <span class='doccomment'>//!</span>
 <span class='doccomment'>//! However, to be able to make these guarantees, the routing table must be filled with</span>
-<span class='doccomment'>//! sufficiently many connections. Specifically, for the first property to be true, the first of</span>
-<span class='doccomment'>//! the following invariants is needed, and for the second property, the second, stronger one, must</span>
-<span class='doccomment'>//! be ensured:</span>
+<span class='doccomment'>//! sufficiently many connections. Specifically, the following invariant must be ensured:</span>
 <span class='doccomment'>//!</span>
-<span class='doccomment'>//! * Each bucket `n` must have an entry if a node with bucket distance `512 - n` exists in the</span>
-<span class='doccomment'>//!   network.</span>
-<span class='doccomment'>//! * Whenever a bucket `n` has fewer than `GROUP_SIZE` entries, it contains *all* nodes in the</span>
-<span class='doccomment'>//!   network with bucket distance `512 - n`.</span>
+<span class='doccomment'>//! &gt; Whenever a bucket `n` has fewer than `GROUP_SIZE` entries, it contains *all* nodes in the</span>
+<span class='doccomment'>//! &gt; network with bucket distance `512 - n`.</span>
 <span class='doccomment'>//!</span>
 <span class='doccomment'>//! The user of this crate therefore needs to make sure that whenever a node joins or leaves, all</span>
 <span class='doccomment'>//! affected nodes in the network update their routing tables accordingly.</span>
 <span class='doccomment'>//!</span>
 <span class='doccomment'>//!</span>
-<span class='doccomment'>//! # Resilience against malicious or malfunctioning nodes</span>
+<span class='doccomment'>//! # Resilience against malfunctioning nodes</span>
 <span class='doccomment'>//!</span>
 <span class='doccomment'>//! In each hop during routing, messages are passed on to `PARALLELISM` other nodes, so that even</span>
 <span class='doccomment'>//! if `PARALLELISM - 1` nodes between the source and destination fail, they are still successfully</span>
@@ -1519,8 +1533,8 @@
 <span class='doccomment'>//!</span>
 <span class='doccomment'>//! Close groups can thus be used as inherently redundant authorities in the network that messages</span>
 <span class='doccomment'>//! can be sent to and received from, using a consensus algorithm: A message from a group authority</span>
-<span class='doccomment'>//! is considered to be legitimate, if at least `QUORUM_SIZE` group members have sent (and</span>
-<span class='doccomment'>//! cryptographically signed) a message with the same content.</span>
+<span class='doccomment'>//! is considered to be legitimate, if at least `QUORUM_SIZE` group members have sent a message with</span>
+<span class='doccomment'>//! the same content.</span>
 
 <span class='attribute'>#[<span class='ident'>macro_use</span>]</span>
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>log</span>;
