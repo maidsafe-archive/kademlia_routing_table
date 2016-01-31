@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["AddedNodeDetails","This is returned by `RoutingTable::add_node` if a new node has been added."],["DroppedNodeDetails","This is returned by `RoutingTable::drop_connection` if a node was dropped."]]});
