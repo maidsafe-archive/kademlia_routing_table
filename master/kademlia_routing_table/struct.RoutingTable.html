@@ -46,7 +46,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-186' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#229-234' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-215' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#231-236' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct RoutingTable&lt;T, U&gt; <span class='where'>where U: <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html' title='core::cmp::Eq'>Eq</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html' title='core::hash::Hash'>Hash</a></span> {
     // some fields omitted
 }</pre><div class='docblock'><p>A routing table to manage connections for a node.</p>
@@ -119,6 +119,12 @@ returns the destination node once, and an empty collection for all further copie
 
 <p>Otherwise it returns the <code>n</code>-th closest node to the target if this is the <code>n</code>-th copy of
 the message we are relaying.</p>
+</div><h4 id='method.is_recipient' class='method'><code>fn <a href='#method.is_recipient' class='fnname'>is_recipient</a>(&amp;self, dst: <a class='enum' href='../kademlia_routing_table/enum.Destination.html' title='kademlia_routing_table::Destination'>Destination</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<div class='docblock'><p>Returns whether the message is addressed to this node.</p>
+
+<p>If this returns <code>true</code>, this node is either the single recipient of the message, or a
+member of the group authority to which it is addressed. It therefore needs to handle the
+message.</p>
 </div><h4 id='method.our_close_group' class='method'><code>fn <a href='#method.our_close_group' class='fnname'>our_close_group</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.NodeInfo.html' title='kademlia_routing_table::NodeInfo'>NodeInfo</a>&lt;T, U&gt;&gt;</code></h4>
 <div class='docblock'><p>Returns the rest of our close group, i. e. the <code>GROUP_SIZE - 1</code> nodes closest to our name.</p>
 
