@@ -205,6 +205,7 @@ impl<T, U> NodeInfo<T, U>
 }
 
 /// A message destination.
+#[derive(Copy, Clone, Debug)]
 pub enum Destination<'a> {
     /// The close group of the given address. The message should reach `GROUP_SIZE` nodes.
     Group(&'a XorName),
@@ -213,6 +214,7 @@ pub enum Destination<'a> {
 }
 
 /// Specifies the number of times we have already passed on a particular message.
+#[derive(Copy, Clone, Debug)]
 pub enum HopType {
     /// We are the original sender. The message should be sent to `PARALLELISM` contacts.
     OriginalSender,
@@ -454,6 +456,18 @@ impl<T, U> RoutingTable<T, U>
                     .cloned()
                     .collect()
             }
+        }
+    }
+
+    /// Returns whether the message is addressed to this node.
+    ///
+    /// If this returns `true`, this node is either the single recipient of the message, or a
+    /// member of the group authority to which it is addressed. It therefore needs to handle the
+    /// message.
+    pub fn is_recipient(&self, dst: Destination) -> bool {
+        match dst {
+            Destination::Node(target) => target == self.our_name(),
+            Destination::Group(target) => self.is_close(target),
         }
     }
 
@@ -1051,6 +1065,21 @@ mod test {
                 }
             }
         }
+    }
+
+    #[test]
+    fn is_recipient() {
+        let mut test = TestEnvironment::new();
+        test.partially_fill_table();
+        test.complete_filling_table();
+        assert!(test.table.is_recipient(Destination::Node(test.table.our_name())));
+        assert!(test.table.is_recipient(Destination::Group(test.table.our_name())));
+        let close_contact = get_contact(&test.name, TABLE_SIZE - 1, 1);
+        assert!(test.table.is_recipient(Destination::Group(&close_contact)));
+        assert!(!test.table.is_recipient(Destination::Node(&close_contact)));
+        let far_contact = get_contact(&test.name, 1, 1);
+        assert!(!test.table.is_recipient(Destination::Group(&far_contact)));
+        assert!(!test.table.is_recipient(Destination::Node(&far_contact)));
     }
 
     #[test]
