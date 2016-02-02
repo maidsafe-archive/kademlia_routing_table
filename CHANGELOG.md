@@ -1,5 +1,8 @@
 # kademlia_routing_table - Change Log
 
+## [0.1.1]
+- Add the is_recipient method to move that logic out of the Routing crate.
+
 ## [0.1.0]
 - Major changes to the routing logic, so that some useful properties can be
   guaranteed.
