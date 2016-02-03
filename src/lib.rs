@@ -172,7 +172,7 @@ pub trait HasName {
 }
 
 /// A routing table entry representing a node and the connections to that node.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct NodeInfo<T, U>
     where U: Eq + Hash
 {
@@ -181,6 +181,18 @@ pub struct NodeInfo<T, U>
     /// The connections to the node, e. g. sockets or other kinds of connection handles.
     pub connections: HashSet<U>,
     bucket_index: usize,
+}
+
+impl<T, U> Clone for NodeInfo<T, U>
+    where U: Eq + Hash + Clone, T: Clone
+{
+    fn clone(&self) -> NodeInfo<T, U> {
+        NodeInfo {
+            public_id: self.public_id.clone(),
+            connections: self.connections.clone(),
+            bucket_index: self.bucket_index,
+        }
+    }
 }
 
 impl<T, U> NodeInfo<T, U>

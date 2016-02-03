@@ -20,7 +20,7 @@ use super::NodeInfo;
 use xor_name::XorName;
 
 /// This is returned by `RoutingTable::add_node` if a new node has been added.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct AddedNodeDetails<T, U>
     where U: Eq + Hash
 {
@@ -36,7 +36,7 @@ pub struct AddedNodeDetails<T, U>
 ///
 /// If the dropped connection was the last one that connected us to one of the table's entries,
 /// that node is removed from the table.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct DroppedNodeDetails {
     /// The name of the dropped node.
     pub name: XorName,
