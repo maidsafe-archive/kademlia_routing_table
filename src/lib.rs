@@ -213,15 +213,6 @@ pub enum Destination<'a> {
     Node(&'a XorName),
 }
 
-/// Specifies the number of times we have already passed on a particular message.
-#[derive(Copy, Clone, Debug)]
-pub enum HopType {
-    /// We are the original sender. The message should be sent to `PARALLELISM` contacts.
-    OriginalSender,
-    /// We have already relayed the given number of copies of this message.
-    CopyNum(usize),
-}
-
 /// A routing table to manage connections for a node.
 ///
 /// It maintains a list of `NodeInfo`s representing connections to peer nodes, and provides
@@ -411,51 +402,64 @@ impl<T, U> RoutingTable<T, U>
 
     /// Returns a collection of nodes to which a message should be sent onwards.
     ///
-    /// If the message is addressed at a group and we are a member of that group, this returns all
-    /// other members of that group once, and an empty collection for all further copies.
+    /// If the message is addressed at a group we are a member of and the previous `hop` is not,
+    /// this returns all other members of that group once, and an empty collection for all further
+    /// copies.
     ///
     /// If the message is addressed at an individual node that is directly connected to us, this
     /// returns the destination node once, and an empty collection for all further copies.
+    ///
+    /// If we are the individual recipient, it also returns an empty collection.
     ///
     /// If none of the above is the case and we are the original sender, it returns the
     /// `PARALLELISM` closest nodes to the target.
     ///
     /// Otherwise it returns the `n`-th closest node to the target if this is the `n`-th copy of
     /// the message we are relaying.
-    pub fn target_nodes(&self, dst: Destination, hop_type: HopType) -> Vec<NodeInfo<T, U>> {
+    ///
+    /// # Arguments
+    ///
+    /// * `dst` -   The destination of the message.
+    /// * `hop` -   The name of the node that relayed the message to us, or ourselves if we are the
+    ///             original sender.
+    /// * `count` - The number of times we have seen this message before.
+    pub fn target_nodes(&self,
+                        dst: Destination,
+                        hop: &XorName,
+                        count: usize)
+                        -> Vec<NodeInfo<T, U>> {
         let target = match dst {
             Destination::Group(target) => {
                 if self.is_close(target) {
-                    return match hop_type {
-                        HopType::OriginalSender | HopType::CopyNum(0) => {
-                            self.closest_nodes_to(target, GROUP_SIZE - 1)
-                        }
-                        HopType::CopyNum(_) => vec![],
+                    if count > 0 {
+                        return vec![];
+                    }
+                    let close_group = self.closest_nodes_to(target, GROUP_SIZE - 1);
+                    return if close_group.iter().any(|n| n.name() == hop) {
+                        vec![]
+                    } else {
+                        close_group
                     };
                 }
                 target
             }
             Destination::Node(target) => {
-                if let Ok(i) = self.binary_search(target) {
-                    return match hop_type {
-                        HopType::OriginalSender | HopType::CopyNum(0) => {
-                            vec![self.nodes[i].clone()]
-                        }
-                        HopType::CopyNum(_) => vec![],
+                if target == self.our_name() {
+                    return vec![];
+                } else if let Ok(i) = self.binary_search(target) {
+                    return if count == 0 {
+                        vec![self.nodes[i].clone()]
+                    } else {
+                        vec![]
                     };
                 }
                 target
             }
         };
-        match hop_type {
-            HopType::OriginalSender => self.closest_nodes_to(target, PARALLELISM),
-            HopType::CopyNum(nr) => {
-                self.closest_nodes_to(target, nr + 1)
-                    .last()
-                    .into_iter()
-                    .cloned()
-                    .collect()
-            }
+        if hop == self.our_name() {
+            self.closest_nodes_to(target, PARALLELISM)
+        } else {
+            self.closest_nodes_to(target, count + 1).last().into_iter().cloned().collect()
         }
     }
 
@@ -997,15 +1001,15 @@ mod test {
 
         // Check on empty table
         let mut target_nodes = test.table.target_nodes(Destination::Group(&rand::random()),
-                                                       HopType::OriginalSender);
+                                                       &test.name,
+                                                       0);
         assert_eq!(target_nodes.len(), 0);
 
         // Partially fill the table with <GROUP_SIZE contacts
         test.partially_fill_table();
 
         // Check we get all contacts returned
-        target_nodes = test.table.target_nodes(Destination::Group(&rand::random()),
-                                               HopType::OriginalSender);
+        target_nodes = test.table.target_nodes(Destination::Group(&rand::random()), &test.name, 0);
         assert_eq!(test.initial_count, target_nodes.len());
 
         for i in 0..test.initial_count {
@@ -1017,8 +1021,8 @@ mod test {
         test.complete_filling_table();
 
         // Try with our ID (should return the rest of the close group)
-        target_nodes = test.table.target_nodes(Destination::Group(&test.table.our_name),
-                                               HopType::OriginalSender);
+        target_nodes = test.table
+                           .target_nodes(Destination::Group(&test.table.our_name), &test.name, 0);
         assert_eq!(GROUP_SIZE - 1, target_nodes.len());
 
         for i in ((TABLE_SIZE - GROUP_SIZE + 1)..TABLE_SIZE - 1).rev() {
@@ -1037,8 +1041,7 @@ mod test {
                 } else {
                     (get_contact(&test.name, i, 1).clone(), 1)
                 };
-                target_nodes = test.table.target_nodes(Destination::Node(&target),
-                                                       HopType::OriginalSender);
+                target_nodes = test.table.target_nodes(Destination::Node(&target), &test.name, 0);
                 assert_eq!(expected_len, target_nodes.len());
 
                 for i in 0..target_nodes.len() {
@@ -1056,8 +1059,7 @@ mod test {
                 } else {
                     get_contact(&test.name, i, 1).clone()
                 };
-                target_nodes = test.table.target_nodes(Destination::Group(&target),
-                                                       HopType::OriginalSender);
+                target_nodes = test.table.target_nodes(Destination::Group(&target), &test.name, 0);
                 assert_eq!(GROUP_SIZE - 1, target_nodes.len());
 
                 for i in 0..target_nodes.len() {
@@ -1240,8 +1242,13 @@ mod test {
             for j in 1..GROUP_SIZE {
                 if tables[i].is_close(&addresses[j]) {
                     let dst = Destination::Group(&addresses[j]);
-                    let target_close_group = tables[i].target_nodes(dst, HopType::CopyNum(0));
+                    let far_name = get_contact(&tables[i].our_name(), 0, 255);
+                    assert!(tables[i].target_nodes(dst, &far_name, 1).is_empty());
+                    let target_close_group = tables[i].target_nodes(dst, &far_name, 0);
                     assert_eq!(GROUP_SIZE - 1, target_close_group.len());
+                    for close_node in target_close_group {
+                        assert!(tables[i].target_nodes(dst, close_node.name(), 0).is_empty());
+                    }
                     tested_close_target = true;
                 }
             }
