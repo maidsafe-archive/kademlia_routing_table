@@ -1439,6 +1439,25 @@
 <span id="1396">1396</span>
 <span id="1397">1397</span>
 <span id="1398">1398</span>
+<span id="1399">1399</span>
+<span id="1400">1400</span>
+<span id="1401">1401</span>
+<span id="1402">1402</span>
+<span id="1403">1403</span>
+<span id="1404">1404</span>
+<span id="1405">1405</span>
+<span id="1406">1406</span>
+<span id="1407">1407</span>
+<span id="1408">1408</span>
+<span id="1409">1409</span>
+<span id="1410">1410</span>
+<span id="1411">1411</span>
+<span id="1412">1412</span>
+<span id="1413">1413</span>
+<span id="1414">1414</span>
+<span id="1415">1415</span>
+<span id="1416">1416</span>
+<span id="1417">1417</span>
 </pre><pre class='rust '>
 <span class='comment'>// Copyright 2015 MaidSafe.net limited.</span>
 <span class='comment'>//</span>
@@ -1614,7 +1633,7 @@
 }
 
 <span class='doccomment'>/// A routing table entry representing a node and the connections to that node.</span>
-<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Clone</span>, <span class='ident'>Debug</span>, <span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>)]</span>
+<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Debug</span>, <span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>)]</span>
 <span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>NodeInfo</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;</span>
     <span class='kw'>where</span> <span class='ident'>U</span>: <span class='ident'>Eq</span> <span class='op'>+</span> <span class='ident'>Hash</span>
 {
@@ -1623,6 +1642,18 @@
     <span class='doccomment'>/// The connections to the node, e. g. sockets or other kinds of connection handles.</span>
     <span class='kw'>pub</span> <span class='ident'>connections</span>: <span class='ident'>HashSet</span><span class='op'>&lt;</span><span class='ident'>U</span><span class='op'>&gt;</span>,
     <span class='ident'>bucket_index</span>: <span class='ident'>usize</span>,
+}
+
+<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;</span> <span class='ident'>Clone</span> <span class='kw'>for</span> <span class='ident'>NodeInfo</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;</span>
+    <span class='kw'>where</span> <span class='ident'>U</span>: <span class='ident'>Eq</span> <span class='op'>+</span> <span class='ident'>Hash</span> <span class='op'>+</span> <span class='ident'>Clone</span>, <span class='ident'>T</span>: <span class='ident'>Clone</span>
+{
+    <span class='kw'>fn</span> <span class='ident'>clone</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>NodeInfo</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;</span> {
+        <span class='ident'>NodeInfo</span> {
+            <span class='ident'>public_id</span>: <span class='self'>self</span>.<span class='ident'>public_id</span>.<span class='ident'>clone</span>(),
+            <span class='ident'>connections</span>: <span class='self'>self</span>.<span class='ident'>connections</span>.<span class='ident'>clone</span>(),
+            <span class='ident'>bucket_index</span>: <span class='self'>self</span>.<span class='ident'>bucket_index</span>,
+        }
+    }
 }
 
 <span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;</span> <span class='ident'>NodeInfo</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;</span>
@@ -1653,15 +1684,6 @@
     <span class='ident'>Group</span>(<span class='kw-2'>&amp;</span><span class='lifetime'>&#39;a</span> <span class='ident'>XorName</span>),
     <span class='doccomment'>/// The individual node at the given address. The message should reach exactly one node.</span>
     <span class='ident'>Node</span>(<span class='kw-2'>&amp;</span><span class='lifetime'>&#39;a</span> <span class='ident'>XorName</span>),
-}
-
-<span class='doccomment'>/// Specifies the number of times we have already passed on a particular message.</span>
-<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Copy</span>, <span class='ident'>Clone</span>, <span class='ident'>Debug</span>)]</span>
-<span class='kw'>pub</span> <span class='kw'>enum</span> <span class='ident'>HopType</span> {
-    <span class='doccomment'>/// We are the original sender. The message should be sent to `PARALLELISM` contacts.</span>
-    <span class='ident'>OriginalSender</span>,
-    <span class='doccomment'>/// We have already relayed the given number of copies of this message.</span>
-    <span class='ident'>CopyNum</span>(<span class='ident'>usize</span>),
 }
 
 <span class='doccomment'>/// A routing table to manage connections for a node.</span>
@@ -1853,51 +1875,64 @@
 
     <span class='doccomment'>/// Returns a collection of nodes to which a message should be sent onwards.</span>
     <span class='doccomment'>///</span>
-    <span class='doccomment'>/// If the message is addressed at a group and we are a member of that group, this returns all</span>
-    <span class='doccomment'>/// other members of that group once, and an empty collection for all further copies.</span>
+    <span class='doccomment'>/// If the message is addressed at a group we are a member of and the previous `hop` is not,</span>
+    <span class='doccomment'>/// this returns all other members of that group once, and an empty collection for all further</span>
+    <span class='doccomment'>/// copies.</span>
     <span class='doccomment'>///</span>
     <span class='doccomment'>/// If the message is addressed at an individual node that is directly connected to us, this</span>
     <span class='doccomment'>/// returns the destination node once, and an empty collection for all further copies.</span>
+    <span class='doccomment'>///</span>
+    <span class='doccomment'>/// If we are the individual recipient, it also returns an empty collection.</span>
     <span class='doccomment'>///</span>
     <span class='doccomment'>/// If none of the above is the case and we are the original sender, it returns the</span>
     <span class='doccomment'>/// `PARALLELISM` closest nodes to the target.</span>
     <span class='doccomment'>///</span>
     <span class='doccomment'>/// Otherwise it returns the `n`-th closest node to the target if this is the `n`-th copy of</span>
     <span class='doccomment'>/// the message we are relaying.</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>target_nodes</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>dst</span>: <span class='ident'>Destination</span>, <span class='ident'>hop_type</span>: <span class='ident'>HopType</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>NodeInfo</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;&gt;</span> {
+    <span class='doccomment'>///</span>
+    <span class='doccomment'>/// # Arguments</span>
+    <span class='doccomment'>///</span>
+    <span class='doccomment'>/// * `dst` -   The destination of the message.</span>
+    <span class='doccomment'>/// * `hop` -   The name of the node that relayed the message to us, or ourselves if we are the</span>
+    <span class='doccomment'>///             original sender.</span>
+    <span class='doccomment'>/// * `count` - The number of times we have seen this message before.</span>
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>target_nodes</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>,
+                        <span class='ident'>dst</span>: <span class='ident'>Destination</span>,
+                        <span class='ident'>hop</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>,
+                        <span class='ident'>count</span>: <span class='ident'>usize</span>)
+                        <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>NodeInfo</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>target</span> <span class='op'>=</span> <span class='kw'>match</span> <span class='ident'>dst</span> {
             <span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>target</span>) <span class='op'>=&gt;</span> {
                 <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>is_close</span>(<span class='ident'>target</span>) {
-                    <span class='kw'>return</span> <span class='kw'>match</span> <span class='ident'>hop_type</span> {
-                        <span class='ident'>HopType</span>::<span class='ident'>OriginalSender</span> <span class='op'>|</span> <span class='ident'>HopType</span>::<span class='ident'>CopyNum</span>(<span class='number'>0</span>) <span class='op'>=&gt;</span> {
-                            <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>)
-                        }
-                        <span class='ident'>HopType</span>::<span class='ident'>CopyNum</span>(_) <span class='op'>=&gt;</span> <span class='macro'>vec</span><span class='macro'>!</span>[],
+                    <span class='kw'>if</span> <span class='ident'>count</span> <span class='op'>&gt;</span> <span class='number'>0</span> {
+                        <span class='kw'>return</span> <span class='macro'>vec</span><span class='macro'>!</span>[];
+                    }
+                    <span class='kw'>let</span> <span class='ident'>close_group</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>);
+                    <span class='kw'>return</span> <span class='kw'>if</span> <span class='ident'>close_group</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>n</span><span class='op'>|</span> <span class='ident'>n</span>.<span class='ident'>name</span>() <span class='op'>==</span> <span class='ident'>hop</span>) {
+                        <span class='macro'>vec</span><span class='macro'>!</span>[]
+                    } <span class='kw'>else</span> {
+                        <span class='ident'>close_group</span>
                     };
                 }
                 <span class='ident'>target</span>
             }
             <span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='ident'>target</span>) <span class='op'>=&gt;</span> {
-                <span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Ok</span>(<span class='ident'>i</span>) <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>binary_search</span>(<span class='ident'>target</span>) {
-                    <span class='kw'>return</span> <span class='kw'>match</span> <span class='ident'>hop_type</span> {
-                        <span class='ident'>HopType</span>::<span class='ident'>OriginalSender</span> <span class='op'>|</span> <span class='ident'>HopType</span>::<span class='ident'>CopyNum</span>(<span class='number'>0</span>) <span class='op'>=&gt;</span> {
-                            <span class='macro'>vec</span><span class='macro'>!</span>[<span class='self'>self</span>.<span class='ident'>nodes</span>[<span class='ident'>i</span>].<span class='ident'>clone</span>()]
-                        }
-                        <span class='ident'>HopType</span>::<span class='ident'>CopyNum</span>(_) <span class='op'>=&gt;</span> <span class='macro'>vec</span><span class='macro'>!</span>[],
+                <span class='kw'>if</span> <span class='ident'>target</span> <span class='op'>==</span> <span class='self'>self</span>.<span class='ident'>our_name</span>() {
+                    <span class='kw'>return</span> <span class='macro'>vec</span><span class='macro'>!</span>[];
+                } <span class='kw'>else</span> <span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Ok</span>(<span class='ident'>i</span>) <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>binary_search</span>(<span class='ident'>target</span>) {
+                    <span class='kw'>return</span> <span class='kw'>if</span> <span class='ident'>count</span> <span class='op'>==</span> <span class='number'>0</span> {
+                        <span class='macro'>vec</span><span class='macro'>!</span>[<span class='self'>self</span>.<span class='ident'>nodes</span>[<span class='ident'>i</span>].<span class='ident'>clone</span>()]
+                    } <span class='kw'>else</span> {
+                        <span class='macro'>vec</span><span class='macro'>!</span>[]
                     };
                 }
                 <span class='ident'>target</span>
             }
         };
-        <span class='kw'>match</span> <span class='ident'>hop_type</span> {
-            <span class='ident'>HopType</span>::<span class='ident'>OriginalSender</span> <span class='op'>=&gt;</span> <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>PARALLELISM</span>),
-            <span class='ident'>HopType</span>::<span class='ident'>CopyNum</span>(<span class='ident'>nr</span>) <span class='op'>=&gt;</span> {
-                <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>nr</span> <span class='op'>+</span> <span class='number'>1</span>)
-                    .<span class='ident'>last</span>()
-                    .<span class='ident'>into_iter</span>()
-                    .<span class='ident'>cloned</span>()
-                    .<span class='ident'>collect</span>()
-            }
+        <span class='kw'>if</span> <span class='ident'>hop</span> <span class='op'>==</span> <span class='self'>self</span>.<span class='ident'>our_name</span>() {
+            <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>PARALLELISM</span>)
+        } <span class='kw'>else</span> {
+            <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>count</span> <span class='op'>+</span> <span class='number'>1</span>).<span class='ident'>last</span>().<span class='ident'>into_iter</span>().<span class='ident'>cloned</span>().<span class='ident'>collect</span>()
         }
     }
 
@@ -2439,15 +2474,15 @@
 
         <span class='comment'>// Check on empty table</span>
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>&amp;</span><span class='ident'>rand</span>::<span class='ident'>random</span>()),
-                                                       <span class='ident'>HopType</span>::<span class='ident'>OriginalSender</span>);
+                                                       <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>,
+                                                       <span class='number'>0</span>);
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>target_nodes</span>.<span class='ident'>len</span>(), <span class='number'>0</span>);
 
         <span class='comment'>// Partially fill the table with &lt;GROUP_SIZE contacts</span>
         <span class='ident'>test</span>.<span class='ident'>partially_fill_table</span>();
 
         <span class='comment'>// Check we get all contacts returned</span>
-        <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>&amp;</span><span class='ident'>rand</span>::<span class='ident'>random</span>()),
-                                               <span class='ident'>HopType</span>::<span class='ident'>OriginalSender</span>);
+        <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>&amp;</span><span class='ident'>rand</span>::<span class='ident'>random</span>()), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>initial_count</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>test</span>.<span class='ident'>initial_count</span> {
@@ -2459,8 +2494,8 @@
         <span class='ident'>test</span>.<span class='ident'>complete_filling_table</span>();
 
         <span class='comment'>// Try with our ID (should return the rest of the close group)</span>
-        <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>),
-                                               <span class='ident'>HopType</span>::<span class='ident'>OriginalSender</span>);
+        <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>
+                           .<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> ((<span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='ident'>GROUP_SIZE</span> <span class='op'>+</span> <span class='number'>1</span>)..<span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>).<span class='ident'>rev</span>() {
@@ -2479,8 +2514,7 @@
                 } <span class='kw'>else</span> {
                     (<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>).<span class='ident'>clone</span>(), <span class='number'>1</span>)
                 };
-                <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='kw-2'>&amp;</span><span class='ident'>target</span>),
-                                                       <span class='ident'>HopType</span>::<span class='ident'>OriginalSender</span>);
+                <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='kw-2'>&amp;</span><span class='ident'>target</span>), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
                 <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>expected_len</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
 
                 <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>target_nodes</span>.<span class='ident'>len</span>() {
@@ -2498,8 +2532,7 @@
                 } <span class='kw'>else</span> {
                     <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>).<span class='ident'>clone</span>()
                 };
-                <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>&amp;</span><span class='ident'>target</span>),
-                                                       <span class='ident'>HopType</span>::<span class='ident'>OriginalSender</span>);
+                <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>&amp;</span><span class='ident'>target</span>), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
                 <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
 
                 <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>target_nodes</span>.<span class='ident'>len</span>() {
@@ -2682,8 +2715,13 @@
             <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>1</span>..<span class='ident'>GROUP_SIZE</span> {
                 <span class='kw'>if</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>addresses</span>[<span class='ident'>j</span>]) {
                     <span class='kw'>let</span> <span class='ident'>dst</span> <span class='op'>=</span> <span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>&amp;</span><span class='ident'>addresses</span>[<span class='ident'>j</span>]);
-                    <span class='kw'>let</span> <span class='ident'>target_close_group</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>target_nodes</span>(<span class='ident'>dst</span>, <span class='ident'>HopType</span>::<span class='ident'>CopyNum</span>(<span class='number'>0</span>));
+                    <span class='kw'>let</span> <span class='ident'>far_name</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>(), <span class='number'>0</span>, <span class='number'>255</span>);
+                    <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>target_nodes</span>(<span class='ident'>dst</span>, <span class='kw-2'>&amp;</span><span class='ident'>far_name</span>, <span class='number'>1</span>).<span class='ident'>is_empty</span>());
+                    <span class='kw'>let</span> <span class='ident'>target_close_group</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>target_nodes</span>(<span class='ident'>dst</span>, <span class='kw-2'>&amp;</span><span class='ident'>far_name</span>, <span class='number'>0</span>);
                     <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>target_close_group</span>.<span class='ident'>len</span>());
+                    <span class='kw'>for</span> <span class='ident'>close_node</span> <span class='kw'>in</span> <span class='ident'>target_close_group</span> {
+                        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>target_nodes</span>(<span class='ident'>dst</span>, <span class='ident'>close_node</span>.<span class='ident'>name</span>(), <span class='number'>0</span>).<span class='ident'>is_empty</span>());
+                    }
                     <span class='ident'>tested_close_target</span> <span class='op'>=</span> <span class='boolval'>true</span>;
                 }
             }

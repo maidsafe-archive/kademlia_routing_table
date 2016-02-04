@@ -112,7 +112,7 @@
 <span class='kw'>use</span> <span class='ident'>xor_name</span>::<span class='ident'>XorName</span>;
 
 <span class='doccomment'>/// This is returned by `RoutingTable::add_node` if a new node has been added.</span>
-<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>, <span class='ident'>Clone</span>, <span class='ident'>Debug</span>)]</span>
+<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>, <span class='ident'>Debug</span>)]</span>
 <span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>AddedNodeDetails</span><span class='op'>&lt;</span><span class='ident'>T</span>, <span class='ident'>U</span><span class='op'>&gt;</span>
     <span class='kw'>where</span> <span class='ident'>U</span>: <span class='ident'>Eq</span> <span class='op'>+</span> <span class='ident'>Hash</span>
 {
@@ -128,7 +128,7 @@
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// If the dropped connection was the last one that connected us to one of the table&#39;s entries,</span>
 <span class='doccomment'>/// that node is removed from the table.</span>
-<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>, <span class='ident'>Clone</span>, <span class='ident'>Debug</span>)]</span>
+<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>, <span class='ident'>Debug</span>)]</span>
 <span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>DroppedNodeDetails</span> {
     <span class='doccomment'>/// The name of the dropped node.</span>
     <span class='kw'>pub</span> <span class='ident'>name</span>: <span class='ident'>XorName</span>,

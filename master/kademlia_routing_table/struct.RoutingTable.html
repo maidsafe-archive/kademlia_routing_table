@@ -46,7 +46,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-215' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#231-236' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-183' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#234-239' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct RoutingTable&lt;T, U&gt; <span class='where'>where U: <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html' title='core::cmp::Eq'>Eq</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/hash/trait.Hash.html' title='core::hash::Hash'>Hash</a></span> {
     // some fields omitted
 }</pre><div class='docblock'><p>A routing table to manage connections for a node.</p>
@@ -105,20 +105,31 @@ is also <code>None</code>. Otherwise, the entry is removed from the routing tabl
 <div class='docblock'><p>Returns the <code>n</code> nodes in our routing table that are closest to <code>target</code>.</p>
 
 <p>Returns fewer than <code>n</code> nodes if the routing table doesn&#39;t have enough entries.</p>
-</div><h4 id='method.target_nodes' class='method'><code>fn <a href='#method.target_nodes' class='fnname'>target_nodes</a>(&amp;self, dst: <a class='enum' href='../kademlia_routing_table/enum.Destination.html' title='kademlia_routing_table::Destination'>Destination</a>, hop_type: <a class='enum' href='../kademlia_routing_table/enum.HopType.html' title='kademlia_routing_table::HopType'>HopType</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.NodeInfo.html' title='kademlia_routing_table::NodeInfo'>NodeInfo</a>&lt;T, U&gt;&gt;</code></h4>
+</div><h4 id='method.target_nodes' class='method'><code>fn <a href='#method.target_nodes' class='fnname'>target_nodes</a>(&amp;self, dst: <a class='enum' href='../kademlia_routing_table/enum.Destination.html' title='kademlia_routing_table::Destination'>Destination</a>, hop: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>, count: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.NodeInfo.html' title='kademlia_routing_table::NodeInfo'>NodeInfo</a>&lt;T, U&gt;&gt;</code></h4>
 <div class='docblock'><p>Returns a collection of nodes to which a message should be sent onwards.</p>
 
-<p>If the message is addressed at a group and we are a member of that group, this returns all
-other members of that group once, and an empty collection for all further copies.</p>
+<p>If the message is addressed at a group we are a member of and the previous <code>hop</code> is not,
+this returns all other members of that group once, and an empty collection for all further
+copies.</p>
 
 <p>If the message is addressed at an individual node that is directly connected to us, this
 returns the destination node once, and an empty collection for all further copies.</p>
+
+<p>If we are the individual recipient, it also returns an empty collection.</p>
 
 <p>If none of the above is the case and we are the original sender, it returns the
 <code>PARALLELISM</code> closest nodes to the target.</p>
 
 <p>Otherwise it returns the <code>n</code>-th closest node to the target if this is the <code>n</code>-th copy of
 the message we are relaying.</p>
+
+<h1 id='arguments' class='section-header'><a href='#arguments'>Arguments</a></h1>
+<ul>
+<li><code>dst</code> -   The destination of the message.</li>
+<li><code>hop</code> -   The name of the node that relayed the message to us, or ourselves if we are the
+        original sender.</li>
+<li><code>count</code> - The number of times we have seen this message before.</li>
+</ul>
 </div><h4 id='method.is_recipient' class='method'><code>fn <a href='#method.is_recipient' class='fnname'>is_recipient</a>(&amp;self, dst: <a class='enum' href='../kademlia_routing_table/enum.Destination.html' title='kademlia_routing_table::Destination'>Destination</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
 <div class='docblock'><p>Returns whether the message is addressed to this node.</p>
 
