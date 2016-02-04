@@ -46,7 +46,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-100' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#175-180' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-96' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#175-180' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct RoutingTable {
     // some fields omitted
 }</pre><div class='docblock'><p>A routing table to manage contacts for a node.</p>
@@ -90,10 +90,6 @@ smaller number is computed which represents a strict majority in the current net
 
 <p>If no entry with that name is found, <code>None</code> is returned. Otherwise, the entry is removed
 from the routing table and <code>DroppedNodeDetails</code> are returned.</p>
-</div><h4 id='method.closest_nodes_to' class='method'><code>fn <a href='#method.closest_nodes_to' class='fnname'>closest_nodes_to</a>(&amp;self, target: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>, n: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>&gt;</code></h4>
-<div class='docblock'><p>Returns the <code>n</code> nodes in our routing table that are closest to <code>target</code>.</p>
-
-<p>Returns fewer than <code>n</code> nodes if the routing table doesn&#39;t have enough entries.</p>
 </div><h4 id='method.target_nodes' class='method'><code>fn <a href='#method.target_nodes' class='fnname'>target_nodes</a>(&amp;self, dst: <a class='enum' href='../kademlia_routing_table/enum.Destination.html' title='kademlia_routing_table::Destination'>Destination</a>, hop: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>, count: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>&gt;</code></h4>
 <div class='docblock'><p>Returns a collection of nodes to which a message should be sent onwards.</p>
 
@@ -125,10 +121,10 @@ the message we are relaying.</p>
 <p>If this returns <code>true</code>, this node is either the single recipient of the message, or a
 member of the group authority to which it is addressed. It therefore needs to handle the
 message.</p>
-</div><h4 id='method.our_close_group' class='method'><code>fn <a href='#method.our_close_group' class='fnname'>our_close_group</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>&gt;</code></h4>
-<div class='docblock'><p>Returns the rest of our close group, i. e. the <code>GROUP_SIZE - 1</code> nodes closest to our name.</p>
-
-<p>If the network is smaller than that, <em>all</em> nodes are returned.</p>
+</div><h4 id='method.other_close_nodes' class='method'><code>fn <a href='#method.other_close_nodes' class='fnname'>other_close_nodes</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>&gt;&gt;</code></h4>
+<div class='docblock'><p>Returns the other members of <code>name</code>&#39;s close group, or <code>None</code> if we are not a member of it.</p>
+</div><h4 id='method.close_nodes' class='method'><code>fn <a href='#method.close_nodes' class='fnname'>close_nodes</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>&gt;&gt;</code></h4>
+<div class='docblock'><p>Returns the members of <code>name</code>&#39;s close group, or <code>None</code> if we are not a member of it.</p>
 </div><h4 id='method.is_close' class='method'><code>fn <a href='#method.is_close' class='fnname'>is_close</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
 <div class='docblock'><p>Returns <code>true</code> if there are fewer than <code>GROUP_SIZE</code> nodes in our routing table that are
 closer to <code>name</code> than we are.</p>
