@@ -1,5 +1,9 @@
 # kademlia_routing_table - Change Log
 
+## [0.2.0]
+- Only manage `XorName`s, not connections or public IDs.
+- Keep contacts sorted in buckets to speed up several methods.
+
 ## [0.1.1]
 - Add the is_recipient method to move that logic out of the Routing crate.
 
