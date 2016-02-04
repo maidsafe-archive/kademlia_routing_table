@@ -15,19 +15,15 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use std::hash::Hash;
-use super::NodeInfo;
 use xor_name::XorName;
 
 /// This is returned by `RoutingTable::add_node` if a new node has been added.
 #[derive(PartialEq, Eq, Debug)]
-pub struct AddedNodeDetails<T, U>
-    where U: Eq + Hash
-{
+pub struct AddedNodeDetails {
     /// The list of contacts that need to be notified about the new node: If the bucket was
     /// already full, that's nobody, but if it wasn't, everyone with a bucket index greater than
     /// the new nodes' must be notified.
-    pub must_notify: Vec<NodeInfo<T, U>>,
+    pub must_notify: Vec<XorName>,
     /// Whether we are together in any close group with that contact.
     pub common_groups: bool,
 }
@@ -38,8 +34,6 @@ pub struct AddedNodeDetails<T, U>
 /// that node is removed from the table.
 #[derive(PartialEq, Eq, Debug)]
 pub struct DroppedNodeDetails {
-    /// The name of the dropped node.
-    pub name: XorName,
     /// `Some(i)` if the entry has been removed from a full bucket with index `i`, indicating
     /// that an attempt to refill that bucket has to be made.
     pub incomplete_bucket: Option<usize>,
