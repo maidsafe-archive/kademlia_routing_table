@@ -159,11 +159,11 @@ pub const PARALLELISM: usize = 4;
 
 /// A message destination.
 #[derive(Copy, Clone, Debug)]
-pub enum Destination<'a> {
+pub enum Destination {
     /// The close group of the given address. The message should reach `GROUP_SIZE` nodes.
-    Group(&'a XorName),
+    Group(XorName),
     /// The individual node at the given address. The message should reach exactly one node.
-    Node(&'a XorName),
+    Node(XorName),
 }
 
 /// A routing table to manage contacts for a node.
@@ -352,7 +352,7 @@ impl RoutingTable {
     /// * `count` - The number of times we have seen this message before.
     pub fn target_nodes(&self, dst: Destination, hop: &XorName, count: usize) -> Vec<XorName> {
         let target = match dst {
-            Destination::Group(target) => {
+            Destination::Group(ref target) => {
                 if self.is_close(target) {
                     if count > 0 {
                         return vec![];
@@ -366,7 +366,7 @@ impl RoutingTable {
                 }
                 target
             }
-            Destination::Node(target) => {
+            Destination::Node(ref target) => {
                 if target == self.our_name() {
                     return vec![];
                 } else if self.contains(target) {
@@ -393,8 +393,8 @@ impl RoutingTable {
     /// message.
     pub fn is_recipient(&self, dst: Destination) -> bool {
         match dst {
-            Destination::Node(target) => target == self.our_name(),
-            Destination::Group(target) => self.is_close(target),
+            Destination::Node(ref target) => target == &self.our_name,
+            Destination::Group(ref target) => self.is_close(target),
         }
     }
 
@@ -786,7 +786,7 @@ mod test {
         let mut test = TestEnvironment::new();
 
         // Check on empty table
-        let mut target_nodes = test.table.target_nodes(Destination::Group(&rand::random()),
+        let mut target_nodes = test.table.target_nodes(Destination::Group(rand::random()),
                                                        &test.name,
                                                        0);
         assert_eq!(target_nodes.len(), 0);
@@ -795,7 +795,7 @@ mod test {
         test.partially_fill_table();
 
         // Check we get all contacts returned
-        target_nodes = test.table.target_nodes(Destination::Group(&rand::random()), &test.name, 0);
+        target_nodes = test.table.target_nodes(Destination::Group(rand::random()), &test.name, 0);
         assert_eq!(test.initial_count, target_nodes.len());
 
         for i in 0..test.initial_count {
@@ -808,7 +808,7 @@ mod test {
 
         // Try with our ID (should return the rest of the close group)
         target_nodes = test.table
-                           .target_nodes(Destination::Group(&test.table.our_name), &test.name, 0);
+                           .target_nodes(Destination::Group(test.table.our_name), &test.name, 0);
         assert_eq!(GROUP_SIZE - 1, target_nodes.len());
 
         for i in ((TABLE_SIZE - GROUP_SIZE + 1)..TABLE_SIZE - 1).rev() {
@@ -827,7 +827,7 @@ mod test {
                 } else {
                     (get_contact(&test.name, i, 1).clone(), 1)
                 };
-                target_nodes = test.table.target_nodes(Destination::Node(&target), &test.name, 0);
+                target_nodes = test.table.target_nodes(Destination::Node(target), &test.name, 0);
                 assert_eq!(expected_len, target_nodes.len());
 
                 for i in 0..target_nodes.len() {
@@ -845,7 +845,7 @@ mod test {
                 } else {
                     get_contact(&test.name, i, 1).clone()
                 };
-                target_nodes = test.table.target_nodes(Destination::Group(&target), &test.name, 0);
+                target_nodes = test.table.target_nodes(Destination::Group(target), &test.name, 0);
                 assert_eq!(GROUP_SIZE - 1, target_nodes.len());
 
                 for i in 0..target_nodes.len() {
@@ -860,14 +860,14 @@ mod test {
         let mut test = TestEnvironment::new();
         test.partially_fill_table();
         test.complete_filling_table();
-        assert!(test.table.is_recipient(Destination::Node(test.table.our_name())));
-        assert!(test.table.is_recipient(Destination::Group(test.table.our_name())));
+        assert!(test.table.is_recipient(Destination::Node(test.table.our_name)));
+        assert!(test.table.is_recipient(Destination::Group(test.table.our_name)));
         let close_contact = get_contact(&test.name, TABLE_SIZE - 1, 1);
-        assert!(test.table.is_recipient(Destination::Group(&close_contact)));
-        assert!(!test.table.is_recipient(Destination::Node(&close_contact)));
+        assert!(test.table.is_recipient(Destination::Group(close_contact)));
+        assert!(!test.table.is_recipient(Destination::Node(close_contact)));
         let far_contact = get_contact(&test.name, 1, 1);
-        assert!(!test.table.is_recipient(Destination::Group(&far_contact)));
-        assert!(!test.table.is_recipient(Destination::Node(&far_contact)));
+        assert!(!test.table.is_recipient(Destination::Group(far_contact)));
+        assert!(!test.table.is_recipient(Destination::Node(far_contact)));
     }
 
     #[test]
@@ -1023,7 +1023,7 @@ mod test {
             // if target is in close group return the whole close group excluding target
             for j in 1..GROUP_SIZE {
                 if tables[i].is_close(&addresses[j]) {
-                    let dst = Destination::Group(&addresses[j]);
+                    let dst = Destination::Group(addresses[j]);
                     let far_name = get_contact(&tables[i].our_name(), 0, 255);
                     assert!(tables[i].target_nodes(dst, &far_name, 1).is_empty());
                     let target_close_group = tables[i].target_nodes(dst, &far_name, 0);
