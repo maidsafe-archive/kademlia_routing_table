@@ -46,8 +46,8 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-0' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#18-1417' title='goto source code'>[src]</a></span></h1>
-<div class='docblock'><p>A routing table to manage connections for a node in a <a href="https://en.wikipedia.org/wiki/Kademlia">Kademlia</a> distributed hash table.</p>
+        </span><a id='src-0' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#18-1165' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>A routing table to manage contacts for a node in a <a href="https://en.wikipedia.org/wiki/Kademlia">Kademlia</a> distributed hash table.</p>
 
 <p>This crate uses the Kademlia mechanism for routing messages in a peer-to-peer network, and
 generalises it to provide redundancy in every step: for senders, messages in transit and
@@ -64,7 +64,7 @@ guaranteeing that the close group will always have exactly <code>GROUP_SIZE</cod
 course, the whole network has less than <code>GROUP_SIZE</code> nodes).</p>
 
 <p>The routing table is associated with a node with some name <code>x</code>, and manages a number of
-connections to other nodes, sorting them into up to 512 <em>buckets</em>, depending on their XOR
+contacts to other nodes, sorting them into up to 512 <em>buckets</em>, depending on their XOR
 distance from <code>x</code>:</p>
 
 <ul>
@@ -103,7 +103,7 @@ obtain the IP address, at any point in time.</li>
 </ul>
 
 <p>However, to be able to make these guarantees, the routing table must be filled with
-sufficiently many connections. Specifically, the following invariant must be ensured:</p>
+sufficiently many contacts. Specifically, the following invariant must be ensured:</p>
 
 <blockquote>
 <p>Whenever a bucket <code>n</code> has fewer than <code>GROUP_SIZE</code> entries, it contains <em>all</em> nodes in the
@@ -148,19 +148,10 @@ the same content.</p>
                     </tr>
                 
                     <tr class=' module-item'>
-                        <td><a class='struct' href='struct.NodeInfo.html'
-                               title='kademlia_routing_table::NodeInfo'>NodeInfo</a></td>
-                        <td class='docblock short'>
-                             <p>A routing table entry representing a node and the connections to that node.</p>
-
-                        </td>
-                    </tr>
-                
-                    <tr class=' module-item'>
                         <td><a class='struct' href='struct.RoutingTable.html'
                                title='kademlia_routing_table::RoutingTable'>RoutingTable</a></td>
                         <td class='docblock short'>
-                             <p>A routing table to manage connections for a node.</p>
+                             <p>A routing table to manage contacts for a node.</p>
 
                         </td>
                     </tr>
@@ -190,16 +181,6 @@ the same content.</p>
                                title='kademlia_routing_table::PARALLELISM'>PARALLELISM</a></td>
                         <td class='docblock short'>
                              <p>The number of nodes a message is sent to in each hop for redundancy.</p>
-
-                        </td>
-                    </tr>
-                </table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
-<table>
-                    <tr class=' module-item'>
-                        <td><a class='trait' href='trait.HasName.html'
-                               title='kademlia_routing_table::HasName'>HasName</a></td>
-                        <td class='docblock short'>
-                             <p>A trait for anything that has a <code>XorName</code> and can thus be addressed in the network.</p>
 
                         </td>
                     </tr>
