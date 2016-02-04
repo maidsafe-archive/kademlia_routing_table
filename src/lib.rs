@@ -929,8 +929,9 @@ mod test {
         // Add each node to each other node's routing table.
         for name0 in keys.iter() {
             for name1 in keys.iter() {
-                if tables[name0].need_to_add(name1) {
+                if tables[name0].allow_connection(name1) && tables[name1].need_to_add(name0) {
                     let _ = tables.get_mut(name0).unwrap().add(*name1);
+                    let _ = tables.get_mut(name1).unwrap().add(*name0);
                 }
             }
         }
@@ -947,13 +948,17 @@ mod test {
                                             .map(|t| t.our_name)
                                             .sorted_by(&mut *make_sort_predicate(name.clone()));
             assert_eq!(GROUP_SIZE, close_group.len());
-            let other_close_nodes: Vec<_> = tables[&name]
-                                              .other_close_nodes(tables[&name].our_name())
-                                              .unwrap()
-                                              .into_iter()
-                                              .collect();
+            let other_close_nodes = tables[&name].other_close_nodes(&name).unwrap();
             // The node itself is not in `other_close_nodes`, but it is in `close_group`:
-            assert_eq!(close_group[1..], other_close_nodes[..(GROUP_SIZE - 1)]);
+            assert_eq!(close_group[1..], other_close_nodes[..]);
+            assert_eq!(close_group, tables[&name].close_nodes(&name).unwrap());
+            for close_name in other_close_nodes {
+                if tables[&close_name].is_close(&name) {
+                    assert_eq!(close_group, tables[&close_name].close_nodes(&name).unwrap());
+                } else {
+                    assert_eq!(None, tables[&close_name].close_nodes(&name));
+                }
+            }
         }
     }
 
@@ -1061,6 +1066,7 @@ mod test {
         // unchecked - but also check has_node function
         let mut test = TestEnvironment::new();
         assert_eq!(0, test.table.len());
+        assert_eq!(0, test.table.furthest_close_bucket());
 
         // Check on partially filled the table
         test.partially_fill_table();
@@ -1076,6 +1082,7 @@ mod test {
         assert!(test.table.remove(&get_contact(&test.name, 0, 1)).is_some());
         assert!(test.table.add(contact).is_some());
         assert!(test.table.contains(&contact));
+        assert_eq!(TABLE_SIZE - GROUP_SIZE, test.table.furthest_close_bucket());
     }
 
     #[test]
@@ -1136,10 +1143,11 @@ mod test {
     }
 
     #[test]
-    fn is_close_to_bucket_of() {
+    fn allow_connection() {
         let mut test = TestEnvironment::new();
 
-        assert!(test.table.is_close_to_bucket_of(&rand::random()));
+        assert!(test.table.allow_connection(&rand::random()));
+        assert!(!test.table.allow_connection(&test.name));
 
         // Fill the first buckets with [GROUP_SIZE - 1, GROUP_SIZE - 1, GROUP_SIZE, GROUP_SIZE, 1]
         // elements
@@ -1165,19 +1173,28 @@ mod test {
         let name = get_contact(&test.name, 2, 1);
         assert!(!test.table.is_close(&name));
         assert!(!test.table.is_close_to_bucket_of(&name));
+        assert!(test.table.allow_connection(&name)); // Already connected
+
+        let name = get_contact(&test.name, 2, 255);
+        assert!(!test.table.is_close(&name));
+        assert!(!test.table.is_close_to_bucket_of(&name));
+        assert!(!test.table.allow_connection(&name)); // Bucket 2 has GROUP_SIZE entries.
 
         let name = get_contact(&test.name, 3, 99);
         assert!(!test.table.is_close(&name));
         assert!(test.table.is_close(&name.with_flipped_bit(3).unwrap()));
         assert!(test.table.is_close_to_bucket_of(&name)); // Close to the 3rd bucket of name.
+        assert!(test.table.allow_connection(&name));
 
         let name = test.name.with_flipped_bit(2).unwrap().with_flipped_bit(3).unwrap();
         assert!(!test.table.is_close(&name));
         assert!(!test.table.is_close_to_bucket_of(&name));
+        assert!(test.table.allow_connection(&name)); // Would be closest entry in bucket 2.
 
         let name = test.name.with_flipped_bit(0).unwrap().with_flipped_bit(1).unwrap();
         assert!(!test.table.is_close(&name));
         assert!(test.table.is_close(&name.with_flipped_bit(1).unwrap()));
         assert!(test.table.is_close_to_bucket_of(&name)); // Close to the 1st bucket of name.
+        assert!(test.table.allow_connection(&name));
     }
 }
