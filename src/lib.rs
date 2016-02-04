@@ -205,8 +205,7 @@ impl RoutingTable {
                     self.buckets
                         .iter()
                         .skip(bucket_index + 1)
-                        .flat_map(|bucket| bucket.iter())
-                        .cloned()
+                        .flat_map(|bucket| bucket.iter().cloned())
                         .collect()
                 } else {
                     vec![]
@@ -230,8 +229,8 @@ impl RoutingTable {
             return false;
         }
         match self.search(name) {
-            (_, Ok(_)) => false, // They already are in our routing table.
-            (_, Err(i)) => i < GROUP_SIZE,
+            (_, Ok(_)) => false,           // They already are in our routing table.
+            (_, Err(i)) => i < GROUP_SIZE, // We need to add them if the bucket is not full.
         }
     }
 
@@ -243,7 +242,9 @@ impl RoutingTable {
     /// * we need them in our routing table to satisfy the invariant or
     /// * we are in the close group of one of their bucket addresses.
     pub fn allow_connection(&self, name: &XorName) -> bool {
-        self.our_name != *name &&
+        if name == &self.our_name {
+            return false;
+        }
         match self.search(name) {
             (_, Ok(_)) => true,
             (_, Err(i)) => i < GROUP_SIZE || self.is_close_to_bucket_of(name),
@@ -295,36 +296,13 @@ impl RoutingTable {
                     None
                 };
                 let _ = self.buckets[bucket_index].remove(i);
+                // TODO: Remove trailing empty buckets?
                 Some(DroppedNodeDetails {
                     incomplete_bucket: incomplete_bucket,
                     common_groups: common_groups,
                 })
             }
         }
-    }
-
-    /// Returns the `n` nodes in our routing table that are closest to `target`.
-    ///
-    /// Returns fewer than `n` nodes if the routing table doesn't have enough entries.
-    pub fn closest_nodes_to(&self, target: &XorName, n: usize) -> Vec<XorName> {
-        let closer_buckets_iter = self.buckets
-                                      .iter()
-                                      .enumerate()
-                                      .filter(|&(bit, _)| self.differs_in_bit(target, bit));
-        let further_buckets_iter = self.buckets
-                                       .iter()
-                                       .enumerate()
-                                       .rev()
-                                       .filter(|&(bit, _)| !self.differs_in_bit(target, bit));
-        closer_buckets_iter.chain(further_buckets_iter)
-                           .flat_map(|(_, bucket)| {
-                               bucket.iter()
-                                     .sorted_by(|a, b| target.cmp_distance(&a, &b))
-                                     .into_iter()
-                           })
-                           .take(n)
-                           .cloned()
-                           .collect()
     }
 
     /// Returns a collection of nodes to which a message should be sent onwards.
@@ -357,7 +335,7 @@ impl RoutingTable {
                     if count > 0 {
                         return vec![];
                     }
-                    let close_group = self.closest_nodes_to(target, GROUP_SIZE - 1);
+                    let close_group = self.closest_nodes_to(target, GROUP_SIZE - 1, false);
                     return if close_group.iter().any(|n| n == hop) {
                         vec![]
                     } else {
@@ -380,9 +358,9 @@ impl RoutingTable {
             }
         };
         if hop == self.our_name() {
-            self.closest_nodes_to(target, PARALLELISM)
+            self.closest_nodes_to(target, PARALLELISM, false)
         } else {
-            self.closest_nodes_to(target, count + 1).last().into_iter().cloned().collect()
+            self.closest_nodes_to(target, count + 1, false).last().into_iter().cloned().collect()
         }
     }
 
@@ -398,18 +376,22 @@ impl RoutingTable {
         }
     }
 
-    /// Returns the rest of our close group, i. e. the `GROUP_SIZE - 1` nodes closest to our name.
-    ///
-    /// If the network is smaller than that, *all* nodes are returned.
-    pub fn our_close_group(&self) -> Vec<XorName> {
-        // TODO: Should be GROUP_SIZE - 1
-        self.buckets
-            .iter()
-            .rev()
-            .flat_map(|bucket| bucket.iter())
-            .take(GROUP_SIZE)
-            .cloned()
-            .collect()
+    /// Returns the other members of `name`'s close group, or `None` if we are not a member of it.
+    pub fn other_close_nodes(&self, name: &XorName) -> Option<Vec<XorName>> {
+        if self.is_close(name) {
+            Some(self.closest_nodes_to(name, GROUP_SIZE - 1, false))
+        } else {
+            None
+        }
+    }
+
+    /// Returns the members of `name`'s close group, or `None` if we are not a member of it.
+    pub fn close_nodes(&self, name: &XorName) -> Option<Vec<XorName>> {
+        if self.is_close(name) {
+            Some(self.closest_nodes_to(name, GROUP_SIZE, true))
+        } else {
+            None
+        }
     }
 
     /// Returns `true` if there are fewer than `GROUP_SIZE` nodes in our routing table that are
@@ -455,6 +437,41 @@ impl RoutingTable {
         self.search(name).1.is_ok()
     }
 
+    /// Returns the `n` nodes in our routing table that are closest to `target`.
+    ///
+    /// Returns fewer than `n` nodes if the routing table doesn't have enough entries.
+    fn closest_nodes_to(&self, target: &XorName, n: usize, ourselves: bool) -> Vec<XorName> {
+        let cmp = |a: &&XorName, b: &&XorName| target.cmp_distance(a, b);
+        // If we disagree with target in a bit, that bit's bucket contains contacts that are closer
+        // to the target than we are. The lower the bucket index, the closer it is:
+        let closer_buckets_iter = self.buckets
+                                      .iter()
+                                      .enumerate()
+                                      .filter(|&(bit, _)| self.differs_in_bit(target, bit))
+                                      .flat_map(|(_, b)| b.iter().sorted_by(&cmp).into_iter());
+        // Nothing or ourselves, depending on whether we should be include in the result:
+        let ourselves_iter = if ourselves {
+            Some(&self.our_name).into_iter()
+        } else {
+            None.into_iter()
+        };
+        // If we agree with target in a bit, that bit's bucket contains contacts that are further
+        // away from the target than we are. The lower the bucket index, the further away it is:
+        let further_buckets_iter = self.buckets
+                                       .iter()
+                                       .enumerate()
+                                       .rev()
+                                       .filter(|&(bit, _)| !self.differs_in_bit(target, bit))
+                                       .flat_map(|(_, b)| b.iter().sorted_by(&cmp).into_iter());
+        // Chaining these iterators puts the buckets in the right order, with ascending distance
+        // from the target. Finally, we need to sort each bucket's contents and take n:
+        closer_buckets_iter.chain(ourselves_iter)
+                           .chain(further_buckets_iter)
+                           .take(n)
+                           .cloned()
+                           .collect()
+    }
+
     /// Returns whether we are close to one of `name`'s bucket addresses or to `name` itself.
     fn is_close_to_bucket_of(&self, name: &XorName) -> bool {
         // We are close to `name` if the buckets where `name` disagrees with us have less than
@@ -476,7 +493,9 @@ impl RoutingTable {
 
     /// Returns whether the `i`-th bit of our and the given name differ.
     fn differs_in_bit(&self, name: &XorName, i: usize) -> bool {
-        (self.our_name().0[i / 8] ^ name.0[i / 8]) & (1 << (7 - i % 8)) != 0
+        let byte = i / 8;
+        let byte_bit = i % 8;
+        (self.our_name().0[byte] ^ name.0[byte]) & (0b10000000 >> byte_bit) != 0
     }
 
     // This is equivalent to the common leading bits of `self.our_name` and `name` where "leading
@@ -786,9 +805,8 @@ mod test {
         let mut test = TestEnvironment::new();
 
         // Check on empty table
-        let mut target_nodes = test.table.target_nodes(Destination::Group(rand::random()),
-                                                       &test.name,
-                                                       0);
+        let mut target_nodes = test.table
+                                   .target_nodes(Destination::Group(rand::random()), &test.name, 0);
         assert_eq!(target_nodes.len(), 0);
 
         // Partially fill the table with <GROUP_SIZE contacts
@@ -871,33 +889,36 @@ mod test {
     }
 
     #[test]
-    fn our_close_group_test() {
+    fn close_nodes() {
         // unchecked - could be merged with one below?
         let mut test = TestEnvironment::new();
-        assert!(test.table.our_close_group().is_empty());
+        assert_eq!(Some(vec![]), test.table.other_close_nodes(&test.name));
+        assert_eq!(Some(vec![test.name]), test.table.close_nodes(&test.name));
 
         test.partially_fill_table();
-        assert_eq!(test.initial_count, test.table.our_close_group().len());
+        assert_eq!(test.initial_count,
+                   test.table.other_close_nodes(&test.name).unwrap().len());
 
         for i in 0..test.initial_count {
             assert!(test.table
-                        .our_close_group()
+                        .other_close_nodes(&test.name)
+                        .unwrap()
                         .into_iter()
                         .filter(|node| *node == get_contact(&test.name, i, 1))
                         .count() > 0);
         }
 
         test.complete_filling_table();
-        assert_eq!(GROUP_SIZE, test.table.our_close_group().len());
+        assert_eq!(GROUP_SIZE - 1,
+                   test.table.other_close_nodes(&test.name).unwrap().len());
 
-        for close_node in test.table.our_close_group() {
-            assert_eq!(1,
-                       test.added_names.iter().filter(|n| **n == close_node).count());
+        for close_node in test.table.other_close_nodes(&test.name).unwrap() {
+            assert!(test.added_names.iter().any(|n| *n == close_node));
         }
     }
 
     #[test]
-    fn our_close_group_and_is_close() {
+    fn close_nodes_and_is_close() {
         let mut tables = HashMap::new();
         for _ in 0..TABLE_SIZE {
             let name = rand::random();
@@ -926,13 +947,13 @@ mod test {
                                             .map(|t| t.our_name)
                                             .sorted_by(&mut *make_sort_predicate(name.clone()));
             assert_eq!(GROUP_SIZE, close_group.len());
-            let our_close_group: Vec<_> = tables[&name]
-                                              .our_close_group()
+            let other_close_nodes: Vec<_> = tables[&name]
+                                              .other_close_nodes(tables[&name].our_name())
+                                              .unwrap()
                                               .into_iter()
                                               .collect();
-            // The node itself is not in `our_close_group`, but it is in `close_group`:
-            assert_eq!(close_group[1..].to_vec(),
-                       our_close_group[..(GROUP_SIZE - 1)].to_vec());
+            // The node itself is not in `other_close_nodes`, but it is in `close_group`:
+            assert_eq!(close_group[1..], other_close_nodes[..(GROUP_SIZE - 1)]);
         }
     }
 
@@ -953,11 +974,8 @@ mod test {
         }
         for it in tables.iter() {
             addresses.sort_by(&mut *make_sort_predicate(it.our_name));
-            let group = it.our_close_group();
-            assert_eq!(group.len(), GROUP_SIZE);
-            for i in 0..GROUP_SIZE {
-                assert_eq!(group[i], addresses[i + 1]);
-            }
+            assert_eq!(it.other_close_nodes(&it.our_name).unwrap()[..],
+                       addresses[1..GROUP_SIZE]);
         }
     }
 
@@ -996,8 +1014,8 @@ mod test {
 
         for i in 0..tables.len() {
             addresses.sort_by(&mut *make_sort_predicate(tables[i].our_name));
-            let group = tables[i].our_close_group();
-            assert_eq!(group.len(), cmp::min(GROUP_SIZE, tables[i].len()));
+            let group = tables[i].other_close_nodes(tables[i].our_name()).unwrap();
+            assert_eq!(group.len(), cmp::min(GROUP_SIZE - 1, tables[i].len()));
         }
     }
 
