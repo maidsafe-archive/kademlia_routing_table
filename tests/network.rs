@@ -29,13 +29,14 @@ unused_qualifications, unused_results, variant_size_differences)]
 #![allow(box_pointers, fat_ptr_transmutes, missing_copy_implementations,
 missing_debug_implementations)]
 
-// #![allow(unused)]
+#![allow(unused)]
 
 extern crate kademlia_routing_table;
 extern crate rand;
 extern crate xor_name;
 
-use kademlia_routing_table::{Destination, RoutingTable, GROUP_SIZE, PARALLELISM};
+use kademlia_routing_table::{AddedNodeDetails, Destination, RoutingTable, GROUP_SIZE, PARALLELISM};
+use rand::Rng;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use xor_name::XorName;
@@ -183,13 +184,6 @@ impl Node {
         self.table.is_close(name)
     }
 
-    // Connect to the node with the given name and endpoint.
-    // This adds the new node to our routing table.
-    fn connect(&mut self, their_name: &XorName, their_endpoint: Endpoint) {
-        let _ = self.table.add(their_name.clone());
-        let _ = self.connections.insert(their_name.clone(), Connection(their_endpoint));
-    }
-
     fn send_message(&mut self, mut message: Message, handle: bool) -> Vec<Action> {
         let mut actions = Vec::new();
 
@@ -254,8 +248,8 @@ impl Node {
 }
 
 // Handle to node.
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct NodeHandle(usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct NodeHandle(Endpoint);
 
 // Simulated network. This struct tries to simulate real-world network consisting
 // of many nodes. It should expose only operations that would be possible to
@@ -267,30 +261,38 @@ struct NodeHandle(usize);
 // This is to make sure nodes are only doing what they would be able to do in
 // the real world.
 struct Network {
-    nodes: Vec<Node>,
+    endpoint_counter: usize,
+    nodes: HashMap<NodeHandle, Node>,
+    names: HashMap<XorName, NodeHandle>,
 }
 
 impl Network {
     fn new() -> Self {
         Network {
-            nodes: Vec::new(),
+            endpoint_counter: 0,
+            nodes: HashMap::new(),
+            names: HashMap::new(),
         }
     }
 
     // Add a node with randomly generated name to the network. Returns a
     // node handle which can be used to perform operations with the node.
     fn add_node(&mut self) -> NodeHandle {
-        let index = self.nodes.len();
-        let name = rand::random();
-        let node = Node::new(name, Endpoint(index));
+        let endpoint = Endpoint(self.endpoint_counter);
+        self.endpoint_counter += 1;
 
-        self.nodes.push(node);
+        let handle = NodeHandle(endpoint);
+        let name = rand::random::<XorName>();
+        let node = Node::new(name.clone(), endpoint);
 
-        NodeHandle(index)
+        let _ = self.nodes.insert(handle, node);
+        let _ = self.names.insert(name, handle);
+
+        handle
     }
 
     fn get_all_nodes(&self) -> Vec<NodeHandle> {
-        (0..self.nodes.len()).map(|i| NodeHandle(i)).collect()
+        self.nodes.keys().cloned().collect()
     }
 
     fn get_random_node(&self) -> NodeHandle {
@@ -306,46 +308,84 @@ impl Network {
     fn get_nodes_close_to(&self, name: &XorName) -> Vec<NodeHandle> {
         self.nodes
             .iter()
-            .enumerate()
             .filter(|&(_, node)| node.is_close(name))
-            .map(|(index, _)| NodeHandle(index))
+            .map(|(&handle, _)| handle)
             .collect()
     }
 
-    // Get the name and endpoint of a node.
-    #[allow(unused)]
-    fn get_node_info(&self, handle: NodeHandle) -> (XorName, Endpoint) {
-        let node = self.get_node_ref(handle);
-        (node.name.clone(), node.endpoint)
+    fn get_node_by_name(&self, name: &XorName) -> NodeHandle {
+        self.names.get(name).cloned().unwrap()
     }
 
     fn get_node_name(&self, handle: NodeHandle) -> XorName {
         self.get_node_ref(handle).name.clone()
     }
 
-    // After this method is called, each nodes will have its routing table
-    // fully populated (the kademlia invariant will be satisfied)
+    // Bootstrap the node by fully populating its routing table.
+    fn bootstrap_node(&mut self, node0: NodeHandle) {
+        let handles = self.nodes.keys().cloned().collect::<Vec<_>>();
+
+        for node1 in handles {
+            if node0 == node1 { continue }
+            self.connect_if_allowed(node0, node1, true);
+            self.connect_if_allowed(node1, node0, true);
+        }
+    }
+
+    // Quickly bootstrap all nodes in the network. This is faster than
+    // bootstrapping nodes one by one.
     fn bootstrap_all_nodes(&mut self) {
-        // Note we are just inserting everyone into everyone elses routing table
-        // (if needed/allowed) and skipping the bootstrapping process entirelly.
-        //
-        // We might need to simulate the bootstrapping in more detail at some
-        // point.
+        let handles = self.nodes.keys().cloned().collect::<Vec<_>>();
 
-        for i in 0..self.nodes.len() {
-            let (node0, rest) = self.nodes[i..].split_first_mut().unwrap();
-
-            for node1 in rest {
-                Self::connect_if_allowed(node0, node1);
-                Self::connect_if_allowed(node1, node0);
+        for node0 in &handles {
+            for node1 in &handles {
+                if node0 == node1 { continue }
+                self.connect_if_allowed(*node0, *node1, false);
             }
         }
     }
 
-    fn connect_if_allowed(node0: &mut Node, node1: &mut Node) {
-        if node0.table.need_to_add(&node1.name) && node1.table.allow_connection(&node0.name) {
-            node0.connect(&node1.name, node1.endpoint);
-            node1.connect(&node0.name, node0.endpoint);
+    // fn remove_node(&mut self, node: NodeHandle) {
+
+    // }
+
+    fn connect_if_allowed(&mut self, node0: NodeHandle, node1: NodeHandle, notify: bool) {
+        {
+            let node0 = self.get_node_ref(node0);
+            let node1 = self.get_node_ref(node1);
+
+            if !node0.table.need_to_add(&node1.name) { return }
+            if !node1.table.allow_connection(&node0.name) { return }
+        }
+
+        self.connect(node0, node1, notify);
+        self.connect(node1, node0, notify);
+    }
+
+    fn connect(&mut self, node0: NodeHandle, node1: NodeHandle, notify: bool) {
+        let (node1_name, node1_endpoint) = {
+            let node1 = self.get_node_ref(node1);
+            (node1.name.clone(), node1.endpoint)
+        };
+
+        let notify_names = {
+            let node0 = self.get_node_mut_ref(node0);
+
+            if let Some(AddedNodeDetails{ must_notify, .. }) = node0.table.add(node1_name) {
+                let _ = node0.connections.insert(node1_name.clone(),
+                                                 Connection(node1_endpoint));
+                must_notify
+            } else {
+                Vec::new()
+            }
+        };
+
+        if notify {
+            for notify_name in notify_names {
+                let node2 = self.get_node_by_name(&notify_name);
+                self.connect_if_allowed(node1, node2, true);
+                self.connect_if_allowed(node2, node1, true);
+            }
         }
     }
 
@@ -386,20 +426,19 @@ impl Network {
 
     fn get_random_nodes(&self, count: usize) -> Vec<NodeHandle> {
         let mut rng = rand::thread_rng();
-        let handles = (0..self.nodes.len()).map(|i| NodeHandle(i));
-        rand::sample(&mut rng, handles, count)
+        rand::sample(&mut rng, self.nodes.keys().cloned(), count)
     }
 
     fn get_node_ref(&self, handle: NodeHandle) -> &Node {
-        &self.nodes[handle.0]
+        self.nodes.get(&handle).unwrap()
     }
 
     fn get_node_mut_ref(&mut self, handle: NodeHandle) -> &mut Node {
-        &mut self.nodes[handle.0]
+        self.nodes.get_mut(&handle).unwrap()
     }
 
     fn get_node_mut_ref_by_endpoint(&mut self, endpoint: Endpoint) -> &mut Node {
-        &mut self.nodes[endpoint.0]
+        self.get_node_mut_ref(NodeHandle(endpoint))
     }
 
     // Execute list of network actions on this network.
@@ -423,52 +462,57 @@ impl Network {
             }
         }
     }
-
-    #[allow(unused)]
-    fn print_stats(&self) {
-        println!("");
-        println!("=== Network stats ===");
-
-        for node in &self.nodes {
-            println!("{:?}: {} contacts", node.endpoint, node.table.len());
-        }
-    }
-}
-
-fn create_network(nodes_count: usize) -> Network {
-    let mut network = Network::new();
-
-    for _ in 0..nodes_count {
-        let _ = network.add_node();
-    }
-
-    network.bootstrap_all_nodes();
-
-    println!("");
-    println!("Num nodes: {}", nodes_count);
-    println!("");
-
-    network
 }
 
 const NODES_COUNT: usize = 32;
 const SAMPLES: usize = 100;
+const MAX_NODES_TO_JOIN: usize = 8;
+// const MAX_NODES_TO_LEAVE: usize = 8;
 
-#[test]
-fn number_of_nodes_close_to_any_name_is_equal_to_group_size() {
-    let network = create_network(NODES_COUNT);
+fn create_network(count: usize) -> Network {
+    let mut network = Network::new();
+
+    for _ in 0..NODES_COUNT {
+        let _ = network.add_node();
+    }
+
+    network.bootstrap_all_nodes();
+    network
+}
+
+// Add count number of nodes to the network.
+fn add_nodes(network: &mut Network, count: usize) {
+    for _ in 0..count {
+        let node = network.add_node();
+        network.bootstrap_node(node);
+    }
+}
+
+fn run_tests<F>(mut test_fun: F) where F: FnMut(&mut Network) {
+    let mut network = create_network(NODES_COUNT);
 
     for _ in 0..SAMPLES {
-        let name = rand::random();
-        assert_eq!(network.get_nodes_close_to(&name).len(), GROUP_SIZE);
+        test_fun(&mut network);
+    }
+
+    for _ in 0..SAMPLES {
+        add_nodes(&mut network, rand::thread_rng().gen_range(1, MAX_NODES_TO_JOIN + 1));
+        // TODO leave nodes
+        test_fun(&mut network);
     }
 }
 
 #[test]
-fn node_is_connected_to_every_node_in_its_close_group() {
-    let network = create_network(NODES_COUNT);
+fn number_of_nodes_close_to_any_name_is_equal_to_group_size() {
+    run_tests(|network| {
+        let name = rand::random();
+        assert_eq!(network.get_nodes_close_to(&name).len(), GROUP_SIZE);
+    });
+}
 
-    for _ in 0..SAMPLES {
+#[test]
+fn node_is_connected_to_every_node_in_its_close_group() {
+    run_tests(|network| {
         let node = network.get_node_name(network.get_random_node());
         let close_group = network.get_nodes_close_to(&node);
 
@@ -479,14 +523,12 @@ fn node_is_connected_to_every_node_in_its_close_group() {
                 assert!(network.is_node_connected_to(*node1, *node0));
             }
         }
-    }
+    });
 }
 
 #[test]
 fn nodes_in_close_group_of_any_name_are_connected_to_each_other() {
-    let network = create_network(NODES_COUNT);
-
-    for _ in 0..SAMPLES {
+    run_tests(|network| {
         let name = rand::random();
         let close_group = network.get_nodes_close_to(&name);
 
@@ -497,14 +539,12 @@ fn nodes_in_close_group_of_any_name_are_connected_to_each_other() {
                 assert!(network.is_node_connected_to(*node1, *node0));
             }
         }
-    }
+    });
 }
 
 #[test]
 fn messages_for_individual_nodes_reach_their_recipients() {
-    let mut network = create_network(NODES_COUNT);
-
-    for _ in 0..SAMPLES {
+    run_tests(|network| {
         let (node_a, node_b) = network.get_two_random_nodes();
         let node_a_name = network.get_node_name(node_a);
         let node_b_name = network.get_node_name(node_b);
@@ -516,14 +556,12 @@ fn messages_for_individual_nodes_reach_their_recipients() {
 
         network.send_message(node_a, message);
         assert!(network.has_node_message_in_inbox(node_b, message_id));
-    }
+    });
 }
 
 #[test]
 fn messages_for_groups_reach_all_members_of_the_recipient_group() {
-    let mut network = create_network(NODES_COUNT);
-
-    for _ in 0..SAMPLES {
+    run_tests(|network| {
         let sender = network.get_random_node();
         let sender_name = network.get_node_name(sender);
 
@@ -540,14 +578,12 @@ fn messages_for_groups_reach_all_members_of_the_recipient_group() {
         for node in group_members {
             assert!(network.has_node_message_in_inbox(node, message_id));
         }
-    }
+    });
 }
 
 #[test]
 fn only_original_sender_may_send_multiple_copies() {
-    let mut network = create_network(NODES_COUNT);
-
-    for _ in 0..SAMPLES {
+    run_tests(|network| {
         let (node_a, node_b) = network.get_two_random_nodes();
         let node_a_name = network.get_node_name(node_a);
         let node_b_name = network.get_node_name(node_b);
@@ -566,7 +602,7 @@ fn only_original_sender_may_send_multiple_copies() {
                 assert!(count <= 1);
             }
         }
-    }
+    });
 }
 
 // TODO: this test is probably worthless, as it can only fail for extremely
@@ -574,10 +610,8 @@ fn only_original_sender_may_send_multiple_copies() {
 // simulate though).
 #[test]
 fn maximum_number_of_contacts_in_routing_table() {
-    let network = create_network(NODES_COUNT);
-
-    for _ in 0..SAMPLES {
+    run_tests(|network| {
         let node = network.get_random_node();
         assert!(network.get_contact_count(node) <= 512 * GROUP_SIZE);
-    }
+    });
 }
