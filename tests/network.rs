@@ -150,7 +150,7 @@ enum Action {
 
 // Simulated node.
 // The nodes can only interact with the network indirectly, by returning lists
-// of Actions, so we are sure a nodes doesn't do anything it wouldn't be able
+// of Actions, so we are sure a node doesn't do anything it wouldn't be able
 // to do in the real world.
 struct Node {
     name: XorName,
@@ -184,7 +184,7 @@ impl Node {
     }
 
     // Connect to the node with the given name and endpoint.
-    // This add the new node to our routing table.
+    // This adds the new node to our routing table.
     fn connect(&mut self, their_name: &XorName, their_endpoint: Endpoint) {
         let _ = self.table.add(their_name.clone());
         let _ = self.connections.insert(their_name.clone(), Connection(their_endpoint));
@@ -342,9 +342,10 @@ impl Network {
         }
     }
 
-    fn connect_if_allowed(node0: &mut Node, node1: &Node) {
+    fn connect_if_allowed(node0: &mut Node, node1: &mut Node) {
         if node0.table.need_to_add(&node1.name) && node1.table.allow_connection(&node0.name) {
             node0.connect(&node1.name, node1.endpoint);
+            node1.connect(&node0.name, node0.endpoint);
         }
     }
 
@@ -519,7 +520,7 @@ fn messages_for_individual_nodes_reach_their_recipients() {
 }
 
 #[test]
-fn messages_for_groups_reach_all_member_of_the_recipient_group() {
+fn messages_for_groups_reach_all_members_of_the_recipient_group() {
     let mut network = create_network(NODES_COUNT);
 
     for _ in 0..SAMPLES {
