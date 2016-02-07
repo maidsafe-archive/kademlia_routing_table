@@ -60,7 +60,8 @@ routing messages.</p>
 </div><h4 id='method.add' class='method'><code>fn <a href='#method.add' class='fnname'>add</a>(&amp;mut self, name: <a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.AddedNodeDetails.html' title='kademlia_routing_table::AddedNodeDetails'>AddedNodeDetails</a>&gt;</code></h4>
 <div class='docblock'><p>Adds a contact to the routing table, or updates it.</p>
 
-<p>Returns <code>None</code> if the contact already existed. Otherwise it returns <code>AddedNodeDetails</code>.</p>
+<p>Returns <code>None</code> if the contact already existed or was denied (see <code>allow_connection</code>).
+Otherwise it returns <code>AddedNodeDetails</code>.</p>
 </div><h4 id='method.need_to_add' class='method'><code>fn <a href='#method.need_to_add' class='fnname'>need_to_add</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
 <div class='docblock'><p>Returns whether it is desirable to add the given contact to the routing table.</p>
 
