@@ -190,9 +190,10 @@ impl RoutingTable {
 
     /// Adds a contact to the routing table, or updates it.
     ///
-    /// Returns `None` if the contact already existed. Otherwise it returns `AddedNodeDetails`.
+    /// Returns `None` if the contact already existed or was denied (see `allow_connection`).
+    /// Otherwise it returns `AddedNodeDetails`.
     pub fn add(&mut self, name: XorName) -> Option<AddedNodeDetails> {
-        if name == self.our_name {
+        if !self.allow_connection(&name) {
             return None;
         }
         match self.search(&name) {
@@ -695,7 +696,7 @@ mod test {
         test = TestEnvironment::new();
 
         for i in 0..GROUP_SIZE {
-            let contact = get_contact(&test.name, 1, i as u8);
+            let contact = get_contact(&test.name, 1, 1 + i as u8);
             assert!(test.table.add(contact).is_some());
         }
 
@@ -704,7 +705,7 @@ mod test {
             assert!(test.table.add(contact).is_some());
         }
 
-        let contact = get_contact(&test.name, 1, 255);
+        let contact = get_contact(&test.name, 1, 0);
         assert_eq!(test.table.add(contact),
                    Some(AddedNodeDetails {
                        must_notify: Vec::new(),
