@@ -144,9 +144,12 @@ impl MessageStats {
 }
 
 // Action performed on the network.
+#[allow(variant_size_differences)]
 enum Action {
     // Send a message via the connection.
     Send(Connection, Message),
+
+    Connect(Endpoint, Endpoint),
 }
 
 // Simulated node.
@@ -330,17 +333,23 @@ impl Network {
 
     // Bootstrap the node by fully populating its routing table.
     fn bootstrap_node(&mut self, node0: NodeHandle) {
+        let mut actions = Vec::new();
+
         for node1 in self.get_all_nodes() {
             if node0 == node1 {
                 continue;
             }
-            self.connect_if_allowed(node0, node1, true);
+
+            actions.push(Action::Connect(node0.0, node1.0));
         }
+
+        self.execute(actions);
     }
 
     // Quickly bootstrap all nodes in the network. This is faster than
     // bootstrapping nodes one by one.
     fn bootstrap_all_nodes(&mut self) {
+        let mut actions = Vec::new();
         let nodes = self.get_all_nodes();
 
         for i in 0..nodes.len() {
@@ -348,23 +357,30 @@ impl Network {
                 let node0 = nodes[i];
                 let node1 = nodes[j];
 
-                self.connect_if_allowed(node0, node1, false);
+                actions.push(Action::Connect(node0.0, node1.0));
             }
         }
+
+        self.execute(actions);
     }
 
     fn remove_node(&mut self, node0: NodeHandle) {
+        let mut actions = Vec::new();
         let name0 = self.get_node_name(node0);
 
         let _ = self.nodes.remove(&node0);
         let _ = self.names.remove(&name0);
 
         for node1 in self.get_all_nodes() {
-            self.disconnect(node1, &name0);
+            actions.append(&mut self.disconnect(node1, &name0));
         }
+
+        self.execute(actions)
     }
 
-    fn connect_if_allowed(&mut self, node0: NodeHandle, node1: NodeHandle, notify: bool) {
+    fn connect_if_allowed(&mut self, node0: NodeHandle, node1: NodeHandle) -> Vec<Action> {
+        let mut actions = Vec::new();
+
         {
             let node0 = self.get_node_ref(node0);
             let node1 = self.get_node_ref(node1);
@@ -375,15 +391,21 @@ impl Network {
                                node0.table.allow_connection(&node1.name));
 
             if !can_connect {
-                return;
+                return actions;
             }
         }
 
-        self.connect(node0, node1, notify);
-        self.connect(node1, node0, notify);
+        actions.append(&mut self.connect(node0, node1));
+        actions.append(&mut self.connect(node1, node0));
+        actions
     }
 
-    fn connect(&mut self, node0: NodeHandle, node1: NodeHandle, notify: bool) {
+    // Connect node0 and node1 by adding node1 to node0's routing table.
+    // This forms only half of the connection. Full connection is achieved by
+    // also calling connect(node1, node0)
+    fn connect(&mut self, node0: NodeHandle, node1: NodeHandle) -> Vec<Action> {
+        let mut actions = Vec::new();
+
         let (node1_name, node1_endpoint) = {
             let node1 = self.get_node_ref(node1);
             (node1.name.clone(), node1.endpoint)
@@ -400,17 +422,19 @@ impl Network {
             }
         };
 
-        if notify {
-            for notify_name in notify_names {
-                if let Some(node2) = self.find_node_by_name(&notify_name) {
-                    self.connect_if_allowed(node1, node2, true);
-                }
+        for notify_name in notify_names {
+            if let Some(node2) = self.find_node_by_name(&notify_name) {
+                actions.append(&mut self.connect_if_allowed(node1, node2));
             }
         }
+
+        actions
     }
 
     // Disconnect the node with `name` from `node0`.
-    fn disconnect(&mut self, node0: NodeHandle, name: &XorName) {
+    fn disconnect(&mut self, node0: NodeHandle, name: &XorName) -> Vec<Action> {
+        let mut actions = Vec::new();
+
         let incomplete_bucket = {
             let node = self.get_node_mut_ref(node0);
 
@@ -427,13 +451,15 @@ impl Network {
         if let Some(bucket_index) = incomplete_bucket {
             let bucket_name = match self.get_node_name(node0).with_flipped_bit(bucket_index) {
                 Ok(name) => name,
-                Err(_) => return,
+                Err(_) => return actions,
             };
 
             for node1 in self.get_nodes_close_to(&bucket_name) {
-                self.connect_if_allowed(node0, node1, true);
+                actions.append(&mut self.connect_if_allowed(node0, node1));
             }
         }
+
+        actions
     }
 
     // Send a message from the node.
@@ -501,6 +527,10 @@ impl Network {
                 Action::Send(connection, message) => {
                     let node = self.get_node_mut_ref_by_endpoint(connection.0);
                     node.on_message(message, true)
+                }
+
+                Action::Connect(endpoint0, endpoint1) => {
+                    self.connect_if_allowed(NodeHandle(endpoint0), NodeHandle(endpoint1))
                 }
             };
 
