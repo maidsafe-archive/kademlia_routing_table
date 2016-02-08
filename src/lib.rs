@@ -81,7 +81,7 @@ missing_debug_implementations)]
 //! to 2<sup>512</sup> (exclusive), while the bucket distance ranges from 0 to 512 (inclusive).
 //!
 //!
-//! # Guarantees for routing
+//! # Guarantees
 //!
 //! The routing table provides functions to decide, for a message with a given destination, which
 //! nodes in the table to pass the message on to, so that it is guaranteed that:
