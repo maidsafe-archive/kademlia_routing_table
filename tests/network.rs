@@ -149,7 +149,12 @@ enum Action {
     // Send a message via the connection.
     Send(Connection, Message),
 
+    // Connect the nodes at the given endpoints.
     Connect(Endpoint, Endpoint),
+
+    // Find close group to the given name and connect each member of it to the
+    // node at the given endpoint.
+    ConnectToCloseGroup(Endpoint, XorName),
 }
 
 // Simulated node.
@@ -340,7 +345,7 @@ impl Network {
                 continue;
             }
 
-            actions.push(Action::Connect(node0.0, node1.0));
+            actions.append(&mut self.connect_if_allowed(node0, node1));
         }
 
         self.execute(actions);
@@ -357,7 +362,7 @@ impl Network {
                 let node0 = nodes[i];
                 let node1 = nodes[j];
 
-                actions.push(Action::Connect(node0.0, node1.0));
+                actions.append(&mut self.connect_if_allowed(node0, node1));
             }
         }
 
@@ -424,7 +429,7 @@ impl Network {
 
         for notify_name in notify_names {
             if let Some(node2) = self.find_node_by_name(&notify_name) {
-                actions.append(&mut self.connect_if_allowed(node1, node2));
+                actions.push(Action::Connect(node1.0, node2.0));
             }
         }
 
@@ -454,9 +459,7 @@ impl Network {
                 Err(_) => return actions,
             };
 
-            for node1 in self.get_nodes_close_to(&bucket_name) {
-                actions.append(&mut self.connect_if_allowed(node0, node1));
-            }
+            actions.push(Action::ConnectToCloseGroup(node0.0, bucket_name));
         }
 
         actions
@@ -532,6 +535,14 @@ impl Network {
                 Action::Connect(endpoint0, endpoint1) => {
                     self.connect_if_allowed(NodeHandle(endpoint0), NodeHandle(endpoint1))
                 }
+
+                Action::ConnectToCloseGroup(endpoint, name) => {
+                    let node0 = NodeHandle(endpoint);
+                    self.get_nodes_close_to(&name)
+                        .into_iter()
+                        .flat_map(|node1| self.connect_if_allowed(node0, node1))
+                        .collect()
+                }
             };
 
             for new_action in new_actions {
@@ -570,7 +581,7 @@ fn run_tests<F>(mut test_fun: F)
         test_fun(&mut network);
     }
 
-    // Every test sample add or remove one node.
+    // Every test sample adds or removes one node.
     for _ in 0..SAMPLES {
         if rand::random::<bool>() || network.nodes_count() == 0 {
             // join
