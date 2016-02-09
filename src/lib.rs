@@ -132,12 +132,15 @@ extern crate itertools;
 extern crate rand;
 extern crate xor_name;
 
+mod node_info;
 mod result;
 
 pub use result::{AddedNodeDetails, DroppedNodeDetails};
+pub use node_info::NodeInfo;
 
 use itertools::*;
 use std::cmp;
+use std::fmt::Debug;
 use xor_name::XorName;
 
 /// The size of a close group.
@@ -172,19 +175,19 @@ pub enum Destination {
 /// routing messages.
 ///
 /// See the [crate documentation](index.html) for details.
-pub struct RoutingTable {
+pub struct RoutingTable<T> {
     /// The buckets, by bucket index. Each bucket is sorted by ascending distance from us.
-    buckets: Vec<Vec<XorName>>,
-    /// This nodes' own name.
-    our_name: XorName,
+    buckets: Vec<Vec<NodeInfo<T>>>,
+    /// This nodes' own info.
+    our_info: NodeInfo<T>,
 }
 
-impl RoutingTable {
+impl<T> RoutingTable<T> where T: Clone + Debug + Eq {
     /// Creates a new routing table for the node with the given name.
-    pub fn new(our_name: &XorName) -> RoutingTable {
+    pub fn new(our_info: NodeInfo<T>) -> Self {
         RoutingTable {
             buckets: vec![],
-            our_name: our_name.clone(),
+            our_info: our_info,
         }
     }
 
@@ -192,11 +195,11 @@ impl RoutingTable {
     ///
     /// Returns `None` if the contact already existed or was denied (see `allow_connection`).
     /// Otherwise it returns `AddedNodeDetails`.
-    pub fn add(&mut self, name: XorName) -> Option<AddedNodeDetails> {
-        if !self.allow_connection(&name) {
+    pub fn add(&mut self, node_info: NodeInfo<T>) -> Option<AddedNodeDetails<T>> {
+        if !self.allow_connection(node_info.name()) {
             return None;
         }
-        match self.search(&name) {
+        match self.search(node_info.name()) {
             (_, Ok(_)) => None,
             (bucket_index, Err(i)) => {
                 if self.buckets.len() <= bucket_index {
@@ -211,7 +214,7 @@ impl RoutingTable {
                 } else {
                     vec![]
                 };
-                self.buckets[bucket_index].insert(i, name);
+                self.buckets[bucket_index].insert(i, node_info);
                 Some(AddedNodeDetails {
                     must_notify: must_notify,
                     common_groups: self.is_in_any_close_group_with(bucket_index),
@@ -226,7 +229,7 @@ impl RoutingTable {
     /// to satisfy the invariant. It returns `true` if and only if the new contact would be among
     /// the `GROUP_SIZE` closest nodes in its bucket.
     pub fn need_to_add(&self, name: &XorName) -> bool {
-        if name == &self.our_name {
+        if name == self.our_info.name() {
             return false;
         }
         match self.search(name) {
@@ -243,7 +246,7 @@ impl RoutingTable {
     /// * we need them in our routing table to satisfy the invariant or
     /// * we are in the close group of one of their bucket addresses.
     pub fn allow_connection(&self, name: &XorName) -> bool {
-        if name == &self.our_name {
+        if name == self.our_info.name() {
             return false;
         }
         match self.search(name) {
@@ -329,7 +332,7 @@ impl RoutingTable {
     /// * `hop` -   The name of the node that relayed the message to us, or ourselves if we are the
     ///             original sender.
     /// * `count` - The number of times we have seen this message before.
-    pub fn target_nodes(&self, dst: Destination, hop: &XorName, count: usize) -> Vec<XorName> {
+    pub fn target_nodes(&self, dst: Destination, hop: &XorName, count: usize) -> Vec<NodeInfo<T>> {
         let target = match dst {
             Destination::Group(ref target) => {
                 if self.is_close(target) {
@@ -337,7 +340,7 @@ impl RoutingTable {
                         return vec![];
                     }
                     let close_group = self.closest_nodes_to(target, GROUP_SIZE - 1, false);
-                    return if close_group.iter().any(|n| n == hop) {
+                    return if close_group.iter().any(|n| n.name() == hop) {
                         vec![]
                     } else {
                         close_group
@@ -348,9 +351,9 @@ impl RoutingTable {
             Destination::Node(ref target) => {
                 if target == self.our_name() {
                     return vec![];
-                } else if self.contains(target) {
+                } else if let Some(target_info) = self.get(target) {
                     return if count == 0 {
-                        vec![*target]
+                        vec![target_info.clone()]
                     } else {
                         vec![]
                     };
@@ -372,13 +375,13 @@ impl RoutingTable {
     /// message.
     pub fn is_recipient(&self, dst: Destination) -> bool {
         match dst {
-            Destination::Node(ref target) => target == &self.our_name,
+            Destination::Node(ref target) => target == self.our_name(),
             Destination::Group(ref target) => self.is_close(target),
         }
     }
 
     /// Returns the other members of `name`'s close group, or `None` if we are not a member of it.
-    pub fn other_close_nodes(&self, name: &XorName) -> Option<Vec<XorName>> {
+    pub fn other_close_nodes(&self, name: &XorName) -> Option<Vec<NodeInfo<T>>> {
         if self.is_close(name) {
             Some(self.closest_nodes_to(name, GROUP_SIZE - 1, false))
         } else {
@@ -387,7 +390,7 @@ impl RoutingTable {
     }
 
     /// Returns the members of `name`'s close group, or `None` if we are not a member of it.
-    pub fn close_nodes(&self, name: &XorName) -> Option<Vec<XorName>> {
+    pub fn close_nodes(&self, name: &XorName) -> Option<Vec<NodeInfo<T>>> {
         if self.is_close(name) {
             Some(self.closest_nodes_to(name, GROUP_SIZE, true))
         } else {
@@ -430,7 +433,7 @@ impl RoutingTable {
 
     /// Returns the name of the node this routing table is for.
     pub fn our_name(&self) -> &XorName {
-        &self.our_name
+        self.our_info.name()
     }
 
     /// Returns whether the given node is in the routing table.
@@ -438,11 +441,21 @@ impl RoutingTable {
         self.search(name).1.is_ok()
     }
 
+    /// Returns node info corresponding to the given name, if it exists in the
+    /// routing table.
+    pub fn get(&self, name: &XorName) -> Option<&NodeInfo<T>> {
+        if let (bucket_index, Ok(node_index)) = self.search(name) {
+            Some(&self.buckets[bucket_index][node_index])
+        } else {
+            None
+        }
+    }
+
     /// Returns the `n` nodes in our routing table that are closest to `target`.
     ///
     /// Returns fewer than `n` nodes if the routing table doesn't have enough entries.
-    fn closest_nodes_to(&self, target: &XorName, n: usize, ourselves: bool) -> Vec<XorName> {
-        let cmp = |a: &&XorName, b: &&XorName| target.cmp_distance(a, b);
+    fn closest_nodes_to(&self, target: &XorName, n: usize, ourselves: bool) -> Vec<NodeInfo<T>> {
+        let cmp = |a: &&NodeInfo<T>, b: &&NodeInfo<T>| target.cmp_distance(a.name(), b.name());
         // If we disagree with target in a bit, that bit's bucket contains contacts that are closer
         // to the target than we are. The lower the bucket index, the closer it is:
         let closer_buckets_iter = self.buckets
@@ -452,7 +465,7 @@ impl RoutingTable {
                                       .flat_map(|(_, b)| b.iter().sorted_by(&cmp).into_iter());
         // Nothing or ourselves, depending on whether we should be include in the result:
         let ourselves_iter = if ourselves {
-            Some(&self.our_name).into_iter()
+            Some(&self.our_info).into_iter()
         } else {
             None.into_iter()
         };
@@ -502,7 +515,7 @@ impl RoutingTable {
     // This is equivalent to the common leading bits of `self.our_name` and `name` where "leading
     // bits" means the most significant bits.
     fn bucket_index(&self, name: &XorName) -> usize {
-        self.our_name.bucket_index(name)
+        self.our_info.name().bucket_index(name)
     }
 
     /// Searches the routing table for the given name.
@@ -516,7 +529,7 @@ impl RoutingTable {
          match self.buckets.get(bucket_index) {
             None => Err(0),
             Some(bucket) => {
-                bucket.binary_search_by(|other| self.our_name.cmp_distance(other, name))
+                bucket.binary_search_by(|other| self.our_info.name().cmp_distance(other.name(), name))
             }
         })
     }

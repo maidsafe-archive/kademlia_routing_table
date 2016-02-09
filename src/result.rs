@@ -15,15 +15,16 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use xor_name::XorName;
+use node_info::NodeInfo;
+use std::fmt::Debug;
 
 /// This is returned by `RoutingTable::add_node` if a new node has been added.
 #[derive(PartialEq, Eq, Debug)]
-pub struct AddedNodeDetails {
+pub struct AddedNodeDetails<T> where T: Clone + Debug + Eq {
     /// The list of contacts that need to be notified about the new node: If the bucket was
     /// already full, that's nobody, but if it wasn't, everyone with a bucket index greater than
     /// the new nodes' must be notified.
-    pub must_notify: Vec<XorName>,
+    pub must_notify: Vec<NodeInfo<T>>,
     /// Whether we are together in any close group with that contact.
     pub common_groups: bool,
 }
