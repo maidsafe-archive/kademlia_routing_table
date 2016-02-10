@@ -35,11 +35,20 @@ extern crate kademlia_routing_table;
 extern crate rand;
 extern crate xor_name;
 
-use kademlia_routing_table::{AddedNodeDetails, Destination, DroppedNodeDetails, RoutingTable,
+use kademlia_routing_table::{AddedNodeDetails, ContactInfo, Destination, DroppedNodeDetails, RoutingTable,
                              GROUP_SIZE, PARALLELISM};
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use xor_name::XorName;
+
+#[derive(Clone, Eq, PartialEq)]
+struct Contact(XorName);
+
+impl ContactInfo for Contact {
+    fn name(&self) -> &XorName {
+        &self.0
+    }
+}
 
 // Simulated network endpoint. In the real networks, this would be something
 // like ip address and port pair.
@@ -164,7 +173,7 @@ enum Action {
 struct Node {
     name: XorName,
     endpoint: Endpoint,
-    table: RoutingTable,
+    table: RoutingTable<Contact>,
     connections: HashMap<XorName, Connection>,
     message_stats: MessageStats,
     inbox: HashMap<MessageId, Message>,
@@ -172,7 +181,7 @@ struct Node {
 
 impl Node {
     fn new(name: XorName, endpoint: Endpoint) -> Self {
-        let table = RoutingTable::new(&name);
+        let table = RoutingTable::new(Contact(name.clone()));
 
         Node {
             name: name,
@@ -201,7 +210,7 @@ impl Node {
         let targets = self.table.target_nodes(message.dst.clone(), message.hop_name(), count);
 
         for target in targets {
-            if let Some(&connection) = self.connections.get(&target) {
+            if let Some(&connection) = self.connections.get(target.name()) {
                 actions.push(Action::Send(connection, message.clone()));
                 let _ = self.message_stats.add_sent(message.id);
             }
@@ -248,7 +257,7 @@ impl Node {
         dst.is_group() &&
         match self.table.other_close_nodes(dst.name()) {
             None => false,
-            Some(close_group) => close_group.into_iter().any(|n| n == *hop_name),
+            Some(close_group) => close_group.into_iter().any(|n| n.name() == hop_name),
         }
     }
 }
@@ -416,10 +425,10 @@ impl Network {
             (node1.name.clone(), node1.endpoint)
         };
 
-        let notify_names = {
+        let notify_contacts = {
             let node0 = self.get_node_mut_ref(node0);
 
-            if let Some(AddedNodeDetails{ must_notify, .. }) = node0.table.add(node1_name) {
+            if let Some(AddedNodeDetails{ must_notify, .. }) = node0.table.add(Contact(node1_name)) {
                 let _ = node0.connections.insert(node1_name.clone(), Connection(node1_endpoint));
                 must_notify
             } else {
@@ -427,8 +436,8 @@ impl Network {
             }
         };
 
-        for notify_name in notify_names {
-            if let Some(node2) = self.find_node_by_name(&notify_name) {
+        for notify_name in notify_contacts.iter().map(|c| c.name()) {
+            if let Some(node2) = self.find_node_by_name(notify_name) {
                 actions.push(Action::Connect(node1.0, node2.0));
             }
         }
