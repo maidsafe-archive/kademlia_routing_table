@@ -440,7 +440,7 @@ impl<T: ContactInfo> RoutingTable<T> {
         self.search(name).1.is_ok()
     }
 
-    /// Return contact associated with the given name.
+    /// Returns the contact associated with the given name.
     pub fn get(&self, name: &XorName) -> Option<&T> {
         if let (bucket_index, Ok(node_index)) = self.search(name) {
             Some(&self.buckets[bucket_index][node_index])
