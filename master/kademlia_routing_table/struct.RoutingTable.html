@@ -46,8 +46,8 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-96' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#175-180' title='goto source code'>[src]</a></span></h1>
-<pre class='rust struct'>pub struct RoutingTable {
+        </span><a id='src-107' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#177-182' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct RoutingTable&lt;T: <a class='trait' href='../kademlia_routing_table/trait.ContactInfo.html' title='kademlia_routing_table::ContactInfo'>ContactInfo</a>&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>A routing table to manage contacts for a node.</p>
 
@@ -55,9 +55,9 @@
 routing messages.</p>
 
 <p>See the <a href="index.html">crate documentation</a> for details.</p>
-</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl <a class='struct' href='../kademlia_routing_table/struct.RoutingTable.html' title='kademlia_routing_table::RoutingTable'>RoutingTable</a></code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(our_name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='struct' href='../kademlia_routing_table/struct.RoutingTable.html' title='kademlia_routing_table::RoutingTable'>RoutingTable</a></code></h4>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl&lt;T: <a class='trait' href='../kademlia_routing_table/trait.ContactInfo.html' title='kademlia_routing_table::ContactInfo'>ContactInfo</a>&gt; <a class='struct' href='../kademlia_routing_table/struct.RoutingTable.html' title='kademlia_routing_table::RoutingTable'>RoutingTable</a>&lt;T&gt;</code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(our_info: T) -&gt; Self</code></h4>
 <div class='docblock'><p>Creates a new routing table for the node with the given name.</p>
-</div><h4 id='method.add' class='method'><code>fn <a href='#method.add' class='fnname'>add</a>(&amp;mut self, name: <a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.AddedNodeDetails.html' title='kademlia_routing_table::AddedNodeDetails'>AddedNodeDetails</a>&gt;</code></h4>
+</div><h4 id='method.add' class='method'><code>fn <a href='#method.add' class='fnname'>add</a>(&amp;mut self, info: T) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.AddedNodeDetails.html' title='kademlia_routing_table::AddedNodeDetails'>AddedNodeDetails</a>&lt;T&gt;&gt;</code></h4>
 <div class='docblock'><p>Adds a contact to the routing table, or updates it.</p>
 
 <p>Returns <code>None</code> if the contact already existed or was denied (see <code>allow_connection</code>).
@@ -91,7 +91,7 @@ smaller number is computed which represents a strict majority in the current net
 
 <p>If no entry with that name is found, <code>None</code> is returned. Otherwise, the entry is removed
 from the routing table and <code>DroppedNodeDetails</code> are returned.</p>
-</div><h4 id='method.target_nodes' class='method'><code>fn <a href='#method.target_nodes' class='fnname'>target_nodes</a>(&amp;self, dst: <a class='enum' href='../kademlia_routing_table/enum.Destination.html' title='kademlia_routing_table::Destination'>Destination</a>, hop: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>, count: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>&gt;</code></h4>
+</div><h4 id='method.target_nodes' class='method'><code>fn <a href='#method.target_nodes' class='fnname'>target_nodes</a>(&amp;self, dst: <a class='enum' href='../kademlia_routing_table/enum.Destination.html' title='kademlia_routing_table::Destination'>Destination</a>, hop: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>, count: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;T&gt;</code></h4>
 <div class='docblock'><p>Returns a collection of nodes to which a message should be sent onwards.</p>
 
 <p>If the message is addressed at a group we are a member of and the previous <code>hop</code> is not,
@@ -122,9 +122,9 @@ the message we are relaying.</p>
 <p>If this returns <code>true</code>, this node is either the single recipient of the message, or a
 member of the group authority to which it is addressed. It therefore needs to handle the
 message.</p>
-</div><h4 id='method.other_close_nodes' class='method'><code>fn <a href='#method.other_close_nodes' class='fnname'>other_close_nodes</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>&gt;&gt;</code></h4>
+</div><h4 id='method.other_close_nodes' class='method'><code>fn <a href='#method.other_close_nodes' class='fnname'>other_close_nodes</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;T&gt;&gt;</code></h4>
 <div class='docblock'><p>Returns the other members of <code>name</code>&#39;s close group, or <code>None</code> if we are not a member of it.</p>
-</div><h4 id='method.close_nodes' class='method'><code>fn <a href='#method.close_nodes' class='fnname'>close_nodes</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>&gt;&gt;</code></h4>
+</div><h4 id='method.close_nodes' class='method'><code>fn <a href='#method.close_nodes' class='fnname'>close_nodes</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;T&gt;&gt;</code></h4>
 <div class='docblock'><p>Returns the members of <code>name</code>&#39;s close group, or <code>None</code> if we are not a member of it.</p>
 </div><h4 id='method.is_close' class='method'><code>fn <a href='#method.is_close' class='fnname'>is_close</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
 <div class='docblock'><p>Returns <code>true</code> if there are fewer than <code>GROUP_SIZE</code> nodes in our routing table that are
@@ -145,6 +145,8 @@ actually sufficient! In that case, <code>true</code> is returned if and only if 
 <div class='docblock'><p>Returns the name of the node this routing table is for.</p>
 </div><h4 id='method.contains' class='method'><code>fn <a href='#method.contains' class='fnname'>contains</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
 <div class='docblock'><p>Returns whether the given node is in the routing table.</p>
+</div><h4 id='method.get' class='method'><code>fn <a href='#method.get' class='fnname'>get</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;&amp;T&gt;</code></h4>
+<div class='docblock'><p>Returns the contact associated with the given name.</p>
 </div></div></section>
     <section id='search' class="content hidden"></section>
 

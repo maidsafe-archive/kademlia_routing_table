@@ -101,15 +101,15 @@
 <span class='comment'>// Please review the Licences for the specific language governing permissions and limitations</span>
 <span class='comment'>// relating to use of the SAFE Network Software.</span>
 
-<span class='kw'>use</span> <span class='ident'>xor_name</span>::<span class='ident'>XorName</span>;
+<span class='kw'>use</span> <span class='ident'>contact_info</span>::<span class='ident'>ContactInfo</span>;
 
 <span class='doccomment'>/// This is returned by `RoutingTable::add_node` if a new node has been added.</span>
 <span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>PartialEq</span>, <span class='ident'>Eq</span>, <span class='ident'>Debug</span>)]</span>
-<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>AddedNodeDetails</span> {
+<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>AddedNodeDetails</span><span class='op'>&lt;</span><span class='ident'>T</span>: <span class='ident'>ContactInfo</span><span class='op'>&gt;</span> {
     <span class='doccomment'>/// The list of contacts that need to be notified about the new node: If the bucket was</span>
     <span class='doccomment'>/// already full, that&#39;s nobody, but if it wasn&#39;t, everyone with a bucket index greater than</span>
     <span class='doccomment'>/// the new nodes&#39; must be notified.</span>
-    <span class='kw'>pub</span> <span class='ident'>must_notify</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>,
+    <span class='kw'>pub</span> <span class='ident'>must_notify</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>T</span><span class='op'>&gt;</span>,
     <span class='doccomment'>/// Whether we are together in any close group with that contact.</span>
     <span class='kw'>pub</span> <span class='ident'>common_groups</span>: <span class='ident'>bool</span>,
 }

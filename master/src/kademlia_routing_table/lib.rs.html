@@ -1242,6 +1242,24 @@
 <span id="1199">1199</span>
 <span id="1200">1200</span>
 <span id="1201">1201</span>
+<span id="1202">1202</span>
+<span id="1203">1203</span>
+<span id="1204">1204</span>
+<span id="1205">1205</span>
+<span id="1206">1206</span>
+<span id="1207">1207</span>
+<span id="1208">1208</span>
+<span id="1209">1209</span>
+<span id="1210">1210</span>
+<span id="1211">1211</span>
+<span id="1212">1212</span>
+<span id="1213">1213</span>
+<span id="1214">1214</span>
+<span id="1215">1215</span>
+<span id="1216">1216</span>
+<span id="1217">1217</span>
+<span id="1218">1218</span>
+<span id="1219">1219</span>
 </pre><pre class='rust '>
 <span class='comment'>// Copyright 2015 MaidSafe.net limited.</span>
 <span class='comment'>//</span>
@@ -1377,8 +1395,10 @@
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>rand</span>;
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>xor_name</span>;
 
+<span class='kw'>mod</span> <span class='ident'>contact_info</span>;
 <span class='kw'>mod</span> <span class='ident'>result</span>;
 
+<span class='kw'>pub</span> <span class='kw'>use</span> <span class='ident'>contact_info</span>::<span class='ident'>ContactInfo</span>;
 <span class='kw'>pub</span> <span class='kw'>use</span> <span class='ident'>result</span>::{<span class='ident'>AddedNodeDetails</span>, <span class='ident'>DroppedNodeDetails</span>};
 
 <span class='kw'>use</span> <span class='ident'>itertools</span>::<span class='op'>*</span>;
@@ -1417,19 +1437,19 @@
 <span class='doccomment'>/// routing messages.</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// See the [crate documentation](index.html) for details.</span>
-<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>RoutingTable</span> {
+<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>RoutingTable</span><span class='op'>&lt;</span><span class='ident'>T</span>: <span class='ident'>ContactInfo</span><span class='op'>&gt;</span> {
     <span class='doccomment'>/// The buckets, by bucket index. Each bucket is sorted by ascending distance from us.</span>
-    <span class='ident'>buckets</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;&gt;</span>,
-    <span class='doccomment'>/// This nodes&#39; own name.</span>
-    <span class='ident'>our_name</span>: <span class='ident'>XorName</span>,
+    <span class='ident'>buckets</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>T</span><span class='op'>&gt;&gt;</span>,
+    <span class='doccomment'>/// This nodes&#39; own contact info.</span>
+    <span class='ident'>our_info</span>: <span class='ident'>T</span>,
 }
 
-<span class='kw'>impl</span> <span class='ident'>RoutingTable</span> {
+<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>T</span>: <span class='ident'>ContactInfo</span><span class='op'>&gt;</span> <span class='ident'>RoutingTable</span><span class='op'>&lt;</span><span class='ident'>T</span><span class='op'>&gt;</span> {
     <span class='doccomment'>/// Creates a new routing table for the node with the given name.</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>new</span>(<span class='ident'>our_name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>RoutingTable</span> {
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>new</span>(<span class='ident'>our_info</span>: <span class='ident'>T</span>) <span class='op'>-&gt;</span> <span class='kw'>Self</span> {
         <span class='ident'>RoutingTable</span> {
             <span class='ident'>buckets</span>: <span class='macro'>vec</span><span class='macro'>!</span>[],
-            <span class='ident'>our_name</span>: <span class='ident'>our_name</span>.<span class='ident'>clone</span>(),
+            <span class='ident'>our_info</span>: <span class='ident'>our_info</span>,
         }
     }
 
@@ -1437,11 +1457,11 @@
     <span class='doccomment'>///</span>
     <span class='doccomment'>/// Returns `None` if the contact already existed or was denied (see `allow_connection`).</span>
     <span class='doccomment'>/// Otherwise it returns `AddedNodeDetails`.</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>add</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>name</span>: <span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>AddedNodeDetails</span><span class='op'>&gt;</span> {
-        <span class='kw'>if</span> <span class='op'>!</span><span class='self'>self</span>.<span class='ident'>allow_connection</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>) {
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>add</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>info</span>: <span class='ident'>T</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>AddedNodeDetails</span><span class='op'>&lt;</span><span class='ident'>T</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>if</span> <span class='op'>!</span><span class='self'>self</span>.<span class='ident'>allow_connection</span>(<span class='ident'>info</span>.<span class='ident'>name</span>()) {
             <span class='kw'>return</span> <span class='prelude-val'>None</span>;
         }
-        <span class='kw'>match</span> <span class='self'>self</span>.<span class='ident'>search</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>) {
+        <span class='kw'>match</span> <span class='self'>self</span>.<span class='ident'>search</span>(<span class='ident'>info</span>.<span class='ident'>name</span>()) {
             (_, <span class='prelude-val'>Ok</span>(_)) <span class='op'>=&gt;</span> <span class='prelude-val'>None</span>,
             (<span class='ident'>bucket_index</span>, <span class='prelude-val'>Err</span>(<span class='ident'>i</span>)) <span class='op'>=&gt;</span> {
                 <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>buckets</span>.<span class='ident'>len</span>() <span class='op'>&lt;=</span> <span class='ident'>bucket_index</span> {
@@ -1456,7 +1476,7 @@
                 } <span class='kw'>else</span> {
                     <span class='macro'>vec</span><span class='macro'>!</span>[]
                 };
-                <span class='self'>self</span>.<span class='ident'>buckets</span>[<span class='ident'>bucket_index</span>].<span class='ident'>insert</span>(<span class='ident'>i</span>, <span class='ident'>name</span>);
+                <span class='self'>self</span>.<span class='ident'>buckets</span>[<span class='ident'>bucket_index</span>].<span class='ident'>insert</span>(<span class='ident'>i</span>, <span class='ident'>info</span>);
                 <span class='prelude-val'>Some</span>(<span class='ident'>AddedNodeDetails</span> {
                     <span class='ident'>must_notify</span>: <span class='ident'>must_notify</span>,
                     <span class='ident'>common_groups</span>: <span class='self'>self</span>.<span class='ident'>is_in_any_close_group_with</span>(<span class='ident'>bucket_index</span>),
@@ -1471,7 +1491,7 @@
     <span class='doccomment'>/// to satisfy the invariant. It returns `true` if and only if the new contact would be among</span>
     <span class='doccomment'>/// the `GROUP_SIZE` closest nodes in its bucket.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>need_to_add</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
-        <span class='kw'>if</span> <span class='ident'>name</span> <span class='op'>==</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>our_name</span> {
+        <span class='kw'>if</span> <span class='ident'>name</span> <span class='op'>==</span> <span class='self'>self</span>.<span class='ident'>our_name</span>() {
             <span class='kw'>return</span> <span class='boolval'>false</span>;
         }
         <span class='kw'>match</span> <span class='self'>self</span>.<span class='ident'>search</span>(<span class='ident'>name</span>) {
@@ -1488,7 +1508,7 @@
     <span class='doccomment'>/// * we need them in our routing table to satisfy the invariant or</span>
     <span class='doccomment'>/// * we are in the close group of one of their bucket addresses.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>allow_connection</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
-        <span class='kw'>if</span> <span class='ident'>name</span> <span class='op'>==</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>our_name</span> {
+        <span class='kw'>if</span> <span class='ident'>name</span> <span class='op'>==</span> <span class='self'>self</span>.<span class='ident'>our_name</span>() {
             <span class='kw'>return</span> <span class='boolval'>false</span>;
         }
         <span class='kw'>match</span> <span class='self'>self</span>.<span class='ident'>search</span>(<span class='ident'>name</span>) {
@@ -1574,7 +1594,7 @@
     <span class='doccomment'>/// * `hop` -   The name of the node that relayed the message to us, or ourselves if we are the</span>
     <span class='doccomment'>///             original sender.</span>
     <span class='doccomment'>/// * `count` - The number of times we have seen this message before.</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>target_nodes</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>dst</span>: <span class='ident'>Destination</span>, <span class='ident'>hop</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>, <span class='ident'>count</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> {
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>target_nodes</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>dst</span>: <span class='ident'>Destination</span>, <span class='ident'>hop</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>, <span class='ident'>count</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>T</span><span class='op'>&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>target</span> <span class='op'>=</span> <span class='kw'>match</span> <span class='ident'>dst</span> {
             <span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>ref</span> <span class='ident'>target</span>) <span class='op'>=&gt;</span> {
                 <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>is_close</span>(<span class='ident'>target</span>) {
@@ -1582,7 +1602,7 @@
                         <span class='kw'>return</span> <span class='macro'>vec</span><span class='macro'>!</span>[];
                     }
                     <span class='kw'>let</span> <span class='ident'>close_group</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='boolval'>false</span>);
-                    <span class='kw'>return</span> <span class='kw'>if</span> <span class='ident'>close_group</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>n</span><span class='op'>|</span> <span class='ident'>n</span> <span class='op'>==</span> <span class='ident'>hop</span>) {
+                    <span class='kw'>return</span> <span class='kw'>if</span> <span class='ident'>close_group</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>n</span><span class='op'>|</span> <span class='ident'>n</span>.<span class='ident'>name</span>() <span class='op'>==</span> <span class='ident'>hop</span>) {
                         <span class='macro'>vec</span><span class='macro'>!</span>[]
                     } <span class='kw'>else</span> {
                         <span class='ident'>close_group</span>
@@ -1593,9 +1613,9 @@
             <span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='kw-2'>ref</span> <span class='ident'>target</span>) <span class='op'>=&gt;</span> {
                 <span class='kw'>if</span> <span class='ident'>target</span> <span class='op'>==</span> <span class='self'>self</span>.<span class='ident'>our_name</span>() {
                     <span class='kw'>return</span> <span class='macro'>vec</span><span class='macro'>!</span>[];
-                } <span class='kw'>else</span> <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>contains</span>(<span class='ident'>target</span>) {
+                } <span class='kw'>else</span> <span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Some</span>(<span class='ident'>target_contact</span>) <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>get</span>(<span class='ident'>target</span>) {
                     <span class='kw'>return</span> <span class='kw'>if</span> <span class='ident'>count</span> <span class='op'>==</span> <span class='number'>0</span> {
-                        <span class='macro'>vec</span><span class='macro'>!</span>[<span class='op'>*</span><span class='ident'>target</span>]
+                        <span class='macro'>vec</span><span class='macro'>!</span>[<span class='ident'>target_contact</span>.<span class='ident'>clone</span>()]
                     } <span class='kw'>else</span> {
                         <span class='macro'>vec</span><span class='macro'>!</span>[]
                     };
@@ -1617,13 +1637,13 @@
     <span class='doccomment'>/// message.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>is_recipient</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>dst</span>: <span class='ident'>Destination</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
         <span class='kw'>match</span> <span class='ident'>dst</span> {
-            <span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='kw-2'>ref</span> <span class='ident'>target</span>) <span class='op'>=&gt;</span> <span class='ident'>target</span> <span class='op'>==</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>our_name</span>,
+            <span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='kw-2'>ref</span> <span class='ident'>target</span>) <span class='op'>=&gt;</span> <span class='ident'>target</span> <span class='op'>==</span> <span class='self'>self</span>.<span class='ident'>our_name</span>(),
             <span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='kw-2'>ref</span> <span class='ident'>target</span>) <span class='op'>=&gt;</span> <span class='self'>self</span>.<span class='ident'>is_close</span>(<span class='ident'>target</span>),
         }
     }
 
     <span class='doccomment'>/// Returns the other members of `name`&#39;s close group, or `None` if we are not a member of it.</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;&gt;</span> {
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>T</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>is_close</span>(<span class='ident'>name</span>) {
             <span class='prelude-val'>Some</span>(<span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>name</span>, <span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='boolval'>false</span>))
         } <span class='kw'>else</span> {
@@ -1632,7 +1652,7 @@
     }
 
     <span class='doccomment'>/// Returns the members of `name`&#39;s close group, or `None` if we are not a member of it.</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>close_nodes</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;&gt;</span> {
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>close_nodes</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>T</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>is_close</span>(<span class='ident'>name</span>) {
             <span class='prelude-val'>Some</span>(<span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>name</span>, <span class='ident'>GROUP_SIZE</span>, <span class='boolval'>true</span>))
         } <span class='kw'>else</span> {
@@ -1675,7 +1695,7 @@
 
     <span class='doccomment'>/// Returns the name of the node this routing table is for.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>our_name</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='kw-2'>&amp;</span><span class='ident'>XorName</span> {
-        <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>our_name</span>
+        <span class='self'>self</span>.<span class='ident'>our_info</span>.<span class='ident'>name</span>()
     }
 
     <span class='doccomment'>/// Returns whether the given node is in the routing table.</span>
@@ -1683,11 +1703,20 @@
         <span class='self'>self</span>.<span class='ident'>search</span>(<span class='ident'>name</span>).<span class='number'>1</span>.<span class='ident'>is_ok</span>()
     }
 
+    <span class='doccomment'>/// Returns the contact associated with the given name.</span>
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>get</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='kw-2'>&amp;</span><span class='ident'>T</span><span class='op'>&gt;</span> {
+        <span class='kw'>if</span> <span class='kw'>let</span> (<span class='ident'>bucket_index</span>, <span class='prelude-val'>Ok</span>(<span class='ident'>node_index</span>)) <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>search</span>(<span class='ident'>name</span>) {
+            <span class='prelude-val'>Some</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>buckets</span>[<span class='ident'>bucket_index</span>][<span class='ident'>node_index</span>])
+        } <span class='kw'>else</span> {
+            <span class='prelude-val'>None</span>
+        }
+    }
+
     <span class='doccomment'>/// Returns the `n` nodes in our routing table that are closest to `target`.</span>
     <span class='doccomment'>///</span>
     <span class='doccomment'>/// Returns fewer than `n` nodes if the routing table doesn&#39;t have enough entries.</span>
-    <span class='kw'>fn</span> <span class='ident'>closest_nodes_to</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>target</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>, <span class='ident'>n</span>: <span class='ident'>usize</span>, <span class='ident'>ourselves</span>: <span class='ident'>bool</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> {
-        <span class='kw'>let</span> <span class='ident'>cmp</span> <span class='op'>=</span> <span class='op'>|</span><span class='ident'>a</span>: <span class='op'>&amp;&amp;</span><span class='ident'>XorName</span>, <span class='ident'>b</span>: <span class='op'>&amp;&amp;</span><span class='ident'>XorName</span><span class='op'>|</span> <span class='ident'>target</span>.<span class='ident'>cmp_distance</span>(<span class='ident'>a</span>, <span class='ident'>b</span>);
+    <span class='kw'>fn</span> <span class='ident'>closest_nodes_to</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>target</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>, <span class='ident'>n</span>: <span class='ident'>usize</span>, <span class='ident'>ourselves</span>: <span class='ident'>bool</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>T</span><span class='op'>&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>cmp</span> <span class='op'>=</span> <span class='op'>|</span><span class='ident'>a</span>: <span class='op'>&amp;&amp;</span><span class='ident'>T</span>, <span class='ident'>b</span>: <span class='op'>&amp;&amp;</span><span class='ident'>T</span><span class='op'>|</span> <span class='ident'>target</span>.<span class='ident'>cmp_distance</span>(<span class='ident'>a</span>.<span class='ident'>name</span>(), <span class='ident'>b</span>.<span class='ident'>name</span>());
         <span class='comment'>// If we disagree with target in a bit, that bit&#39;s bucket contains contacts that are closer</span>
         <span class='comment'>// to the target than we are. The lower the bucket index, the closer it is:</span>
         <span class='kw'>let</span> <span class='ident'>closer_buckets_iter</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>buckets</span>
@@ -1697,7 +1726,7 @@
                                       .<span class='ident'>flat_map</span>(<span class='op'>|</span>(_, <span class='ident'>b</span>)<span class='op'>|</span> <span class='ident'>b</span>.<span class='ident'>iter</span>().<span class='ident'>sorted_by</span>(<span class='kw-2'>&amp;</span><span class='ident'>cmp</span>).<span class='ident'>into_iter</span>());
         <span class='comment'>// Nothing or ourselves, depending on whether we should be include in the result:</span>
         <span class='kw'>let</span> <span class='ident'>ourselves_iter</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='ident'>ourselves</span> {
-            <span class='prelude-val'>Some</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>our_name</span>).<span class='ident'>into_iter</span>()
+            <span class='prelude-val'>Some</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>our_info</span>).<span class='ident'>into_iter</span>()
         } <span class='kw'>else</span> {
             <span class='prelude-val'>None</span>.<span class='ident'>into_iter</span>()
         };
@@ -1747,7 +1776,7 @@
     <span class='comment'>// This is equivalent to the common leading bits of `self.our_name` and `name` where &quot;leading</span>
     <span class='comment'>// bits&quot; means the most significant bits.</span>
     <span class='kw'>fn</span> <span class='ident'>bucket_index</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-        <span class='self'>self</span>.<span class='ident'>our_name</span>.<span class='ident'>bucket_index</span>(<span class='ident'>name</span>)
+        <span class='self'>self</span>.<span class='ident'>our_name</span>().<span class='ident'>bucket_index</span>(<span class='ident'>name</span>)
     }
 
     <span class='doccomment'>/// Searches the routing table for the given name.</span>
@@ -1761,7 +1790,7 @@
          <span class='kw'>match</span> <span class='self'>self</span>.<span class='ident'>buckets</span>.<span class='ident'>get</span>(<span class='ident'>bucket_index</span>) {
             <span class='prelude-val'>None</span> <span class='op'>=&gt;</span> <span class='prelude-val'>Err</span>(<span class='number'>0</span>),
             <span class='prelude-val'>Some</span>(<span class='ident'>bucket</span>) <span class='op'>=&gt;</span> {
-                <span class='ident'>bucket</span>.<span class='ident'>binary_search_by</span>(<span class='op'>|</span><span class='ident'>other</span><span class='op'>|</span> <span class='self'>self</span>.<span class='ident'>our_name</span>.<span class='ident'>cmp_distance</span>(<span class='ident'>other</span>, <span class='ident'>name</span>))
+                <span class='ident'>bucket</span>.<span class='ident'>binary_search_by</span>(<span class='op'>|</span><span class='ident'>other</span><span class='op'>|</span> <span class='self'>self</span>.<span class='ident'>our_name</span>().<span class='ident'>cmp_distance</span>(<span class='ident'>other</span>.<span class='ident'>name</span>(), <span class='ident'>name</span>))
             }
         })
     }
@@ -1803,6 +1832,12 @@
     <span class='kw'>use</span> <span class='ident'>xor_name</span>;
     <span class='kw'>use</span> <span class='ident'>xor_name</span>::<span class='ident'>XorName</span>;
 
+    <span class='kw'>impl</span> <span class='ident'>ContactInfo</span> <span class='kw'>for</span> <span class='ident'>XorName</span> {
+        <span class='kw'>fn</span> <span class='ident'>name</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='kw-2'>&amp;</span><span class='ident'>XorName</span> {
+            <span class='kw-2'>&amp;</span><span class='self'>self</span>
+        }
+    }
+
     <span class='kw'>const</span> <span class='ident'>TABLE_SIZE</span>: <span class='ident'>usize</span> <span class='op'>=</span> <span class='number'>100</span>;
 
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
@@ -1830,7 +1865,7 @@
     }
 
     <span class='kw'>struct</span> <span class='ident'>TestEnvironment</span> {
-        <span class='ident'>table</span>: <span class='ident'>RoutingTable</span>,
+        <span class='ident'>table</span>: <span class='ident'>RoutingTable</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>,
         <span class='ident'>name</span>: <span class='ident'>XorName</span>,
         <span class='ident'>initial_count</span>: <span class='ident'>usize</span>,
         <span class='ident'>added_names</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>,
@@ -1838,9 +1873,9 @@
 
     <span class='kw'>impl</span> <span class='ident'>TestEnvironment</span> {
         <span class='kw'>fn</span> <span class='ident'>new</span>() <span class='op'>-&gt;</span> <span class='ident'>TestEnvironment</span> {
-            <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>rand</span>::<span class='ident'>random</span>();
+            <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>rand</span>::<span class='ident'>random</span>::<span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>();
             <span class='ident'>TestEnvironment</span> {
-                <span class='ident'>table</span>: <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>),
+                <span class='ident'>table</span>: <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='ident'>name</span>.<span class='ident'>clone</span>()),
                 <span class='ident'>name</span>: <span class='ident'>name</span>,
                 <span class='ident'>initial_count</span>: (<span class='ident'>rand</span>::<span class='ident'>random</span>::<span class='op'>&lt;</span><span class='ident'>usize</span><span class='op'>&gt;</span>() <span class='op'>%</span> (<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>)) <span class='op'>+</span> <span class='number'>1</span>,
                 <span class='ident'>added_names</span>: <span class='ident'>Vec</span>::<span class='ident'>new</span>(),
@@ -1869,15 +1904,15 @@
         }
     }
 
-    <span class='kw'>fn</span> <span class='ident'>create_random_routing_tables</span>(<span class='ident'>num_of_tables</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>RoutingTable</span><span class='op'>&gt;</span> {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>vector</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>RoutingTable</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Vec</span>::<span class='ident'>with_capacity</span>(<span class='ident'>num_of_tables</span>);
+    <span class='kw'>fn</span> <span class='ident'>create_random_routing_tables</span>(<span class='ident'>num_of_tables</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>RoutingTable</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>vector</span> <span class='op'>=</span> <span class='ident'>Vec</span>::<span class='ident'>with_capacity</span>(<span class='ident'>num_of_tables</span>);
         <span class='kw'>for</span> _ <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>num_of_tables</span> {
-            <span class='ident'>vector</span>.<span class='ident'>push</span>(<span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='kw-2'>&amp;</span><span class='ident'>rand</span>::<span class='ident'>random</span>()));
+            <span class='ident'>vector</span>.<span class='ident'>push</span>(<span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='ident'>rand</span>::<span class='ident'>random</span>()));
         }
         <span class='ident'>vector</span>
     }
 
-    <span class='kw'>fn</span> <span class='ident'>are_nodes_sorted</span>(<span class='ident'>routing_table</span>: <span class='kw-2'>&amp;</span><span class='ident'>RoutingTable</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
+    <span class='kw'>fn</span> <span class='ident'>are_nodes_sorted</span>(<span class='ident'>routing_table</span>: <span class='kw-2'>&amp;</span><span class='ident'>RoutingTable</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
         <span class='ident'>routing_table</span>.<span class='ident'>buckets</span>
                      .<span class='ident'>iter</span>()
                      .<span class='ident'>rev</span>()
@@ -1888,7 +1923,7 @@
                                        .<span class='ident'>flat_map</span>(<span class='op'>|</span><span class='ident'>bucket</span><span class='op'>|</span> <span class='ident'>bucket</span>.<span class='ident'>iter</span>())
                                        .<span class='ident'>skip</span>(<span class='number'>1</span>))
                      .<span class='ident'>all</span>(<span class='op'>|</span>(<span class='ident'>lhs</span>, <span class='ident'>rhs</span>)<span class='op'>|</span> {
-                         <span class='ident'>xor_name</span>::<span class='ident'>closer_to_target</span>(<span class='ident'>lhs</span>, <span class='ident'>rhs</span>, <span class='kw-2'>&amp;</span><span class='ident'>routing_table</span>.<span class='ident'>our_name</span>)
+                         <span class='ident'>xor_name</span>::<span class='ident'>closer_to_target</span>(<span class='ident'>lhs</span>, <span class='ident'>rhs</span>, <span class='ident'>routing_table</span>.<span class='ident'>our_name</span>())
                      })
     }
 
@@ -1903,7 +1938,7 @@
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>(), <span class='number'>0</span>);
 
         <span class='comment'>// try with our name - should fail</span>
-        <span class='kw'>let</span> <span class='ident'>contact</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>;
+        <span class='kw'>let</span> <span class='ident'>contact</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add</span>(<span class='ident'>contact</span>).<span class='ident'>is_none</span>());
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>(), <span class='number'>0</span>);
 
@@ -1988,7 +2023,7 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
 
         <span class='comment'>// Try with our ID</span>
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>need_to_add</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>));
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>need_to_add</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>()));
 
         <span class='comment'>// Should return true for empty routing table</span>
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>need_to_add</span>(<span class='kw-2'>&amp;</span><span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>, <span class='number'>2</span>)));
@@ -2025,7 +2060,7 @@
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>TABLE_SIZE</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
 
         <span class='comment'>// Try with our Name</span>
-        <span class='kw'>let</span> <span class='ident'>drop_name</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>.<span class='ident'>clone</span>();
+        <span class='kw'>let</span> <span class='ident'>drop_name</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>remove</span>(<span class='kw-2'>&amp;</span><span class='ident'>drop_name</span>).<span class='ident'>is_none</span>());
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>TABLE_SIZE</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
 
@@ -2072,7 +2107,7 @@
 
         <span class='comment'>// Try with our ID (should return the rest of the close group)</span>
         <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>
-                           .<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
+                           .<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>()), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> ((<span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='ident'>GROUP_SIZE</span> <span class='op'>+</span> <span class='number'>1</span>)..<span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>).<span class='ident'>rev</span>() {
@@ -2124,8 +2159,8 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
         <span class='ident'>test</span>.<span class='ident'>partially_fill_table</span>();
         <span class='ident'>test</span>.<span class='ident'>complete_filling_table</span>();
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>)));
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>)));
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>())));
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>())));
         <span class='kw'>let</span> <span class='ident'>close_contact</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='number'>1</span>);
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>close_contact</span>)));
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='ident'>close_contact</span>)));
@@ -2167,8 +2202,8 @@
     <span class='kw'>fn</span> <span class='ident'>close_nodes_and_is_close</span>() {
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>tables</span> <span class='op'>=</span> <span class='ident'>HashMap</span>::<span class='ident'>new</span>();
         <span class='kw'>for</span> _ <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>TABLE_SIZE</span> {
-            <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>rand</span>::<span class='ident'>random</span>();
-            <span class='kw'>let</span> <span class='ident'>table</span> <span class='op'>=</span> <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>);
+            <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>rand</span>::<span class='ident'>random</span>::<span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>();
+            <span class='kw'>let</span> <span class='ident'>table</span> <span class='op'>=</span> <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='ident'>name</span>.<span class='ident'>clone</span>());
             <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>insert</span>(<span class='ident'>name</span>, <span class='ident'>table</span>);
         }
         <span class='kw'>let</span> <span class='ident'>keys</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>keys</span>().<span class='ident'>cloned</span>().<span class='ident'>collect</span>();
@@ -2191,7 +2226,8 @@
         <span class='kw'>for</span> <span class='ident'>name</span> <span class='kw'>in</span> <span class='ident'>keys</span> {
             <span class='kw'>let</span> <span class='ident'>close_group</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span>_<span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>values</span>()
                                             .<span class='ident'>filter</span>(<span class='op'>|</span><span class='ident'>t</span><span class='op'>|</span> <span class='ident'>t</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>))
-                                            .<span class='ident'>map</span>(<span class='op'>|</span><span class='ident'>t</span><span class='op'>|</span> <span class='ident'>t</span>.<span class='ident'>our_name</span>)
+                                            .<span class='ident'>map</span>(<span class='op'>|</span><span class='ident'>t</span><span class='op'>|</span> <span class='ident'>t</span>.<span class='ident'>our_name</span>())
+                                            .<span class='ident'>cloned</span>()
                                             .<span class='ident'>sorted_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>name</span>.<span class='ident'>clone</span>()));
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span>, <span class='ident'>close_group</span>.<span class='ident'>len</span>());
             <span class='kw'>let</span> <span class='ident'>other_close_nodes</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>name</span>].<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>).<span class='ident'>unwrap</span>();
@@ -2216,16 +2252,16 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>addresses</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Vec</span>::<span class='ident'>with_capacity</span>(<span class='ident'>num_of_tables</span>);
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>num_of_tables</span> {
-            <span class='ident'>addresses</span>.<span class='ident'>push</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>.<span class='ident'>clone</span>());
+            <span class='ident'>addresses</span>.<span class='ident'>push</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>());
             <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>num_of_tables</span> {
-                <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>j</span>].<span class='ident'>our_name</span>;
+                <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>j</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
                 <span class='comment'>// TODO: Ask need_to_add first?</span>
                 <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>add</span>(<span class='ident'>name</span>);
             }
         }
         <span class='kw'>for</span> <span class='ident'>it</span> <span class='kw'>in</span> <span class='ident'>tables</span>.<span class='ident'>iter</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>it</span>.<span class='ident'>our_name</span>));
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>it</span>.<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>it</span>.<span class='ident'>our_name</span>).<span class='ident'>unwrap</span>()[..],
+            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>it</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>()));
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>it</span>.<span class='ident'>other_close_nodes</span>(<span class='ident'>it</span>.<span class='ident'>our_name</span>()).<span class='ident'>unwrap</span>()[..],
                        <span class='ident'>addresses</span>[<span class='number'>1</span>..<span class='ident'>GROUP_SIZE</span>]);
         }
     }
@@ -2240,9 +2276,9 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>addresses</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Vec</span>::<span class='ident'>with_capacity</span>(<span class='ident'>network_len</span>);
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>push</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>.<span class='ident'>clone</span>());
+            <span class='ident'>addresses</span>.<span class='ident'>push</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>());
             <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-                <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>j</span>].<span class='ident'>our_name</span>;
+                <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>j</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
                 <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>add</span>(<span class='ident'>name</span>);
             }
         }
@@ -2264,7 +2300,7 @@
         <span class='ident'>addresses</span>.<span class='ident'>truncate</span>(<span class='ident'>nodes_to_remove</span>);
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>));
+            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>()));
             <span class='kw'>let</span> <span class='ident'>group</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>other_close_nodes</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>()).<span class='ident'>unwrap</span>();
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group</span>.<span class='ident'>len</span>(), <span class='ident'>cmp</span>::<span class='ident'>min</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>len</span>()));
         }
@@ -2279,16 +2315,16 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>addresses</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Vec</span>::<span class='ident'>with_capacity</span>(<span class='ident'>network_len</span>);
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>push</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>);
+            <span class='ident'>addresses</span>.<span class='ident'>push</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>());
             <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-                <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>j</span>].<span class='ident'>our_name</span>;
+                <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>j</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
                 <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>add</span>(<span class='ident'>name</span>);
             }
         }
 
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>tested_close_target</span> <span class='op'>=</span> <span class='boolval'>false</span>;
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>.<span class='ident'>clone</span>()));
+            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>()));
             <span class='comment'>// if target is in close group return the whole close group excluding target</span>
             <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>1</span>..<span class='ident'>GROUP_SIZE</span> {
                 <span class='kw'>if</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>addresses</span>[<span class='ident'>j</span>]) {
@@ -2335,12 +2371,12 @@
     <span class='kw'>fn</span> <span class='ident'>bucket_index</span>() {
         <span class='comment'>// Set our name for routing table to max possible value (in binary, all `1`s)</span>
         <span class='kw'>let</span> <span class='ident'>our_name</span> <span class='op'>=</span> <span class='ident'>XorName</span>::<span class='ident'>new</span>([<span class='number'>255u8</span>; <span class='ident'>xor_name</span>::<span class='ident'>XOR_NAME_LEN</span>]);
-        <span class='kw'>let</span> <span class='ident'>routing_table</span> <span class='op'>=</span> <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='kw-2'>&amp;</span><span class='ident'>our_name</span>);
+        <span class='kw'>let</span> <span class='ident'>routing_table</span> <span class='op'>=</span> <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='ident'>our_name</span>);
 
         <span class='comment'>// Iterate through each u8 element of a target name identical to ours and set it to each</span>
         <span class='comment'>// possible value for u8 other than 255 (since that which would a target name identical to</span>
         <span class='comment'>// our name)</span>
-        <span class='kw'>for</span> <span class='ident'>index</span> <span class='kw'>in</span> <span class='number'>0</span>..::<span class='ident'>xor_name</span>::<span class='ident'>XOR_NAME_LEN</span> {
+        <span class='kw'>for</span> <span class='ident'>index</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>xor_name</span>::<span class='ident'>XOR_NAME_LEN</span> {
             <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>array</span> <span class='op'>=</span> [<span class='number'>255u8</span>; <span class='ident'>xor_name</span>::<span class='ident'>XOR_NAME_LEN</span>];
             <span class='kw'>for</span> <span class='ident'>modified_element</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='number'>255u8</span> {
                 <span class='ident'>array</span>[<span class='ident'>index</span>] <span class='op'>=</span> <span class='ident'>modified_element</span>;
