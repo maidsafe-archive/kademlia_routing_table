@@ -453,6 +453,13 @@ impl<T: ContactInfo> RoutingTable<T> {
         }
     }
 
+    /// Returns an entry that satisfies the given `predicate`.
+    pub fn find<F>(&self, predicate: F) -> Option<&T>
+        where F: FnMut(&&T) -> bool
+    {
+        self.buckets.iter().flat_map(|bucket| bucket.iter()).find(predicate)
+    }
+
     /// Returns the `n` nodes in our routing table that are closest to `target`.
     ///
     /// Returns fewer than `n` nodes if the routing table doesn't have enough entries.
@@ -1088,6 +1095,7 @@ mod test {
     fn trivial_functions_test() {
         // unchecked - but also check has_node function
         let mut test = TestEnvironment::new();
+        assert_eq!(None, test.table.find(|_| true));
         assert_eq!(0, test.table.len());
         assert_eq!(0, test.table.furthest_close_bucket());
 
@@ -1097,6 +1105,7 @@ mod test {
         assert!(!test.table.contains(&contact));
         assert!(test.table.add(contact).is_some());
         assert!(test.table.contains(&contact));
+        assert_eq!(Some(&contact), test.table.find(|c| c == &&contact));
 
         // Check on fully filled the table
         assert!(test.table.remove(&contact).is_some());
