@@ -1,5 +1,10 @@
 # kademlia_routing_table - Change Log
 
+## [0.3.0]
+- Make Routing generic again, without the previous restrictions, so it can
+  store more peer information in addition to the `XorName` again.
+- Add lots of integration tests.
+
 ## [0.2.0]
 - Only manage `XorName`s, not connections or public IDs.
 - Keep contacts sorted in buckets to speed up several methods.
