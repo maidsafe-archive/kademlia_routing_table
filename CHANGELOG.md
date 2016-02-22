@@ -1,5 +1,8 @@
 # kademlia_routing_table - Change Log
 
+## [0.3.1]
+- Add a `find` method.
+
 ## [0.3.0]
 - Make Routing generic again, without the previous restrictions, so it can
   store more peer information in addition to the `XorName` again.
