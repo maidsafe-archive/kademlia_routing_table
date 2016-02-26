@@ -1273,6 +1273,8 @@
 <span id="1230">1230</span>
 <span id="1231">1231</span>
 <span id="1232">1232</span>
+<span id="1233">1233</span>
+<span id="1234">1234</span>
 </pre><pre class='rust '>
 <span class='comment'>// Copyright 2015 MaidSafe.net limited.</span>
 <span class='comment'>//</span>
@@ -1724,6 +1726,8 @@
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>get</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='kw-2'>&amp;</span><span class='ident'>T</span><span class='op'>&gt;</span> {
         <span class='kw'>if</span> <span class='kw'>let</span> (<span class='ident'>bucket_index</span>, <span class='prelude-val'>Ok</span>(<span class='ident'>node_index</span>)) <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>search</span>(<span class='ident'>name</span>) {
             <span class='prelude-val'>Some</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>buckets</span>[<span class='ident'>bucket_index</span>][<span class='ident'>node_index</span>])
+        } <span class='kw'>else</span> <span class='kw'>if</span> <span class='ident'>name</span> <span class='op'>==</span> <span class='self'>self</span>.<span class='ident'>our_name</span>() {
+            <span class='prelude-val'>Some</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>our_info</span>)
         } <span class='kw'>else</span> {
             <span class='prelude-val'>None</span>
         }
