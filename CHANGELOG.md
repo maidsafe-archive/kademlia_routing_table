@@ -1,5 +1,8 @@
 # kademlia_routing_table - Change Log
 
+## [0.3.2]
+- Allow get to return own node info.
+
 ## [0.3.1]
 - Add a `find` method.
 
