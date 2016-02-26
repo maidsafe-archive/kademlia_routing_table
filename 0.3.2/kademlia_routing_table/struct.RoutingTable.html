@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `RoutingTable` struct in crate `kademlia_routing_table`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, RoutingTable">
+
+    <title>kademlia_routing_table::RoutingTable - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    <link rel="shortcut icon" href="http://maidsafe.net/img/favicon.ico">
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <a href='../kademlia_routing_table/index.html'><img src='https://raw.githubusercontent.com/maidsafe/QA/master/Images/maidsafe_logo.png' alt='' width='100'></a>
+        <p class='location'><a href='index.html'>kademlia_routing_table</a></p><script>window.sidebarCurrent = {name: 'RoutingTable', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>kademlia_routing_table</a>::<wbr><a class='struct' href=''>RoutingTable</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-107' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#181-186' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct RoutingTable&lt;T: <a class='trait' href='../kademlia_routing_table/trait.ContactInfo.html' title='kademlia_routing_table::ContactInfo'>ContactInfo</a>&gt; {
+    // some fields omitted
+}</pre><div class='docblock'><p>A routing table to manage contacts for a node.</p>
+
+<p>It maintains a list of <code>XorName</code>s representing connected peer nodes, and provides algorithms for
+routing messages.</p>
+
+<p>See the <a href="index.html">crate documentation</a> for details.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl&lt;T: <a class='trait' href='../kademlia_routing_table/trait.ContactInfo.html' title='kademlia_routing_table::ContactInfo'>ContactInfo</a>&gt; <a class='struct' href='../kademlia_routing_table/struct.RoutingTable.html' title='kademlia_routing_table::RoutingTable'>RoutingTable</a>&lt;T&gt;</code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(our_info: T) -&gt; Self</code></h4>
+<div class='docblock'><p>Creates a new routing table for the node with the given name.</p>
+</div><h4 id='method.add' class='method'><code>fn <a href='#method.add' class='fnname'>add</a>(&amp;mut self, info: T) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.AddedNodeDetails.html' title='kademlia_routing_table::AddedNodeDetails'>AddedNodeDetails</a>&lt;T&gt;&gt;</code></h4>
+<div class='docblock'><p>Adds a contact to the routing table, or updates it.</p>
+
+<p>Returns <code>None</code> if the contact already existed or was denied (see <code>allow_connection</code>).
+Otherwise it returns <code>AddedNodeDetails</code>.</p>
+</div><h4 id='method.need_to_add' class='method'><code>fn <a href='#method.need_to_add' class='fnname'>need_to_add</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<div class='docblock'><p>Returns whether it is desirable to add the given contact to the routing table.</p>
+
+<p>Returns <code>false</code> if adding the contact in question would not bring the routing table closer
+to satisfy the invariant. It returns <code>true</code> if and only if the new contact would be among
+the <code>GROUP_SIZE</code> closest nodes in its bucket.</p>
+</div><h4 id='method.allow_connection' class='method'><code>fn <a href='#method.allow_connection' class='fnname'>allow_connection</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<div class='docblock'><p>Returns whether we can allow the given contact to connect to us.</p>
+
+<p>The connection is allowed if:</p>
+
+<ul>
+<li>they already are one of our contacts,</li>
+<li>we need them in our routing table to satisfy the invariant or</li>
+<li>we are in the close group of one of their bucket addresses.</li>
+</ul>
+</div><h4 id='method.dynamic_quorum_size' class='method'><code>fn <a href='#method.dynamic_quorum_size' class='fnname'>dynamic_quorum_size</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></h4>
+<div class='docblock'><p>Returns the current calculated quorum size.</p>
+
+<p>If it is known that the network has at least <code>GROUP_SIZE</code> nodes, this returns the constant
+<code>QUORUM_SIZE</code>. For networks smaller than that, the quorum might not be reachable, so a
+smaller number is computed which represents a strict majority in the current network.</p>
+</div><h4 id='method.furthest_close_bucket' class='method'><code>fn <a href='#method.furthest_close_bucket' class='fnname'>furthest_close_bucket</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></h4>
+<div class='docblock'><p>Returns the bucket index of the furthest close node, or <code>0</code> if the table is empty.</p>
+</div><h4 id='method.remove' class='method'><code>fn <a href='#method.remove' class='fnname'>remove</a>(&amp;mut self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='../kademlia_routing_table/struct.DroppedNodeDetails.html' title='kademlia_routing_table::DroppedNodeDetails'>DroppedNodeDetails</a>&gt;</code></h4>
+<div class='docblock'><p>Removes the contact from the table.</p>
+
+<p>If no entry with that name is found, <code>None</code> is returned. Otherwise, the entry is removed
+from the routing table and <code>DroppedNodeDetails</code> are returned.</p>
+</div><h4 id='method.target_nodes' class='method'><code>fn <a href='#method.target_nodes' class='fnname'>target_nodes</a>(&amp;self, dst: <a class='enum' href='../kademlia_routing_table/enum.Destination.html' title='kademlia_routing_table::Destination'>Destination</a>, hop: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>, count: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;T&gt;</code></h4>
+<div class='docblock'><p>Returns a collection of nodes to which a message should be sent onwards.</p>
+
+<p>If the message is addressed at a group we are a member of and the previous <code>hop</code> is not,
+this returns all other members of that group once, and an empty collection for all further
+copies.</p>
+
+<p>If the message is addressed at an individual node that is directly connected to us, this
+returns the destination node once, and an empty collection for all further copies.</p>
+
+<p>If we are the individual recipient, it also returns an empty collection.</p>
+
+<p>If none of the above is the case and we are the original sender, it returns the
+<code>PARALLELISM</code> closest nodes to the target.</p>
+
+<p>Otherwise it returns the <code>n</code>-th closest node to the target if this is the <code>n</code>-th copy of
+the message we are relaying.</p>
+
+<h1 id='arguments' class='section-header'><a href='#arguments'>Arguments</a></h1>
+<ul>
+<li><code>dst</code> -   The destination of the message.</li>
+<li><code>hop</code> -   The name of the node that relayed the message to us, or ourselves if we are the
+        original sender.</li>
+<li><code>count</code> - The number of times we have seen this message before.</li>
+</ul>
+</div><h4 id='method.is_recipient' class='method'><code>fn <a href='#method.is_recipient' class='fnname'>is_recipient</a>(&amp;self, dst: <a class='enum' href='../kademlia_routing_table/enum.Destination.html' title='kademlia_routing_table::Destination'>Destination</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<div class='docblock'><p>Returns whether the message is addressed to this node.</p>
+
+<p>If this returns <code>true</code>, this node is either the single recipient of the message, or a
+member of the group authority to which it is addressed. It therefore needs to handle the
+message.</p>
+</div><h4 id='method.other_close_nodes' class='method'><code>fn <a href='#method.other_close_nodes' class='fnname'>other_close_nodes</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;T&gt;&gt;</code></h4>
+<div class='docblock'><p>Returns the other members of <code>name</code>&#39;s close group, or <code>None</code> if we are not a member of it.</p>
+</div><h4 id='method.close_nodes' class='method'><code>fn <a href='#method.close_nodes' class='fnname'>close_nodes</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;T&gt;&gt;</code></h4>
+<div class='docblock'><p>Returns the members of <code>name</code>&#39;s close group, or <code>None</code> if we are not a member of it.</p>
+</div><h4 id='method.is_close' class='method'><code>fn <a href='#method.is_close' class='fnname'>is_close</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<div class='docblock'><p>Returns <code>true</code> if there are fewer than <code>GROUP_SIZE</code> nodes in our routing table that are
+closer to <code>name</code> than we are.</p>
+
+<p>In other words, it returns <code>true</code> whenever we cannot rule out that we might be among the
+<code>GROUP_SIZE</code> closest nodes to <code>name</code>.</p>
+
+<p>If the routing table is filled in such a way that each bucket contains <code>GROUP_SIZE</code>
+elements unless there aren&#39;t enough such nodes in the network, then this criterion is
+actually sufficient! In that case, <code>true</code> is returned if and only if we are among the
+<code>GROUP_SIZE</code> closest node to <code>name</code> in the network.</p>
+</div><h4 id='method.len' class='method'><code>fn <a href='#method.len' class='fnname'>len</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code></h4>
+<div class='docblock'><p>Number of entries in the routing table.</p>
+</div><h4 id='method.is_empty' class='method'><code>fn <a href='#method.is_empty' class='fnname'>is_empty</a>(&amp;self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<div class='docblock'><p>Returns <code>true</code> if there are no entries in the routing table.</p>
+</div><h4 id='method.our_name' class='method'><code>fn <a href='#method.our_name' class='fnname'>our_name</a>(&amp;self) -&gt; &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a></code></h4>
+<div class='docblock'><p>Returns the name of the node this routing table is for.</p>
+</div><h4 id='method.contains' class='method'><code>fn <a href='#method.contains' class='fnname'>contains</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<div class='docblock'><p>Returns whether the given node is in the routing table.</p>
+</div><h4 id='method.get' class='method'><code>fn <a href='#method.get' class='fnname'>get</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;&amp;T&gt;</code></h4>
+<div class='docblock'><p>Returns the contact associated with the given name.</p>
+</div><h4 id='method.find' class='method'><code>fn <a href='#method.find' class='fnname'>find</a>&lt;F&gt;(&amp;self, predicate: F) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;&amp;T&gt; <span class='where'>where F: <a class='trait' href='https://doc.rust-lang.org/nightly/core/ops/trait.FnMut.html' title='core::ops::FnMut'>FnMut</a>(&amp;&amp;T) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></span></code></h4>
+<div class='docblock'><p>Returns an entry that satisfies the given <code>predicate</code>.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "kademlia_routing_table";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>
