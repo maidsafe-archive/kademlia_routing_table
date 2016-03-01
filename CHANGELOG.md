@@ -1,5 +1,8 @@
 # kademlia_routing_table - Change Log
 
+## [0.3.3]
+- Don't relay messages to the node they were received from.
+
 ## [0.3.2]
 - Allow get to return own node info.
 
