@@ -367,7 +367,12 @@ impl<T: ContactInfo> RoutingTable<T> {
         if hop == self.our_name() {
             self.closest_nodes_to(target, PARALLELISM, false)
         } else {
-            self.closest_nodes_to(target, count + 1, false).last().into_iter().cloned().collect()
+            self.closest_nodes_to(target, count + 2, false)
+                .into_iter()
+                .filter(|node| node.name() != hop)
+                .skip(count)
+                .take(1)
+                .collect()
         }
     }
 
