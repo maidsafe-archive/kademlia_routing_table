@@ -469,8 +469,10 @@ impl<T: ContactInfo> RoutingTable<T> {
 
     /// Returns the `n` nodes in our routing table that are closest to `target`.
     ///
-    /// Returns fewer than `n` nodes if the routing table doesn't have enough entries.
-    fn closest_nodes_to(&self, target: &XorName, n: usize, ourselves: bool) -> Vec<T> {
+    /// Returns fewer than `n` nodes if the routing table doesn't have enough entries. If
+    /// `ourselves` is `true`, this could potentially include ourselves. Otherwise, our own name is
+    /// skipped.
+    pub fn closest_nodes_to(&self, target: &XorName, n: usize, ourselves: bool) -> Vec<T> {
         let cmp = |a: &&T, b: &&T| target.cmp_distance(a.name(), b.name());
         // If we disagree with target in a bit, that bit's bucket contains contacts that are closer
         // to the target than we are. The lower the bucket index, the closer it is:
@@ -862,7 +864,9 @@ mod test {
 
         // Try with our ID (should return the rest of the close group)
         target_nodes = test.table
-                           .target_nodes(Destination::Group(test.table.our_name().clone()), &test.name, 0);
+                           .target_nodes(Destination::Group(test.table.our_name().clone()),
+                                         &test.name,
+                                         0);
         assert_eq!(GROUP_SIZE - 1, target_nodes.len());
 
         for i in ((TABLE_SIZE - GROUP_SIZE + 1)..TABLE_SIZE - 1).rev() {
