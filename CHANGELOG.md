@@ -1,5 +1,9 @@
 # kademlia_routing_table - Change Log
 
+## [0.4.0]
+- Made `closest_nodes_to` public.
+- Updated dependencies.
+
 ## [0.3.3]
 - Don't relay messages to the node they were received from.
 
