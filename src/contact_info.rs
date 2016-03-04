@@ -19,6 +19,6 @@ use xor_name::XorName;
 
 /// Contact info about a node in the network.
 pub trait ContactInfo: Clone + Eq {
-  /// Returns the name of this contact.
-  fn name(&self) -> &XorName;
+    /// Returns the name of this contact.
+    fn name(&self) -> &XorName;
 }
