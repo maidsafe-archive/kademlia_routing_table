@@ -37,6 +37,7 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
 #![cfg_attr(feature="clippy", deny(clippy, clippy_pedantic))]
+#![cfg_attr(feature="clippy", allow(use_debug))]
 
 //! A routing table to manage contacts for a node in a [Kademlia][1] distributed hash table.
 //!
