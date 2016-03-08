@@ -218,9 +218,23 @@ impl<T: ContactInfo> RoutingTable<T> {
                 } else {
                     vec![]
                 };
+
                 self.buckets[bucket_index].insert(i, info);
+
+                let not_needed = if self.buckets[bucket_index].len() > GROUP_SIZE {
+                    self.buckets[bucket_index]
+                        .iter()
+                        .rev()
+                        .take(self.buckets[bucket_index].len() - GROUP_SIZE)
+                        .cloned()
+                        .collect()
+                } else {
+                    vec![]
+                };
+
                 Some(AddedNodeDetails {
                     must_notify: must_notify,
+                    not_needed: not_needed,
                     common_groups: self.is_in_any_close_group_with(bucket_index),
                 })
             }
@@ -240,6 +254,34 @@ impl<T: ContactInfo> RoutingTable<T> {
             (_, Ok(_)) => false,           // They already are in our routing table.
             (_, Err(i)) => i < GROUP_SIZE, // We need to add them if the bucket is not full.
         }
+    }
+
+    /// Removes `name` from routing table and returns `false` if we no longer need to stay connected.
+    ///
+    /// We should remain connected iff entry at bucket index of `name` is in the routing table and is
+    /// within the `GROUP_SIZE` closest nodes in that bucket.
+    pub fn need_to_keep(&mut self, name: &XorName) -> bool {
+        if name == self.our_name() {
+            return true;
+        }
+
+        let bucket_index = self.bucket_index(name);
+        if self.buckets[bucket_index].len() > GROUP_SIZE {
+            let not_needed = self.buckets[bucket_index]
+                                 .iter()
+                                 .rev()
+                                 .take(self.buckets[bucket_index].len() - GROUP_SIZE)
+                                 .cloned()
+                                 .collect::<Vec<T>>();
+            for can_remove in &not_needed {
+                if can_remove.name() == name {
+                    let _ = self.remove(name);
+                    return false
+                }
+            }
+        }
+
+        true
     }
 
     /// Returns whether we can allow the given contact to connect to us.

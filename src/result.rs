@@ -24,6 +24,8 @@ pub struct AddedNodeDetails<T: ContactInfo> {
     /// already full, that's nobody, but if it wasn't, everyone with a bucket index greater than
     /// the new nodes' must be notified.
     pub must_notify: Vec<T>,
+    /// List of contacts no longer within the close group at the bucket index of the contact added.
+    pub not_needed: Vec<T>,
     /// Whether we are together in any close group with that contact.
     pub common_groups: bool,
 }
