@@ -221,16 +221,11 @@ impl<T: ContactInfo> RoutingTable<T> {
 
                 self.buckets[bucket_index].insert(i, info);
 
-                let not_needed = if self.buckets[bucket_index].len() > GROUP_SIZE {
-                    self.buckets[bucket_index]
-                        .iter()
-                        .rev()
-                        .take(self.buckets[bucket_index].len() - GROUP_SIZE)
-                        .cloned()
-                        .collect()
-                } else {
-                    vec![]
-                };
+                let not_needed = self.buckets[bucket_index]
+                                     .iter()
+                                     .skip(GROUP_SIZE)
+                                     .cloned()
+                                     .collect();
 
                 Some(AddedNodeDetails {
                     must_notify: must_notify,
@@ -265,19 +260,16 @@ impl<T: ContactInfo> RoutingTable<T> {
             return true;
         }
 
-        let bucket_index = self.bucket_index(name);
-        if self.buckets[bucket_index].len() > GROUP_SIZE {
-            let not_needed = self.buckets[bucket_index]
-                                 .iter()
-                                 .rev()
-                                 .take(self.buckets[bucket_index].len() - GROUP_SIZE)
-                                 .cloned()
-                                 .collect::<Vec<T>>();
-            for can_remove in &not_needed {
-                if can_remove.name() == name {
-                    let _ = self.remove(name);
-                    return false
-                }
+        let not_needed = self.buckets[self.bucket_index(name)]
+                             .iter()
+                             .skip(GROUP_SIZE)
+                             .cloned()
+                             .collect::<Vec<T>>();
+
+        for can_remove in &not_needed {
+            if can_remove.name() == name {
+                let _ = self.remove(name);
+                return false
             }
         }
 
@@ -763,11 +755,25 @@ mod test {
         }
 
         let contact = get_contact(&test.name, 1, 255);
-        assert_eq!(test.table.add(contact),
-                   Some(AddedNodeDetails {
-                       must_notify: vec![],
-                       common_groups: true,
-                   }));
+
+        if let Some(added_node_details) = test.table.add(contact) {
+            let bucket_index = test.table.bucket_index(&contact);
+            let not_needed = test.table
+                                 .buckets[bucket_index]
+                                 .iter()
+                                 .skip(GROUP_SIZE)
+                                 .cloned()
+                                 .collect::<Vec<XorName>>();
+
+            assert_eq!(added_node_details,
+                AddedNodeDetails {
+                    must_notify: vec![],
+                    not_needed: not_needed,
+                    common_groups: true,
+                });
+        } else {
+            assert!(false);
+        }
 
         // Adding a node should not remove existing nodes
         assert_eq!(test.table.len(), GROUP_SIZE + 1);
@@ -786,11 +792,25 @@ mod test {
         }
 
         let contact = get_contact(&test.name, 1, 0);
-        assert_eq!(test.table.add(contact),
-                   Some(AddedNodeDetails {
-                       must_notify: Vec::new(),
-                       common_groups: false,
-                   }));
+
+        if let Some(added_node_details) = test.table.add(contact) {
+            let bucket_index = test.table.bucket_index(&contact);
+            let not_needed = test.table
+                                 .buckets[bucket_index]
+                                 .iter()
+                                 .skip(GROUP_SIZE)
+                                 .cloned()
+                                 .collect::<Vec<XorName>>();
+
+            assert_eq!(added_node_details,
+                AddedNodeDetails {
+                    must_notify: vec![],
+                    not_needed: not_needed,
+                    common_groups: false,
+                });
+        } else {
+            assert!(false);
+        }
 
         // Adding a node should not remove existing nodes
         assert_eq!(test.table.len(), 2 * GROUP_SIZE + 1);
