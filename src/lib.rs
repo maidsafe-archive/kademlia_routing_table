@@ -251,29 +251,23 @@ impl<T: ContactInfo> RoutingTable<T> {
         }
     }
 
-    /// Removes `name` from routing table and returns `false` if we no longer need to stay connected.
+    /// Removes `name` from routing table and returns `true` if we no longer need to stay connected.
     ///
     /// We should remain connected iff entry at bucket index of `name` is in the routing table and is
     /// within the `GROUP_SIZE` closest nodes in that bucket.
-    pub fn need_to_keep(&mut self, name: &XorName) -> bool {
+    pub fn remove_if_unneeded(&mut self, name: &XorName) -> bool {
         if name == self.our_name() {
-            return true;
+            return false;
         }
 
-        let not_needed = self.buckets[self.bucket_index(name)]
-                             .iter()
-                             .skip(GROUP_SIZE)
-                             .cloned()
-                             .collect::<Vec<T>>();
-
-        for can_remove in &not_needed {
-            if can_remove.name() == name {
+        if let (_, Ok(i)) = self.search(name) {
+            if i >= GROUP_SIZE {
                 let _ = self.remove(name);
-                return false
+                return true
             }
         }
 
-        true
+        false
     }
 
     /// Returns whether we can allow the given contact to connect to us.
