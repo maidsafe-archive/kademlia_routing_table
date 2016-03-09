@@ -221,15 +221,15 @@ impl<T: ContactInfo> RoutingTable<T> {
 
                 self.buckets[bucket_index].insert(i, info);
 
-                let not_needed = self.buckets[bucket_index]
-                                     .iter()
-                                     .skip(GROUP_SIZE)
-                                     .cloned()
-                                     .collect();
+                let unneeded = self.buckets[bucket_index]
+                                   .iter()
+                                   .skip(GROUP_SIZE)
+                                   .cloned()
+                                   .collect();
 
                 Some(AddedNodeDetails {
                     must_notify: must_notify,
-                    not_needed: not_needed,
+                    unneeded: unneeded,
                     common_groups: self.is_in_any_close_group_with(bucket_index),
                 })
             }
@@ -752,17 +752,17 @@ mod test {
 
         if let Some(added_node_details) = test.table.add(contact) {
             let bucket_index = test.table.bucket_index(&contact);
-            let not_needed = test.table
-                                 .buckets[bucket_index]
-                                 .iter()
-                                 .skip(GROUP_SIZE)
-                                 .cloned()
-                                 .collect::<Vec<XorName>>();
+            let unneeded = test.table
+                               .buckets[bucket_index]
+                               .iter()
+                               .skip(GROUP_SIZE)
+                               .cloned()
+                               .collect::<Vec<XorName>>();
 
             assert_eq!(added_node_details,
                 AddedNodeDetails {
                     must_notify: vec![],
-                    not_needed: not_needed,
+                    unneeded: unneeded,
                     common_groups: true,
                 });
         } else {
@@ -789,17 +789,17 @@ mod test {
 
         if let Some(added_node_details) = test.table.add(contact) {
             let bucket_index = test.table.bucket_index(&contact);
-            let not_needed = test.table
-                                 .buckets[bucket_index]
-                                 .iter()
-                                 .skip(GROUP_SIZE)
-                                 .cloned()
-                                 .collect::<Vec<XorName>>();
+            let unneeded = test.table
+                               .buckets[bucket_index]
+                               .iter()
+                               .skip(GROUP_SIZE)
+                               .cloned()
+                               .collect::<Vec<XorName>>();
 
             assert_eq!(added_node_details,
                 AddedNodeDetails {
                     must_notify: vec![],
-                    not_needed: not_needed,
+                    unneeded: unneeded,
                     common_groups: false,
                 });
         } else {
