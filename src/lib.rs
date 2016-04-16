@@ -344,11 +344,7 @@ impl<T: ContactInfo> RoutingTable<T> {
                         return vec![];
                     }
                     let close_group = self.closest_nodes_to(target, GROUP_SIZE - 1, false);
-                    return if close_group.iter().any(|n| n.name() == hop) {
-                        vec![]
-                    } else {
-                        close_group
-                    };
+                    return close_group;
                 }
                 target
             }
