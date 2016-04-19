@@ -162,7 +162,7 @@ const QUORUM_SIZE: usize = 5;
 /// The number of nodes a message is sent to in each hop for redundancy.
 ///
 /// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.
-pub const PARALLELISM: usize = 4;
+pub const PARALLELISM: usize = 8;
 
 /// A message destination.
 #[derive(Copy, Clone, Debug)]
@@ -344,11 +344,7 @@ impl<T: ContactInfo> RoutingTable<T> {
                         return vec![];
                     }
                     let close_group = self.closest_nodes_to(target, GROUP_SIZE - 1, false);
-                    return if close_group.iter().any(|n| n.name() == hop) {
-                        vec![]
-                    } else {
-                        close_group
-                    };
+                    return close_group;
                 }
                 target
             }
