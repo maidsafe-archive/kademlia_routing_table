@@ -26,7 +26,7 @@
     
 
     <nav class="sidebar">
-        <a href='../kademlia_routing_table/index.html'><img src='https://raw.githubusercontent.com/maidsafe/QA/master/Images/maidsafe_logo.png' alt='' width='100'></a>
+        <a href='../kademlia_routing_table/index.html'><img src='https://raw.githubusercontent.com/maidsafe/QA/master/Images/maidsafe_logo.png' alt='logo' width='100'></a>
         <p class='location'><a href='index.html'>kademlia_routing_table</a></p><script>window.sidebarCurrent = {name: 'PARALLELISM', ty: 'constant', relpath: ''};</script><script defer src="sidebar-items.js"></script>
     </nav>
 
@@ -46,8 +46,8 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-87' class='srclink' href='../src/kademlia_routing_table/lib.rs.html#165' title='goto source code'>[src]</a></span></h1>
-<pre class='rust const'>pub const PARALLELISM: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a><code> = </code><code>4</code></pre><div class='docblock'><p>The number of nodes a message is sent to in each hop for redundancy.</p>
+        </span><a id='src-87' class='srclink' href='../src/kademlia_routing_table/src/lib.rs.html#165' title='goto source code'>[src]</a></span></h1>
+<pre class='rust const'>pub const PARALLELISM: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a><code> = </code><code>8</code></pre><div class='docblock'><p>The number of nodes a message is sent to in each hop for redundancy.</p>
 
 <p>See <a href="struct.RoutingTable.html#method.target_nodes"><code>target_nodes</code></a> for details.</p>
 </div></section>
@@ -93,7 +93,7 @@
 
                 <p>
                     Search functions by type signature (e.g.
-                    <code>vec -> usize</code>)
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
                 </p>
             </div>
         </div>
