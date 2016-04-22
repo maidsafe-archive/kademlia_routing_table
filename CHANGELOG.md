@@ -1,5 +1,8 @@
 # kademlia_routing_table - Change Log
 
+## [0.4.1]
+- Don't block re-swarming messages and set `PARALLELISM` to 8.
+
 ## [0.4.0]
 - Made `closest_nodes_to` public.
 - Updated dependencies.
