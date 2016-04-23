@@ -71,8 +71,8 @@ the <code>GROUP_SIZE</code> closest nodes in its bucket.</p>
 </div><h4 id='method.remove_if_unneeded' class='method'><code>fn <a href='#method.remove_if_unneeded' class='fnname'>remove_if_unneeded</a>(&amp;mut self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
 <div class='docblock'><p>Removes <code>name</code> from routing table and returns <code>true</code> if we no longer need to stay connected.</p>
 
-<p>We should remain connected iff entry at bucket index of <code>name</code> is in the routing table and is
-within the <code>GROUP_SIZE</code> closest nodes in that bucket.</p>
+<p>We should remain connected iff the entry is among the <code>GROUP_SIZE</code> closest nodes in its
+bucket or if we have any close groups in common with it.</p>
 </div><h4 id='method.allow_connection' class='method'><code>fn <a href='#method.allow_connection' class='fnname'>allow_connection</a>(&amp;self, name: &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
 <div class='docblock'><p>Returns whether we can allow the given contact to connect to us.</p>
 
