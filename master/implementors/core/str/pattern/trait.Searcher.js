@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors['libc'] = [];implementors['regex_syntax'] = [];implementors['regex'] = [];
+implementors['libc'] = [];implementors['regex_syntax'] = [];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);
