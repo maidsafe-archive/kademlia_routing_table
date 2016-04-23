@@ -218,9 +218,18 @@ impl<T: ContactInfo> RoutingTable<T> {
                 } else {
                     vec![]
                 };
+
                 self.buckets[bucket_index].insert(i, info);
+
+                let unneeded = self.buckets[bucket_index]
+                                   .iter()
+                                   .skip(GROUP_SIZE)
+                                   .cloned()
+                                   .collect();
+
                 Some(AddedNodeDetails {
                     must_notify: must_notify,
+                    unneeded: unneeded,
                     common_groups: self.is_in_any_close_group_with(bucket_index),
                 })
             }
@@ -240,6 +249,25 @@ impl<T: ContactInfo> RoutingTable<T> {
             (_, Ok(_)) => false,           // They already are in our routing table.
             (_, Err(i)) => i < GROUP_SIZE, // We need to add them if the bucket is not full.
         }
+    }
+
+    /// Removes `name` from routing table and returns `true` if we no longer need to stay connected.
+    ///
+    /// We should remain connected iff entry at bucket index of `name` is in the routing table and is
+    /// within the `GROUP_SIZE` closest nodes in that bucket.
+    pub fn remove_if_unneeded(&mut self, name: &XorName) -> bool {
+        if name == self.our_name() {
+            return false;
+        }
+
+        if let (_, Ok(i)) = self.search(name) {
+            if i >= GROUP_SIZE {
+                let _ = self.remove(name);
+                return true
+            }
+        }
+
+        false
     }
 
     /// Returns whether we can allow the given contact to connect to us.
@@ -717,11 +745,25 @@ mod test {
         }
 
         let contact = get_contact(&test.name, 1, 255);
-        assert_eq!(test.table.add(contact),
-                   Some(AddedNodeDetails {
-                       must_notify: vec![],
-                       common_groups: true,
-                   }));
+
+        if let Some(added_node_details) = test.table.add(contact) {
+            let bucket_index = test.table.bucket_index(&contact);
+            let unneeded = test.table
+                               .buckets[bucket_index]
+                               .iter()
+                               .skip(GROUP_SIZE)
+                               .cloned()
+                               .collect::<Vec<XorName>>();
+
+            assert_eq!(added_node_details,
+                AddedNodeDetails {
+                    must_notify: vec![],
+                    unneeded: unneeded,
+                    common_groups: true,
+                });
+        } else {
+            assert!(false);
+        }
 
         // Adding a node should not remove existing nodes
         assert_eq!(test.table.len(), GROUP_SIZE + 1);
@@ -740,11 +782,25 @@ mod test {
         }
 
         let contact = get_contact(&test.name, 1, 0);
-        assert_eq!(test.table.add(contact),
-                   Some(AddedNodeDetails {
-                       must_notify: Vec::new(),
-                       common_groups: false,
-                   }));
+
+        if let Some(added_node_details) = test.table.add(contact) {
+            let bucket_index = test.table.bucket_index(&contact);
+            let unneeded = test.table
+                               .buckets[bucket_index]
+                               .iter()
+                               .skip(GROUP_SIZE)
+                               .cloned()
+                               .collect::<Vec<XorName>>();
+
+            assert_eq!(added_node_details,
+                AddedNodeDetails {
+                    must_notify: vec![],
+                    unneeded: unneeded,
+                    common_groups: false,
+                });
+        } else {
+            assert!(false);
+        }
 
         // Adding a node should not remove existing nodes
         assert_eq!(test.table.len(), 2 * GROUP_SIZE + 1);
