@@ -253,15 +253,15 @@ impl<T: ContactInfo> RoutingTable<T> {
 
     /// Removes `name` from routing table and returns `true` if we no longer need to stay connected.
     ///
-    /// We should remain connected iff entry at bucket index of `name` is in the routing table and is
-    /// within the `GROUP_SIZE` closest nodes in that bucket.
+    /// We should remain connected iff the entry is among the `GROUP_SIZE` closest nodes in its
+    /// bucket or if we have any close groups in common with it.
     pub fn remove_if_unneeded(&mut self, name: &XorName) -> bool {
         if name == self.our_name() {
             return false;
         }
 
-        if let (_, Ok(i)) = self.search(name) {
-            if i >= GROUP_SIZE {
+        if let (bucket, Ok(i)) = self.search(name) {
+            if i >= GROUP_SIZE && !self.is_in_any_close_group_with(bucket) {
                 let _ = self.remove(name);
                 return true
             }
