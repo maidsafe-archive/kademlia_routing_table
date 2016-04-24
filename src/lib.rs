@@ -98,8 +98,8 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 //!   node knows whether it belongs to that group.
 //! * Each node in a given address' close group is connected to each other node in that group. In
 //!   particular, every node is connected to its own close group.
-//! * The number of total hop messages created for each message is at most PARALLELISM * 512.
-//! * For each node there are at most 512 * GROUP_SIZE other nodes in the network for which it can
+//! * The number of total hop messages created for each message is at most `PARALLELISM` * 512.
+//! * For each node there are at most 512 * `GROUP_SIZE` other nodes in the network for which it can
 //!   obtain the IP address, at any point in time.
 //!
 //! However, to be able to make these guarantees, the routing table must be filled with
@@ -338,6 +338,9 @@ impl<T: ContactInfo> RoutingTable<T> {
                     None
                 };
                 let _ = self.buckets[bucket_index].remove(i);
+                while self.buckets.last().map_or(false, Vec::is_empty) {
+                    let _ = self.buckets.pop();
+                }
                 // TODO: Remove trailing empty buckets?
                 Some(DroppedNodeDetails {
                     incomplete_bucket: incomplete_bucket,
@@ -489,6 +492,19 @@ impl<T: ContactInfo> RoutingTable<T> {
         } else {
             None
         }
+    }
+
+    /// Returns the number of entries in the bucket with the given index.
+    pub fn bucket_len(&self, index: usize) -> usize {
+        self.buckets.get(index).map_or(0, Vec::len)
+    }
+
+    /// Returns the number of buckets.
+    ///
+    /// This is one more than the index of the bucket containing the closest peer, or `0` if the
+    /// routing table is empty.
+    pub fn bucket_count(&self) -> usize {
+        self.buckets.len()
     }
 
     /// Returns an entry that satisfies the given `predicate`.
