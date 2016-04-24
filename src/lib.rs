@@ -219,18 +219,24 @@ impl<T: ContactInfo> RoutingTable<T> {
                     vec![]
                 };
 
+                let common_groups = self.is_in_any_close_group_with(bucket_index);
+
                 self.buckets[bucket_index].insert(i, info);
 
-                let unneeded = self.buckets[bucket_index]
+                let unneeded = if common_groups {
+                    vec![]
+                } else {
+                    self.buckets[bucket_index]
                                    .iter()
                                    .skip(GROUP_SIZE)
                                    .cloned()
-                                   .collect();
+                                   .collect()
+                };
 
                 Some(AddedNodeDetails {
                     must_notify: must_notify,
                     unneeded: unneeded,
-                    common_groups: self.is_in_any_close_group_with(bucket_index),
+                    common_groups: common_groups,
                 })
             }
         }
@@ -747,18 +753,10 @@ mod test {
         let contact = get_contact(&test.name, 1, 255);
 
         if let Some(added_node_details) = test.table.add(contact) {
-            let bucket_index = test.table.bucket_index(&contact);
-            let unneeded = test.table
-                               .buckets[bucket_index]
-                               .iter()
-                               .skip(GROUP_SIZE)
-                               .cloned()
-                               .collect::<Vec<XorName>>();
-
             assert_eq!(added_node_details,
                 AddedNodeDetails {
                     must_notify: vec![],
-                    unneeded: unneeded,
+                    unneeded: vec![],
                     common_groups: true,
                 });
         } else {
