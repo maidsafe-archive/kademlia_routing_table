@@ -179,6 +179,7 @@ pub enum Destination {
 /// routing messages.
 ///
 /// See the [crate documentation](index.html) for details.
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RoutingTable<T: ContactInfo> {
     /// The buckets, by bucket index. Each bucket is sorted by ascending distance from us.
     buckets: Vec<Vec<T>>,
