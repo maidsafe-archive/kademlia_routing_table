@@ -98,8 +98,8 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 //!   node knows whether it belongs to that group.
 //! * Each node in a given address' close group is connected to each other node in that group. In
 //!   particular, every node is connected to its own close group.
-//! * The number of total hop messages created for each message is at most PARALLELISM * 512.
-//! * For each node there are at most 512 * GROUP_SIZE other nodes in the network for which it can
+//! * The number of total hop messages created for each message is at most `PARALLELISM` * 512.
+//! * For each node there are at most 512 * `GROUP_SIZE` other nodes in the network for which it can
 //!   obtain the IP address, at any point in time.
 //!
 //! However, to be able to make these guarantees, the routing table must be filled with
@@ -179,6 +179,7 @@ pub enum Destination {
 /// routing messages.
 ///
 /// See the [crate documentation](index.html) for details.
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RoutingTable<T: ContactInfo> {
     /// The buckets, by bucket index. Each bucket is sorted by ascending distance from us.
     buckets: Vec<Vec<T>>,
@@ -219,18 +220,24 @@ impl<T: ContactInfo> RoutingTable<T> {
                     vec![]
                 };
 
+                let common_groups = self.is_in_any_close_group_with(bucket_index);
+
                 self.buckets[bucket_index].insert(i, info);
 
-                let unneeded = self.buckets[bucket_index]
+                let unneeded = if common_groups {
+                    vec![]
+                } else {
+                    self.buckets[bucket_index]
                                    .iter()
                                    .skip(GROUP_SIZE)
                                    .cloned()
-                                   .collect();
+                                   .collect()
+                };
 
                 Some(AddedNodeDetails {
                     must_notify: must_notify,
                     unneeded: unneeded,
-                    common_groups: self.is_in_any_close_group_with(bucket_index),
+                    common_groups: common_groups,
                 })
             }
         }
@@ -332,6 +339,9 @@ impl<T: ContactInfo> RoutingTable<T> {
                     None
                 };
                 let _ = self.buckets[bucket_index].remove(i);
+                while self.buckets.last().map_or(false, Vec::is_empty) {
+                    let _ = self.buckets.pop();
+                }
                 // TODO: Remove trailing empty buckets?
                 Some(DroppedNodeDetails {
                     incomplete_bucket: incomplete_bucket,
@@ -483,6 +493,19 @@ impl<T: ContactInfo> RoutingTable<T> {
         } else {
             None
         }
+    }
+
+    /// Returns the number of entries in the bucket with the given index.
+    pub fn bucket_len(&self, index: usize) -> usize {
+        self.buckets.get(index).map_or(0, Vec::len)
+    }
+
+    /// Returns the number of buckets.
+    ///
+    /// This is one more than the index of the bucket containing the closest peer, or `0` if the
+    /// routing table is empty.
+    pub fn bucket_count(&self) -> usize {
+        self.buckets.len()
     }
 
     /// Returns an entry that satisfies the given `predicate`.
@@ -747,18 +770,10 @@ mod test {
         let contact = get_contact(&test.name, 1, 255);
 
         if let Some(added_node_details) = test.table.add(contact) {
-            let bucket_index = test.table.bucket_index(&contact);
-            let unneeded = test.table
-                               .buckets[bucket_index]
-                               .iter()
-                               .skip(GROUP_SIZE)
-                               .cloned()
-                               .collect::<Vec<XorName>>();
-
             assert_eq!(added_node_details,
                 AddedNodeDetails {
                     must_notify: vec![],
-                    unneeded: unneeded,
+                    unneeded: vec![],
                     common_groups: true,
                 });
         } else {
