@@ -46,7 +46,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-0' class='srclink' href='../src/kademlia_routing_table/src/lib.rs.html#18-1297' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-0' class='srclink' href='../src/kademlia_routing_table/src/lib.rs.html#18-1312' title='goto source code'>[src]</a></span></h1>
 <div class='docblock'><p>A routing table to manage contacts for a node in a <a href="https://en.wikipedia.org/wiki/Kademlia">Kademlia</a> distributed hash table.</p>
 
 <p>This crate uses the Kademlia mechanism for routing messages in a peer-to-peer network, and
@@ -97,8 +97,8 @@ i. e. all <code>GROUP_SIZE</code> nodes in the network that are XOR-closest to t
 node knows whether it belongs to that group.</li>
 <li>Each node in a given address&#39; close group is connected to each other node in that group. In
 particular, every node is connected to its own close group.</li>
-<li>The number of total hop messages created for each message is at most PARALLELISM * 512.</li>
-<li>For each node there are at most 512 * GROUP_SIZE other nodes in the network for which it can
+<li>The number of total hop messages created for each message is at most <code>PARALLELISM</code> * 512.</li>
+<li>For each node there are at most 512 * <code>GROUP_SIZE</code> other nodes in the network for which it can
 obtain the IP address, at any point in time.</li>
 </ul>
 

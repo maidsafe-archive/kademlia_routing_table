@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-88ac128001ac3a9a/regex-0.1.67/src/dfa.rs`.">
+    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-88ac128001ac3a9a/regex-0.1.68/src/dfa.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
     <title>dfa.rs.html -- source</title>
@@ -3110,7 +3110,19 @@ implementation.)
         <span class='ident'>empty_flags</span>: <span class='ident'>EmptyFlags</span>,
         <span class='ident'>state_flags</span>: <span class='ident'>StateFlags</span>,
     ) <span class='op'>-&gt;</span> <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>StatePtr</span><span class='op'>&gt;</span> {
-        <span class='kw'>let</span> <span class='ident'>flagi</span> <span class='op'>=</span> <span class='ident'>empty_flags</span>.<span class='ident'>as_index</span>();
+        <span class='comment'>// Compute an index into our cache of start states based on the set</span>
+        <span class='comment'>// of empty/state flags set at the current position in the input. We</span>
+        <span class='comment'>// don&#39;t use every flag since not all flags matter. For example, since</span>
+        <span class='comment'>// matches are delayed by one byte, start states can never be match</span>
+        <span class='comment'>// states.</span>
+        <span class='kw'>let</span> <span class='ident'>flagi</span> <span class='op'>=</span> {
+            (((<span class='ident'>empty_flags</span>.<span class='ident'>start</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>0</span>) <span class='op'>|</span>
+             ((<span class='ident'>empty_flags</span>.<span class='ident'>end</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>1</span>) <span class='op'>|</span>
+             ((<span class='ident'>empty_flags</span>.<span class='ident'>start_line</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>2</span>) <span class='op'>|</span>
+             ((<span class='ident'>empty_flags</span>.<span class='ident'>end_line</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>3</span>) <span class='op'>|</span>
+             ((<span class='ident'>state_flags</span>.<span class='ident'>is_word</span>() <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>4</span>))
+            <span class='kw'>as</span> <span class='ident'>usize</span>
+        };
         <span class='kw'>match</span> <span class='self'>self</span>.<span class='ident'>cache</span>.<span class='ident'>start_states</span>[<span class='ident'>flagi</span>] {
             <span class='ident'>STATE_UNKNOWN</span> <span class='op'>=&gt;</span> {}
             <span class='ident'>STATE_DEAD</span> <span class='op'>=&gt;</span> <span class='kw'>return</span> <span class='prelude-val'>Some</span>(<span class='ident'>STATE_DEAD</span>),
@@ -3380,18 +3392,6 @@ implementation.)
         <span class='macro'>debug_assert</span><span class='macro'>!</span>((<span class='ident'>si</span> <span class='kw'>as</span> <span class='ident'>usize</span>) <span class='op'>&lt;</span> <span class='self'>self</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
         <span class='macro'>debug_assert</span><span class='macro'>!</span>(<span class='ident'>cls</span> <span class='op'>&lt;</span> <span class='self'>self</span>.<span class='ident'>num_byte_classes</span>);
         <span class='op'>*</span><span class='self'>self</span>.<span class='ident'>table</span>.<span class='ident'>get_unchecked</span>(<span class='ident'>si</span> <span class='kw'>as</span> <span class='ident'>usize</span> <span class='op'>+</span> <span class='ident'>cls</span>)
-    }
-}
-
-<span class='kw'>impl</span> <span class='ident'>EmptyFlags</span> {
-    <span class='kw'>fn</span> <span class='ident'>as_index</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-        (((<span class='self'>self</span>.<span class='ident'>start</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>0</span>) <span class='op'>|</span>
-         ((<span class='self'>self</span>.<span class='ident'>end</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>1</span>) <span class='op'>|</span>
-         ((<span class='self'>self</span>.<span class='ident'>start_line</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>2</span>) <span class='op'>|</span>
-         ((<span class='self'>self</span>.<span class='ident'>end_line</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>3</span>) <span class='op'>|</span>
-         ((<span class='self'>self</span>.<span class='ident'>word_boundary</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>4</span>) <span class='op'>|</span>
-         ((<span class='self'>self</span>.<span class='ident'>not_word_boundary</span> <span class='kw'>as</span> <span class='ident'>u8</span>) <span class='op'>&lt;&lt;</span> <span class='number'>5</span>))
-        <span class='kw'>as</span> <span class='ident'>usize</span>
     }
 }
 
