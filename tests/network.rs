@@ -105,7 +105,7 @@ impl Message {
             id: next_message_id(),
             src: src,
             dst: dst,
-            route: Vec::new(),
+            route: vec![*src.name()],
         }
     }
 
@@ -204,10 +204,10 @@ impl Node {
     fn send_message(&mut self, mut message: Message, handle: bool) -> Vec<Action> {
         let mut actions = Vec::new();
 
-        message.route.push(self.name.clone());
-
         let count = self.message_stats.get_received(message.id).saturating_sub(1);
         let targets = self.table.target_nodes(message.dst.clone(), message.hop_name(), count);
+
+        message.route.push(self.name.clone());
 
         for target in targets {
             if let Some(&connection) = self.connections.get(target.name()) {
@@ -218,8 +218,8 @@ impl Node {
 
         // Handle the message ourselves if we need to.
         if handle && self.table.is_recipient(message.dst.clone()) &&
-           self.message_stats.add_received(message.id) == 0 {
-            actions.append(&mut self.on_message(message, false));
+           self.message_stats.get_received(message.id) == 0 {
+            actions.extend(self.on_message(message, false));
         }
 
         actions
@@ -235,7 +235,7 @@ impl Node {
         }
 
         if relay {
-            actions.append(&mut self.send_message(message.clone(), false));
+            actions.extend(self.send_message(message.clone(), false));
         }
 
         if self.table.is_recipient(message.dst.clone()) {
@@ -714,7 +714,13 @@ fn only_original_sender_may_send_multiple_copies() {
             if node != node_a {
                 let sent = network.get_message_stats(node).get_sent(message_id);
                 let received = network.get_message_stats(node).get_received(message_id);
-                assert!(sent <= received);
+                assert!(sent <= received,
+                        "Node {:?} received {} copies but sent {} (message from {:?} to {:?}).",
+                        network.get_node_name(node),
+                        received,
+                        sent,
+                        node_a_name,
+                        node_b_name);
             }
         }
     });
