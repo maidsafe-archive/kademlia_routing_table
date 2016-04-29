@@ -1,5 +1,5 @@
 (function() {var implementors = {};
-implementors['mio'] = [];
+implementors['bitflags'] = [];implementors['mio'] = [];
 
             if (window.register_implementors) {
                 window.register_implementors(implementors);
