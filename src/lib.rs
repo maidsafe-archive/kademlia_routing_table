@@ -99,9 +99,11 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 //!   node knows whether it belongs to that group.
 //! * Each node in a given address' close group is connected to each other node in that group. In
 //!   particular, every node is connected to its own close group.
-//! * The number of total hop messages created for each message is at most `PARALLELISM` * 512.
+//! * The number of total hop messages created for each message is at most 512.
 //! * For each node there are at most 512 * `GROUP_SIZE` other nodes in the network for which it can
 //!   obtain the IP address, at any point in time.
+//! * There are `GROUP_SIZE` different paths along which a message can be sent, to provide
+//!   redundancy.
 //!
 //! However, to be able to make these guarantees, the routing table must be filled with
 //! sufficiently many contacts. Specifically, the following invariant must be ensured:
@@ -115,9 +117,9 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 //!
 //! # Resilience against malfunctioning nodes
 //!
-//! In each hop during routing, messages are passed on to `PARALLELISM` other nodes, so that even
-//! if `PARALLELISM - 1` nodes between the source and destination fail, they are still successfully
-//! delivered.
+//! The sender may choose to send a message via up to `GROUP_SIZE` distinct paths to provide
+//! redundancy against malfunctioning hop nodes. These paths are likely, but not guaranteed, to be
+//! disjoint.
 //!
 //! The concept of close groups exists to provide resilience even against failures of the source or
 //! destination itself: If every member of a group tries to send the same message, it will arrive
@@ -159,11 +161,6 @@ pub const GROUP_SIZE: usize = 8;
 /// A message from a close group should be considered legitimate if at least `QUORUM_SIZE` members
 /// sent it.
 const QUORUM_SIZE: usize = 5;
-
-/// The number of nodes a message is sent to in each hop for redundancy.
-///
-/// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.
-pub const PARALLELISM: usize = 4;
 
 /// A message destination.
 #[derive(Copy, Clone, Debug)]
@@ -354,36 +351,27 @@ impl<T: ContactInfo> RoutingTable<T> {
 
     /// Returns a collection of nodes to which a message should be sent onwards.
     ///
-    /// If the message is addressed at a group we are a member of and the previous `hop` is not,
-    /// this returns all other members of that group once, and an empty collection for all further
-    /// copies.
+    /// If the message is addressed at a group we are a member of, this returns all other members of
+    /// that group.
     ///
     /// If the message is addressed at an individual node that is directly connected to us, this
-    /// returns the destination node once, and an empty collection for all further copies.
+    /// returns the destination node.
     ///
     /// If we are the individual recipient, it also returns an empty collection.
     ///
-    /// If none of the above is the case and we are the original sender, it returns the
-    /// `PARALLELISM` closest nodes to the target.
-    ///
-    /// Otherwise it returns the `n`-th closest node to the target if this is the `n`-th copy of
-    /// the message we are relaying.
+    /// Otherwise it returns the `n`-th closest node to the target if route is `n`.
     ///
     /// # Arguments
     ///
     /// * `dst` -   The destination of the message.
     /// * `hop` -   The name of the node that relayed the message to us, or ourselves if we are the
     ///             original sender.
-    /// * `count` - The number of times we have seen this message before.
-    pub fn target_nodes(&self, dst: Destination, hop: &XorName, count: usize) -> Vec<T> {
+    /// * `route` - The route number.
+    pub fn target_nodes(&self, dst: Destination, hop: &XorName, route: u8) -> Vec<T> {
         let target = match dst {
             Destination::Group(ref target) => {
                 if self.is_close(target) {
-                    if count > 0 {
-                        return vec![];
-                    }
-                    let close_group = self.closest_nodes_to(target, GROUP_SIZE - 1, false);
-                    return close_group;
+                    return self.closest_nodes_to(target, GROUP_SIZE - 1, false);
                 }
                 target
             }
@@ -391,27 +379,19 @@ impl<T: ContactInfo> RoutingTable<T> {
                 if target == self.our_name() {
                     return vec![];
                 } else if let Some(target_contact) = self.get(target) {
-                    return if count == 0 {
-                        vec![target_contact.clone()]
-                    } else {
-                        vec![]
-                    };
+                    return vec![target_contact.clone()];
                 } else if self.is_close(target) {
                     return self.closest_nodes_to(target, GROUP_SIZE - 1, false);
                 }
                 target
             }
         };
-        if hop == self.our_name() {
-            self.closest_nodes_to(target, PARALLELISM, false)
-        } else {
-            self.closest_nodes_to(target, count + 2, false)
-                .into_iter()
-                .filter(|node| node.name() != hop)
-                .skip(count)
-                .take(1)
-                .collect()
-        }
+        self.closest_nodes_to(target, route as usize + 2, false)
+            .into_iter()
+            .filter(|node| node.name() != hop)
+            .skip(route as usize)
+            .take(1)
+            .collect()
     }
 
     /// Returns whether the message is addressed to this node.
@@ -647,12 +627,6 @@ mod test {
     }
 
     const TABLE_SIZE: usize = 100;
-
-    #[test]
-    fn constant_constraints() {
-        // This is required for the RoutingTable to make its guarantees.
-        assert!(GROUP_SIZE >= PARALLELISM);
-    }
 
     /// Creates a name in the `index`-th bucket of the table with the given name, where
     /// `index < 503`. The given `distance` will be added. If `distance == 255`, the furthest
@@ -937,13 +911,13 @@ mod test {
         // Try with nodes far from us, first time *not* in table and second time *in* table.
         for count in 0..2 {
             for i in 0..(TABLE_SIZE - GROUP_SIZE) {
-                let (target, expected_len) = if count == 0 {
-                    (get_contact(&test.name, i, 2), PARALLELISM)
+                let target = if count == 0 {
+                    get_contact(&test.name, i, 2)
                 } else {
-                    (get_contact(&test.name, i, 1), 1)
+                    get_contact(&test.name, i, 1)
                 };
                 target_nodes = test.table.target_nodes(Destination::Node(target), &test.name, 0);
-                assert_eq!(expected_len, target_nodes.len());
+                assert_eq!(1, target_nodes.len());
 
                 for target_node in &target_nodes {
                     assert!(test.added_names.contains(target_node));
@@ -1106,8 +1080,8 @@ mod test {
                 if table.is_close(address) {
                     let dst = Destination::Group(*address);
                     let far_name = get_contact(table.our_name(), 0, 255);
-                    assert!(table.target_nodes(dst, &far_name, 1).is_empty());
                     assert_eq!(GROUP_SIZE - 1, table.target_nodes(dst, &far_name, 0).len());
+                    assert_eq!(GROUP_SIZE - 1, table.target_nodes(dst, &far_name, 7).len());
                     // TODO: Reconsider re-swarm prevention and enable or delete this.
                     // for close_node in target_close_group {
                     //     assert!(tables[i].target_nodes(dst, &close_node, 0).is_empty());
