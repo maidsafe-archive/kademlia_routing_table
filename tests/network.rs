@@ -36,7 +36,7 @@ extern crate rand;
 extern crate xor_name;
 
 use kademlia_routing_table::{AddedNodeDetails, ContactInfo, Destination, DroppedNodeDetails,
-                             RoutingTable, GROUP_SIZE, PARALLELISM};
+                             RoutingTable, GROUP_SIZE};
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use xor_name::XorName;
@@ -97,15 +97,18 @@ struct Message {
     dst: Destination,
     // Names of all the nodes the message passed through.
     route: Vec<XorName>,
+    // Which of the `GROUP_SIZE` parallel routes to take.
+    route_num: u8,
 }
 
 impl Message {
-    fn new(src: Destination, dst: Destination) -> Self {
+    fn new(src: Destination, dst: Destination, route_num: u8) -> Self {
         Message {
             id: next_message_id(),
             src: src,
             dst: dst,
             route: vec![*src.name()],
+            route_num: route_num,
         }
     }
 
@@ -204,8 +207,8 @@ impl Node {
     fn send_message(&mut self, mut message: Message, handle: bool) -> Vec<Action> {
         let mut actions = Vec::new();
 
-        let count = self.message_stats.get_received(message.id).saturating_sub(1);
-        let targets = self.table.target_nodes(message.dst.clone(), message.hop_name(), count);
+        let targets = self.table
+                          .target_nodes(message.dst.clone(), message.hop_name(), message.route_num);
 
         message.route.push(self.name.clone());
 
@@ -230,7 +233,7 @@ impl Node {
 
         self.check_direction(&message);
 
-        if self.message_stats.add_received(message.id) > PARALLELISM {
+        if self.message_stats.add_received(message.id) > GROUP_SIZE {
             return actions;
         }
 
@@ -664,14 +667,16 @@ fn messages_for_individual_nodes_reach_their_recipients() {
         let (node_a, node_b) = network.get_two_random_nodes();
         let node_a_name = network.get_node_name(node_a);
         let node_b_name = network.get_node_name(node_b);
+        for route_num in 0..GROUP_SIZE {
+            let message = Message::new(Destination::Node(node_a_name),
+                                       Destination::Node(node_b_name),
+                                       route_num as u8);
 
-        let message = Message::new(Destination::Node(node_a_name),
-                                   Destination::Node(node_b_name));
+            let message_id = message.id;
 
-        let message_id = message.id;
-
-        network.send_message(node_a, message);
-        assert!(network.has_node_message_in_inbox(node_b, message_id));
+            network.send_message(node_a, message);
+            assert!(network.has_node_message_in_inbox(node_b, message_id));
+        }
     });
 }
 
@@ -684,44 +689,44 @@ fn messages_for_groups_reach_all_members_of_the_recipient_group() {
         let group_name = rand::random();
         let group_members = network.get_nodes_close_to(&group_name);
 
-        let message = Message::new(Destination::Node(sender_name),
-                                   Destination::Group(group_name));
+        for route_num in 0..GROUP_SIZE {
+            let message = Message::new(Destination::Node(sender_name),
+                                       Destination::Group(group_name),
+                                       route_num as u8);
 
-        let message_id = message.id;
+            let message_id = message.id;
 
-        network.send_message(sender, message);
+            network.send_message(sender, message);
 
-        for node in group_members {
-            assert!(network.has_node_message_in_inbox(node, message_id));
+            for node in &group_members {
+                assert!(network.has_node_message_in_inbox(*node, message_id));
+            }
         }
     });
 }
 
 #[test]
-fn only_original_sender_may_send_multiple_copies() {
+fn no_multiple_copies() {
     run_tests(|network| {
         let (node_a, node_b) = network.get_two_random_nodes();
         let node_a_name = network.get_node_name(node_a);
         let node_b_name = network.get_node_name(node_b);
 
         let message = Message::new(Destination::Node(node_a_name),
-                                   Destination::Node(node_b_name));
+                                   Destination::Node(node_b_name),
+                                   0);
         let message_id = message.id;
 
         network.send_message(node_a, message);
 
         for node in network.get_all_nodes() {
-            if node != node_a {
-                let sent = network.get_message_stats(node).get_sent(message_id);
-                let received = network.get_message_stats(node).get_received(message_id);
-                assert!(sent <= received,
-                        "Node {:?} received {} copies but sent {} (message from {:?} to {:?}).",
-                        network.get_node_name(node),
-                        received,
-                        sent,
-                        node_a_name,
-                        node_b_name);
-            }
+            let sent = network.get_message_stats(node).get_sent(message_id);
+            assert!(sent <= 1,
+                    "Node {:?} sent {} copies of a message from {:?} to {:?}.",
+                    network.get_node_name(node),
+                    sent,
+                    node_a_name,
+                    node_b_name);
         }
     });
 }
