@@ -36,7 +36,8 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
-#![cfg_attr(feature="clippy", deny(clippy, clippy_pedantic))]
+#![cfg_attr(feature="clippy", deny(clippy, unicode_not_nfc, wrong_pub_self_convention,
+                                   option_unwrap_used))]
 #![cfg_attr(feature="clippy", allow(use_debug))]
 
 //! A routing table to manage contacts for a node in a [Kademlia][1] distributed hash table.
@@ -162,7 +163,7 @@ const QUORUM_SIZE: usize = 5;
 /// The number of nodes a message is sent to in each hop for redundancy.
 ///
 /// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.
-pub const PARALLELISM: usize = 8;
+pub const PARALLELISM: usize = 4;
 
 /// A message destination.
 #[derive(Copy, Clone, Debug)]
@@ -228,10 +229,10 @@ impl<T: ContactInfo> RoutingTable<T> {
                     vec![]
                 } else {
                     self.buckets[bucket_index]
-                                   .iter()
-                                   .skip(GROUP_SIZE)
-                                   .cloned()
-                                   .collect()
+                        .iter()
+                        .skip(GROUP_SIZE)
+                        .cloned()
+                        .collect()
                 };
 
                 Some(AddedNodeDetails {
@@ -270,7 +271,7 @@ impl<T: ContactInfo> RoutingTable<T> {
         if let (bucket, Ok(i)) = self.search(name) {
             if i >= GROUP_SIZE && !self.is_in_any_close_group_with(bucket) {
                 let _ = self.remove(name);
-                return true
+                return true;
             }
         }
 
@@ -395,6 +396,8 @@ impl<T: ContactInfo> RoutingTable<T> {
                     } else {
                         vec![]
                     };
+                } else if self.is_close(target) {
+                    return self.closest_nodes_to(target, GROUP_SIZE - 1, false);
                 }
                 target
             }
@@ -525,10 +528,10 @@ impl<T: ContactInfo> RoutingTable<T> {
         // If we disagree with target in a bit, that bit's bucket contains contacts that are closer
         // to the target than we are. The lower the bucket index, the closer it is:
         let closer_buckets_iter = self.buckets
-                                      .iter()
-                                      .enumerate()
-                                      .filter(|&(bit, _)| self.differs_in_bit(target, bit))
-                                      .flat_map(|(_, b)| b.iter().sorted_by(&cmp).into_iter());
+            .iter()
+            .enumerate()
+            .filter(|&(bit, _)| self.differs_in_bit(target, bit))
+            .flat_map(|(_, b)| b.iter().sorted_by(&cmp).into_iter());
         // Nothing or ourselves, depending on whether we should be include in the result:
         let ourselves_iter = if ourselves {
             Some(&self.our_info).into_iter()
@@ -538,18 +541,18 @@ impl<T: ContactInfo> RoutingTable<T> {
         // If we agree with target in a bit, that bit's bucket contains contacts that are further
         // away from the target than we are. The lower the bucket index, the further away it is:
         let further_buckets_iter = self.buckets
-                                       .iter()
-                                       .enumerate()
-                                       .rev()
-                                       .filter(|&(bit, _)| !self.differs_in_bit(target, bit))
-                                       .flat_map(|(_, b)| b.iter().sorted_by(&cmp).into_iter());
+            .iter()
+            .enumerate()
+            .rev()
+            .filter(|&(bit, _)| !self.differs_in_bit(target, bit))
+            .flat_map(|(_, b)| b.iter().sorted_by(&cmp).into_iter());
         // Chaining these iterators puts the buckets in the right order, with ascending distance
         // from the target. Finally, we need to sort each bucket's contents and take n:
         closer_buckets_iter.chain(ourselves_iter)
-                           .chain(further_buckets_iter)
-                           .take(n)
-                           .cloned()
-                           .collect()
+            .chain(further_buckets_iter)
+            .take(n)
+            .cloned()
+            .collect()
     }
 
     /// Returns whether we are close to one of `name`'s bucket addresses or to `name` itself.
@@ -639,7 +642,7 @@ mod test {
 
     impl ContactInfo for XorName {
         fn name(&self) -> &XorName {
-            &self
+            self
         }
     }
 
@@ -655,15 +658,15 @@ mod test {
     /// `index < 503`. The given `distance` will be added. If `distance == 255`, the furthest
     /// possible name in the given bucket is returned.
     fn get_contact(table_name: &XorName, index: usize, distance: u8) -> XorName {
-        let XorName(mut arr) = table_name.clone();
+        let XorName(mut arr) = *table_name;
+        let last = arr.len() - 1;
         // Invert all bits starting with the `index`th one, so the bucket distance is `index`.
-        arr[index / 8] = arr[index / 8] ^ 0b11111111 >> (index % 8);
-        for i in (index / 8 + 1)..(arr.len() - 1) {
-            arr[i] = arr[i] ^ 255;
+        arr[index / 8] ^= 0b11111111 >> (index % 8);
+        for x in &mut arr[(index / 8 + 1)..last] {
+            *x ^= 0b11111111;
         }
         // Add the desired distance.
-        let last = arr.len() - 1;
-        arr[last] = arr[last] ^ distance;
+        arr[last] ^= distance;
         let result = XorName(arr);
         assert_eq!(index, result.bucket_index(table_name));
         result
@@ -676,17 +679,19 @@ mod test {
         added_names: Vec<XorName>,
     }
 
-    impl TestEnvironment {
-        fn new() -> TestEnvironment {
+    impl Default for TestEnvironment {
+        fn default() -> TestEnvironment {
             let name = rand::random::<XorName>();
             TestEnvironment {
-                table: RoutingTable::new(name.clone()),
+                table: RoutingTable::new(name),
                 name: name,
                 initial_count: (rand::random::<usize>() % (GROUP_SIZE - 1)) + 1,
                 added_names: Vec::new(),
             }
         }
+    }
 
+    impl TestEnvironment {
         fn partially_fill_table(&mut self) {
             let count = self.initial_count;
             self.fill_table(0, count)
@@ -719,17 +724,11 @@ mod test {
 
     fn are_nodes_sorted(routing_table: &RoutingTable<XorName>) -> bool {
         routing_table.buckets
-                     .iter()
-                     .rev()
-                     .flat_map(|bucket| bucket.iter())
-                     .zip(routing_table.buckets
-                                       .iter()
-                                       .rev()
-                                       .flat_map(|bucket| bucket.iter())
-                                       .skip(1))
-                     .all(|(lhs, rhs)| {
-                         xor_name::closer_to_target(lhs, rhs, routing_table.our_name())
-                     })
+            .iter()
+            .rev()
+            .flat_map(|bucket| bucket.iter())
+            .zip(routing_table.buckets.iter().rev().flat_map(|bucket| bucket.iter()).skip(1))
+            .all(|(lhs, rhs)| xor_name::closer_to_target(lhs, rhs, routing_table.our_name()))
     }
 
     fn make_sort_predicate(target: XorName) -> Box<FnMut(&XorName, &XorName) -> cmp::Ordering> {
@@ -738,12 +737,12 @@ mod test {
 
     #[test]
     fn add() {
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
 
         assert_eq!(test.table.len(), 0);
 
         // try with our name - should fail
-        let contact = test.table.our_name().clone();
+        let contact = *test.table.our_name();
         assert!(test.table.add(contact).is_none());
         assert_eq!(test.table.len(), 0);
 
@@ -760,7 +759,7 @@ mod test {
     #[test]
     fn add_to_full_bucket() {
         // add node to a full bucket whose nodes share close group with us
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
 
         for i in 0..GROUP_SIZE {
             let contact = get_contact(&test.name, 1, i as u8);
@@ -771,11 +770,11 @@ mod test {
 
         if let Some(added_node_details) = test.table.add(contact) {
             assert_eq!(added_node_details,
-                AddedNodeDetails {
-                    must_notify: vec![],
-                    unneeded: vec![],
-                    common_groups: true,
-                });
+                       AddedNodeDetails {
+                           must_notify: vec![],
+                           unneeded: vec![],
+                           common_groups: true,
+                       });
         } else {
             assert!(false);
         }
@@ -784,7 +783,7 @@ mod test {
         assert_eq!(test.table.len(), GROUP_SIZE + 1);
 
         // add node to a full bucket whose nodes do not share close group with us
-        test = TestEnvironment::new();
+        test = TestEnvironment::default();
 
         for i in 0..GROUP_SIZE {
             let contact = get_contact(&test.name, 1, 1 + i as u8);
@@ -800,19 +799,15 @@ mod test {
 
         if let Some(added_node_details) = test.table.add(contact) {
             let bucket_index = test.table.bucket_index(&contact);
-            let unneeded = test.table
-                               .buckets[bucket_index]
-                               .iter()
-                               .skip(GROUP_SIZE)
-                               .cloned()
-                               .collect::<Vec<XorName>>();
+            let unneeded =
+                test.table.buckets[bucket_index].iter().skip(GROUP_SIZE).cloned().collect_vec();
 
             assert_eq!(added_node_details,
-                AddedNodeDetails {
-                    must_notify: vec![],
-                    unneeded: unneeded,
-                    common_groups: false,
-                });
+                       AddedNodeDetails {
+                           must_notify: vec![],
+                           unneeded: unneeded,
+                           common_groups: false,
+                       });
         } else {
             assert!(false);
         }
@@ -823,7 +818,7 @@ mod test {
 
     #[test]
     fn add_to_bucket_that_is_not_full() {
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
 
         for i in 0..(GROUP_SIZE / 2) {
             let contact = get_contact(&test.name, 1, i as u8);
@@ -837,15 +832,15 @@ mod test {
         assert!(test.table.add(name_to_notify1).is_some());
 
         let contact = get_contact(&test.name, 1, 255);
-        let nodes_to_notify = test.table.add(contact).unwrap().must_notify;
+        let nodes_to_notify = test.table.add(contact).expect("contact not added").must_notify;
         assert!(nodes_to_notify.len() == 2);
-        assert!(nodes_to_notify.iter().any(|n| *n == name_to_notify0));
-        assert!(nodes_to_notify.iter().any(|n| *n == name_to_notify1));
+        assert!(nodes_to_notify.contains(&name_to_notify0));
+        assert!(nodes_to_notify.contains(&name_to_notify1));
     }
 
     #[test]
     fn need_to_add() {
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
 
         // Try with our ID
         assert!(!test.table.need_to_add(test.table.our_name()));
@@ -872,7 +867,7 @@ mod test {
         use rand::Rng;
 
         // Check on empty table
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
 
         assert_eq!(test.table.len(), 0);
 
@@ -885,7 +880,7 @@ mod test {
         assert_eq!(TABLE_SIZE, test.table.len());
 
         // Try with our Name
-        let drop_name = test.table.our_name().clone();
+        let drop_name = *test.table.our_name();
         assert!(test.table.remove(&drop_name).is_none());
         assert_eq!(TABLE_SIZE, test.table.len());
 
@@ -907,12 +902,11 @@ mod test {
 
     #[test]
     fn target_nodes() {
-        // modernise
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
 
         // Check on empty table
         let mut target_nodes = test.table
-                                   .target_nodes(Destination::Group(rand::random()), &test.name, 0);
+            .target_nodes(Destination::Group(rand::random()), &test.name, 0);
         assert_eq!(target_nodes.len(), 0);
 
         // Partially fill the table with <GROUP_SIZE contacts
@@ -924,7 +918,7 @@ mod test {
 
         for i in 0..test.initial_count {
             let expected_name = get_contact(&test.name, i, 1);
-            assert!(target_nodes.iter().any(|node| *node == expected_name));
+            assert!(target_nodes.contains(&expected_name));
         }
 
         // Complete filling the table up to TABLE_SIZE contacts
@@ -932,32 +926,27 @@ mod test {
 
         // Try with our ID (should return the rest of the close group)
         target_nodes = test.table
-                           .target_nodes(Destination::Group(test.table.our_name().clone()),
-                                         &test.name,
-                                         0);
+            .target_nodes(Destination::Group(*test.table.our_name()), &test.name, 0);
         assert_eq!(GROUP_SIZE - 1, target_nodes.len());
 
         for i in ((TABLE_SIZE - GROUP_SIZE + 1)..TABLE_SIZE - 1).rev() {
             let expected_name = get_contact(&test.name, i, 1);
-            assert!(target_nodes.iter().any(|node| *node == expected_name));
+            assert!(target_nodes.contains(&expected_name));
         }
 
-        // Try with nodes far from us, first time *not* in table and second time *in* table (should
-        // return 'PARALLELISM' contacts closest to target first time and the single actual target
-        // the second time)
-        let mut target: XorName;
+        // Try with nodes far from us, first time *not* in table and second time *in* table.
         for count in 0..2 {
             for i in 0..(TABLE_SIZE - GROUP_SIZE) {
                 let (target, expected_len) = if count == 0 {
-                    (get_contact(&test.name, i, 2).clone(), PARALLELISM)
+                    (get_contact(&test.name, i, 2), PARALLELISM)
                 } else {
-                    (get_contact(&test.name, i, 1).clone(), 1)
+                    (get_contact(&test.name, i, 1), 1)
                 };
                 target_nodes = test.table.target_nodes(Destination::Node(target), &test.name, 0);
                 assert_eq!(expected_len, target_nodes.len());
 
-                for i in 0..target_nodes.len() {
-                    assert!(test.added_names.iter().any(|name| *name == target_nodes[i]));
+                for target_node in &target_nodes {
+                    assert!(test.added_names.contains(target_node));
                 }
             }
         }
@@ -966,16 +955,16 @@ mod test {
         // return GROUP_SIZE - 1 closest to target)
         for count in 0..2 {
             for i in (TABLE_SIZE - GROUP_SIZE + 2)..TABLE_SIZE {
-                target = if count == 0 {
-                    get_contact(&test.name, i, 0).clone()
+                let target = if count == 0 {
+                    get_contact(&test.name, i, 0)
                 } else {
-                    get_contact(&test.name, i, 1).clone()
+                    get_contact(&test.name, i, 1)
                 };
                 target_nodes = test.table.target_nodes(Destination::Group(target), &test.name, 0);
                 assert_eq!(GROUP_SIZE - 1, target_nodes.len());
 
-                for i in 0..target_nodes.len() {
-                    assert!(test.added_names.iter().any(|name| *name == target_nodes[i]));
+                for target_node in &target_nodes {
+                    assert!(test.added_names.contains(target_node));
                 }
             }
         }
@@ -983,11 +972,11 @@ mod test {
 
     #[test]
     fn is_recipient() {
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
         test.partially_fill_table();
         test.complete_filling_table();
-        assert!(test.table.is_recipient(Destination::Node(test.table.our_name().clone())));
-        assert!(test.table.is_recipient(Destination::Group(test.table.our_name().clone())));
+        assert!(test.table.is_recipient(Destination::Node(*test.table.our_name())));
+        assert!(test.table.is_recipient(Destination::Group(*test.table.our_name())));
         let close_contact = get_contact(&test.name, TABLE_SIZE - 1, 1);
         assert!(test.table.is_recipient(Destination::Group(close_contact)));
         assert!(!test.table.is_recipient(Destination::Node(close_contact)));
@@ -999,29 +988,29 @@ mod test {
     #[test]
     fn close_nodes() {
         // unchecked - could be merged with one below?
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
         assert_eq!(Some(vec![]), test.table.other_close_nodes(&test.name));
         assert_eq!(Some(vec![test.name]), test.table.close_nodes(&test.name));
 
         test.partially_fill_table();
         assert_eq!(test.initial_count,
-                   test.table.other_close_nodes(&test.name).unwrap().len());
+                   test.table.other_close_nodes(&test.name).expect("not close to name").len());
 
         for i in 0..test.initial_count {
             assert!(test.table
-                        .other_close_nodes(&test.name)
-                        .unwrap()
-                        .into_iter()
-                        .filter(|node| *node == get_contact(&test.name, i, 1))
-                        .count() > 0);
+                .other_close_nodes(&test.name)
+                .expect("not close to name")
+                .into_iter()
+                .filter(|node| *node == get_contact(&test.name, i, 1))
+                .count() > 0);
         }
 
         test.complete_filling_table();
-        assert_eq!(GROUP_SIZE - 1,
-                   test.table.other_close_nodes(&test.name).unwrap().len());
+        let close_nodes = test.table.other_close_nodes(&test.name).expect("not close to name");
+        assert_eq!(GROUP_SIZE - 1, close_nodes.len());
 
-        for close_node in test.table.other_close_nodes(&test.name).unwrap() {
-            assert!(test.added_names.iter().any(|n| *n == close_node));
+        for close_node in close_nodes {
+            assert!(test.added_names.contains(&close_node));
         }
     }
 
@@ -1030,16 +1019,16 @@ mod test {
         let mut tables = HashMap::new();
         for _ in 0..TABLE_SIZE {
             let name = rand::random::<XorName>();
-            let table = RoutingTable::new(name.clone());
+            let table = RoutingTable::new(name);
             let _ = tables.insert(name, table);
         }
         let keys: Vec<XorName> = tables.keys().cloned().collect();
         // Add each node to each other node's routing table.
-        for name0 in keys.iter() {
-            for name1 in keys.iter() {
+        for name0 in &keys {
+            for name1 in &keys {
                 if tables[name0].allow_connection(name1) && tables[name1].need_to_add(name0) {
-                    let _ = tables.get_mut(name0).unwrap().add(*name1);
-                    let _ = tables.get_mut(name1).unwrap().add(*name0);
+                    let _ = tables.get_mut(name0).expect("name0 not in table").add(*name1);
+                    let _ = tables.get_mut(name1).expect("name1 not in table").add(*name0);
                 }
             }
         }
@@ -1052,18 +1041,21 @@ mod test {
         // Check close groups of the nodes' addresses.
         for name in keys {
             let close_group: Vec<_> = tables.values()
-                                            .filter(|t| t.is_close(&name))
-                                            .map(|t| t.our_name())
-                                            .cloned()
-                                            .sorted_by(&mut *make_sort_predicate(name.clone()));
+                .filter(|t| t.is_close(&name))
+                .map(RoutingTable::our_name)
+                .cloned()
+                .sorted_by(&mut *make_sort_predicate(name));
             assert_eq!(GROUP_SIZE, close_group.len());
-            let other_close_nodes = tables[&name].other_close_nodes(&name).unwrap();
+            let other_close_nodes =
+                tables[&name].other_close_nodes(&name).expect("not close to name");
             // The node itself is not in `other_close_nodes`, but it is in `close_group`:
             assert_eq!(close_group[1..], other_close_nodes[..]);
-            assert_eq!(close_group, tables[&name].close_nodes(&name).unwrap());
+            assert_eq!(close_group,
+                       tables[&name].close_nodes(&name).expect("not close to name"));
             for close_name in other_close_nodes {
                 if tables[&close_name].is_close(&name) {
-                    assert_eq!(close_group, tables[&close_name].close_nodes(&name).unwrap());
+                    assert_eq!(close_group,
+                               tables[&close_name].close_nodes(&name).expect("not close to name"));
                 } else {
                     assert_eq!(None, tables[&close_name].close_nodes(&name));
                 }
@@ -1076,60 +1068,18 @@ mod test {
         // unchecked - could be merged with one above?
         let num_of_tables = 50usize;
         let mut tables = create_random_routing_tables(num_of_tables);
-        let mut addresses: Vec<XorName> = Vec::with_capacity(num_of_tables);
-
-        for i in 0..num_of_tables {
-            addresses.push(tables[i].our_name().clone());
-            for j in 0..num_of_tables {
-                let name = tables[j].our_name().clone();
-                // TODO: Ask need_to_add first?
-                let _ = tables[i].add(name);
+        let mut addresses = tables.iter().map(RoutingTable::our_name).cloned().collect_vec();
+        for table in &mut tables {
+            for name in &addresses {
+                if table.need_to_add(name) {
+                    let _ = table.add(*name);
+                }
             }
         }
-        for it in tables.iter() {
-            addresses.sort_by(&mut *make_sort_predicate(it.our_name().clone()));
-            assert_eq!(it.other_close_nodes(it.our_name()).unwrap()[..],
+        for table in tables {
+            addresses.sort_by(&mut *make_sort_predicate(*table.our_name()));
+            assert_eq!(table.other_close_nodes(table.our_name()).expect("not close to name")[..],
                        addresses[1..GROUP_SIZE]);
-        }
-    }
-
-    #[test]
-    fn churn_test() {
-        // unchecked - purpose?
-        let network_len = 200usize;
-        let nodes_to_remove = 20usize;
-
-        let mut tables = create_random_routing_tables(network_len);
-        let mut addresses: Vec<XorName> = Vec::with_capacity(network_len);
-
-        for i in 0..tables.len() {
-            addresses.push(tables[i].our_name().clone());
-            for j in 0..tables.len() {
-                let name = tables[j].our_name().clone();
-                let _ = tables[i].add(name);
-            }
-        }
-
-        // now remove nodes
-        let mut drop_vec: Vec<XorName> = Vec::with_capacity(nodes_to_remove);
-        for i in 0..nodes_to_remove {
-            drop_vec.push(addresses[i]);
-        }
-
-        tables.truncate(nodes_to_remove);
-
-        for i in 0..tables.len() {
-            for j in 0..drop_vec.len() {
-                let _ = tables[i].remove(&drop_vec[j]).is_some();
-            }
-        }
-        // remove IDs too
-        addresses.truncate(nodes_to_remove);
-
-        for i in 0..tables.len() {
-            addresses.sort_by(&mut *make_sort_predicate(tables[i].our_name().clone()));
-            let group = tables[i].other_close_nodes(tables[i].our_name()).unwrap();
-            assert_eq!(group.len(), cmp::min(GROUP_SIZE - 1, tables[i].len()));
         }
     }
 
@@ -1139,27 +1089,25 @@ mod test {
         let network_len = 100usize;
 
         let mut tables = create_random_routing_tables(network_len);
-        let mut addresses: Vec<XorName> = Vec::with_capacity(network_len);
-
-        for i in 0..tables.len() {
-            addresses.push(tables[i].our_name().clone());
-            for j in 0..tables.len() {
-                let name = tables[j].our_name().clone();
-                let _ = tables[i].add(name);
+        let mut addresses = tables.iter().map(RoutingTable::our_name).cloned().collect_vec();
+        for table in &mut tables {
+            for name in &addresses {
+                if table.need_to_add(name) {
+                    let _ = table.add(*name);
+                }
             }
         }
 
         let mut tested_close_target = false;
-        for i in 0..tables.len() {
-            addresses.sort_by(&mut *make_sort_predicate(tables[i].our_name().clone()));
+        for table in tables {
+            addresses.sort_by(&mut *make_sort_predicate(*table.our_name()));
             // if target is in close group return the whole close group excluding target
-            for j in 1..GROUP_SIZE {
-                if tables[i].is_close(&addresses[j]) {
-                    let dst = Destination::Group(addresses[j]);
-                    let far_name = get_contact(&tables[i].our_name(), 0, 255);
-                    assert!(tables[i].target_nodes(dst, &far_name, 1).is_empty());
-                    let target_close_group = tables[i].target_nodes(dst, &far_name, 0);
-                    assert_eq!(GROUP_SIZE - 1, target_close_group.len());
+            for address in addresses.iter().take(GROUP_SIZE) {
+                if table.is_close(address) {
+                    let dst = Destination::Group(*address);
+                    let far_name = get_contact(table.our_name(), 0, 255);
+                    assert!(table.target_nodes(dst, &far_name, 1).is_empty());
+                    assert_eq!(GROUP_SIZE - 1, table.target_nodes(dst, &far_name, 0).len());
                     // TODO: Reconsider re-swarm prevention and enable or delete this.
                     // for close_node in target_close_group {
                     //     assert!(tables[i].target_nodes(dst, &close_node, 0).is_empty());
@@ -1174,7 +1122,7 @@ mod test {
     #[test]
     fn trivial_functions_test() {
         // unchecked - but also check has_node function
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
         assert_eq!(None, test.table.find(|_| true));
         assert_eq!(0, test.table.len());
         assert_eq!(0, test.table.furthest_close_bucket());
@@ -1256,7 +1204,7 @@ mod test {
 
     #[test]
     fn allow_connection() {
-        let mut test = TestEnvironment::new();
+        let mut test = TestEnvironment::default();
 
         assert!(test.table.allow_connection(&rand::random()));
         assert!(!test.table.allow_connection(&test.name));
@@ -1294,18 +1242,26 @@ mod test {
 
         let name = get_contact(&test.name, 3, 99);
         assert!(!test.table.is_close(&name));
-        assert!(test.table.is_close(&name.with_flipped_bit(3).unwrap()));
+        assert!(test.table.is_close(&name.with_flipped_bit(3).expect("failed to flip bit")));
         assert!(test.table.is_close_to_bucket_of(&name)); // Close to the 3rd bucket of name.
         assert!(test.table.allow_connection(&name));
 
-        let name = test.name.with_flipped_bit(2).unwrap().with_flipped_bit(3).unwrap();
+        let name = test.name
+            .with_flipped_bit(2)
+            .expect("failed to flip bit")
+            .with_flipped_bit(3)
+            .expect("failed to flip bit");
         assert!(!test.table.is_close(&name));
         assert!(!test.table.is_close_to_bucket_of(&name));
         assert!(test.table.allow_connection(&name)); // Would be closest entry in bucket 2.
 
-        let name = test.name.with_flipped_bit(0).unwrap().with_flipped_bit(1).unwrap();
+        let name = test.name
+            .with_flipped_bit(0)
+            .expect("failed to flip bit")
+            .with_flipped_bit(1)
+            .expect("failed to flip bit");
         assert!(!test.table.is_close(&name));
-        assert!(test.table.is_close(&name.with_flipped_bit(1).unwrap()));
+        assert!(test.table.is_close(&name.with_flipped_bit(1).expect("failed to flip bit")));
         assert!(test.table.is_close_to_bucket_of(&name)); // Close to the 1st bucket of name.
         assert!(test.table.allow_connection(&name));
     }
