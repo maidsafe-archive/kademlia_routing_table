@@ -1309,50 +1309,6 @@
 <span id="1266">1266</span>
 <span id="1267">1267</span>
 <span id="1268">1268</span>
-<span id="1269">1269</span>
-<span id="1270">1270</span>
-<span id="1271">1271</span>
-<span id="1272">1272</span>
-<span id="1273">1273</span>
-<span id="1274">1274</span>
-<span id="1275">1275</span>
-<span id="1276">1276</span>
-<span id="1277">1277</span>
-<span id="1278">1278</span>
-<span id="1279">1279</span>
-<span id="1280">1280</span>
-<span id="1281">1281</span>
-<span id="1282">1282</span>
-<span id="1283">1283</span>
-<span id="1284">1284</span>
-<span id="1285">1285</span>
-<span id="1286">1286</span>
-<span id="1287">1287</span>
-<span id="1288">1288</span>
-<span id="1289">1289</span>
-<span id="1290">1290</span>
-<span id="1291">1291</span>
-<span id="1292">1292</span>
-<span id="1293">1293</span>
-<span id="1294">1294</span>
-<span id="1295">1295</span>
-<span id="1296">1296</span>
-<span id="1297">1297</span>
-<span id="1298">1298</span>
-<span id="1299">1299</span>
-<span id="1300">1300</span>
-<span id="1301">1301</span>
-<span id="1302">1302</span>
-<span id="1303">1303</span>
-<span id="1304">1304</span>
-<span id="1305">1305</span>
-<span id="1306">1306</span>
-<span id="1307">1307</span>
-<span id="1308">1308</span>
-<span id="1309">1309</span>
-<span id="1310">1310</span>
-<span id="1311">1311</span>
-<span id="1312">1312</span>
 </pre><pre class='rust '>
 <span class='comment'>// Copyright 2015 MaidSafe.net limited.</span>
 <span class='comment'>//</span>
@@ -1392,7 +1348,8 @@
 
 <span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span><span class='op'>=</span><span class='string'>&quot;clippy&quot;</span>, <span class='ident'>feature</span>(<span class='ident'>plugin</span>))]</span>
 <span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span><span class='op'>=</span><span class='string'>&quot;clippy&quot;</span>, <span class='ident'>plugin</span>(<span class='ident'>clippy</span>))]</span>
-<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span><span class='op'>=</span><span class='string'>&quot;clippy&quot;</span>, <span class='ident'>deny</span>(<span class='ident'>clippy</span>, <span class='ident'>clippy_pedantic</span>))]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span><span class='op'>=</span><span class='string'>&quot;clippy&quot;</span>, <span class='ident'>deny</span>(<span class='ident'>clippy</span>, <span class='ident'>unicode_not_nfc</span>, <span class='ident'>wrong_pub_self_convention</span>,
+                                   <span class='ident'>option_unwrap_used</span>))]</span>
 <span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span><span class='op'>=</span><span class='string'>&quot;clippy&quot;</span>, <span class='ident'>allow</span>(<span class='ident'>use_debug</span>))]</span>
 
 <span class='doccomment'>//! A routing table to manage contacts for a node in a [Kademlia][1] distributed hash table.</span>
@@ -1518,7 +1475,7 @@
 <span class='doccomment'>/// The number of nodes a message is sent to in each hop for redundancy.</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.</span>
-<span class='kw'>pub</span> <span class='kw'>const</span> <span class='ident'>PARALLELISM</span>: <span class='ident'>usize</span> <span class='op'>=</span> <span class='number'>8</span>;
+<span class='kw'>pub</span> <span class='kw'>const</span> <span class='ident'>PARALLELISM</span>: <span class='ident'>usize</span> <span class='op'>=</span> <span class='number'>4</span>;
 
 <span class='doccomment'>/// A message destination.</span>
 <span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Copy</span>, <span class='ident'>Clone</span>, <span class='ident'>Debug</span>)]</span>
@@ -1584,10 +1541,10 @@
                     <span class='macro'>vec</span><span class='macro'>!</span>[]
                 } <span class='kw'>else</span> {
                     <span class='self'>self</span>.<span class='ident'>buckets</span>[<span class='ident'>bucket_index</span>]
-                                   .<span class='ident'>iter</span>()
-                                   .<span class='ident'>skip</span>(<span class='ident'>GROUP_SIZE</span>)
-                                   .<span class='ident'>cloned</span>()
-                                   .<span class='ident'>collect</span>()
+                        .<span class='ident'>iter</span>()
+                        .<span class='ident'>skip</span>(<span class='ident'>GROUP_SIZE</span>)
+                        .<span class='ident'>cloned</span>()
+                        .<span class='ident'>collect</span>()
                 };
 
                 <span class='prelude-val'>Some</span>(<span class='ident'>AddedNodeDetails</span> {
@@ -1626,7 +1583,7 @@
         <span class='kw'>if</span> <span class='kw'>let</span> (<span class='ident'>bucket</span>, <span class='prelude-val'>Ok</span>(<span class='ident'>i</span>)) <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>search</span>(<span class='ident'>name</span>) {
             <span class='kw'>if</span> <span class='ident'>i</span> <span class='op'>&gt;=</span> <span class='ident'>GROUP_SIZE</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='self'>self</span>.<span class='ident'>is_in_any_close_group_with</span>(<span class='ident'>bucket</span>) {
                 <span class='kw'>let</span> _ <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>remove</span>(<span class='ident'>name</span>);
-                <span class='kw'>return</span> <span class='boolval'>true</span>
+                <span class='kw'>return</span> <span class='boolval'>true</span>;
             }
         }
 
@@ -1751,6 +1708,8 @@
                     } <span class='kw'>else</span> {
                         <span class='macro'>vec</span><span class='macro'>!</span>[]
                     };
+                } <span class='kw'>else</span> <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>is_close</span>(<span class='ident'>target</span>) {
+                    <span class='kw'>return</span> <span class='self'>self</span>.<span class='ident'>closest_nodes_to</span>(<span class='ident'>target</span>, <span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='boolval'>false</span>);
                 }
                 <span class='ident'>target</span>
             }
@@ -1881,10 +1840,10 @@
         <span class='comment'>// If we disagree with target in a bit, that bit&#39;s bucket contains contacts that are closer</span>
         <span class='comment'>// to the target than we are. The lower the bucket index, the closer it is:</span>
         <span class='kw'>let</span> <span class='ident'>closer_buckets_iter</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>buckets</span>
-                                      .<span class='ident'>iter</span>()
-                                      .<span class='ident'>enumerate</span>()
-                                      .<span class='ident'>filter</span>(<span class='op'>|</span><span class='kw-2'>&amp;</span>(<span class='ident'>bit</span>, _)<span class='op'>|</span> <span class='self'>self</span>.<span class='ident'>differs_in_bit</span>(<span class='ident'>target</span>, <span class='ident'>bit</span>))
-                                      .<span class='ident'>flat_map</span>(<span class='op'>|</span>(_, <span class='ident'>b</span>)<span class='op'>|</span> <span class='ident'>b</span>.<span class='ident'>iter</span>().<span class='ident'>sorted_by</span>(<span class='kw-2'>&amp;</span><span class='ident'>cmp</span>).<span class='ident'>into_iter</span>());
+            .<span class='ident'>iter</span>()
+            .<span class='ident'>enumerate</span>()
+            .<span class='ident'>filter</span>(<span class='op'>|</span><span class='kw-2'>&amp;</span>(<span class='ident'>bit</span>, _)<span class='op'>|</span> <span class='self'>self</span>.<span class='ident'>differs_in_bit</span>(<span class='ident'>target</span>, <span class='ident'>bit</span>))
+            .<span class='ident'>flat_map</span>(<span class='op'>|</span>(_, <span class='ident'>b</span>)<span class='op'>|</span> <span class='ident'>b</span>.<span class='ident'>iter</span>().<span class='ident'>sorted_by</span>(<span class='kw-2'>&amp;</span><span class='ident'>cmp</span>).<span class='ident'>into_iter</span>());
         <span class='comment'>// Nothing or ourselves, depending on whether we should be include in the result:</span>
         <span class='kw'>let</span> <span class='ident'>ourselves_iter</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='ident'>ourselves</span> {
             <span class='prelude-val'>Some</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>our_info</span>).<span class='ident'>into_iter</span>()
@@ -1894,18 +1853,18 @@
         <span class='comment'>// If we agree with target in a bit, that bit&#39;s bucket contains contacts that are further</span>
         <span class='comment'>// away from the target than we are. The lower the bucket index, the further away it is:</span>
         <span class='kw'>let</span> <span class='ident'>further_buckets_iter</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>buckets</span>
-                                       .<span class='ident'>iter</span>()
-                                       .<span class='ident'>enumerate</span>()
-                                       .<span class='ident'>rev</span>()
-                                       .<span class='ident'>filter</span>(<span class='op'>|</span><span class='kw-2'>&amp;</span>(<span class='ident'>bit</span>, _)<span class='op'>|</span> <span class='op'>!</span><span class='self'>self</span>.<span class='ident'>differs_in_bit</span>(<span class='ident'>target</span>, <span class='ident'>bit</span>))
-                                       .<span class='ident'>flat_map</span>(<span class='op'>|</span>(_, <span class='ident'>b</span>)<span class='op'>|</span> <span class='ident'>b</span>.<span class='ident'>iter</span>().<span class='ident'>sorted_by</span>(<span class='kw-2'>&amp;</span><span class='ident'>cmp</span>).<span class='ident'>into_iter</span>());
+            .<span class='ident'>iter</span>()
+            .<span class='ident'>enumerate</span>()
+            .<span class='ident'>rev</span>()
+            .<span class='ident'>filter</span>(<span class='op'>|</span><span class='kw-2'>&amp;</span>(<span class='ident'>bit</span>, _)<span class='op'>|</span> <span class='op'>!</span><span class='self'>self</span>.<span class='ident'>differs_in_bit</span>(<span class='ident'>target</span>, <span class='ident'>bit</span>))
+            .<span class='ident'>flat_map</span>(<span class='op'>|</span>(_, <span class='ident'>b</span>)<span class='op'>|</span> <span class='ident'>b</span>.<span class='ident'>iter</span>().<span class='ident'>sorted_by</span>(<span class='kw-2'>&amp;</span><span class='ident'>cmp</span>).<span class='ident'>into_iter</span>());
         <span class='comment'>// Chaining these iterators puts the buckets in the right order, with ascending distance</span>
         <span class='comment'>// from the target. Finally, we need to sort each bucket&#39;s contents and take n:</span>
         <span class='ident'>closer_buckets_iter</span>.<span class='ident'>chain</span>(<span class='ident'>ourselves_iter</span>)
-                           .<span class='ident'>chain</span>(<span class='ident'>further_buckets_iter</span>)
-                           .<span class='ident'>take</span>(<span class='ident'>n</span>)
-                           .<span class='ident'>cloned</span>()
-                           .<span class='ident'>collect</span>()
+            .<span class='ident'>chain</span>(<span class='ident'>further_buckets_iter</span>)
+            .<span class='ident'>take</span>(<span class='ident'>n</span>)
+            .<span class='ident'>cloned</span>()
+            .<span class='ident'>collect</span>()
     }
 
     <span class='doccomment'>/// Returns whether we are close to one of `name`&#39;s bucket addresses or to `name` itself.</span>
@@ -1995,7 +1954,7 @@
 
     <span class='kw'>impl</span> <span class='ident'>ContactInfo</span> <span class='kw'>for</span> <span class='ident'>XorName</span> {
         <span class='kw'>fn</span> <span class='ident'>name</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='kw-2'>&amp;</span><span class='ident'>XorName</span> {
-            <span class='kw-2'>&amp;</span><span class='self'>self</span>
+            <span class='self'>self</span>
         }
     }
 
@@ -2011,15 +1970,15 @@
     <span class='doccomment'>/// `index &lt; 503`. The given `distance` will be added. If `distance == 255`, the furthest</span>
     <span class='doccomment'>/// possible name in the given bucket is returned.</span>
     <span class='kw'>fn</span> <span class='ident'>get_contact</span>(<span class='ident'>table_name</span>: <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>, <span class='ident'>index</span>: <span class='ident'>usize</span>, <span class='ident'>distance</span>: <span class='ident'>u8</span>) <span class='op'>-&gt;</span> <span class='ident'>XorName</span> {
-        <span class='kw'>let</span> <span class='ident'>XorName</span>(<span class='kw-2'>mut</span> <span class='ident'>arr</span>) <span class='op'>=</span> <span class='ident'>table_name</span>.<span class='ident'>clone</span>();
+        <span class='kw'>let</span> <span class='ident'>XorName</span>(<span class='kw-2'>mut</span> <span class='ident'>arr</span>) <span class='op'>=</span> <span class='op'>*</span><span class='ident'>table_name</span>;
+        <span class='kw'>let</span> <span class='ident'>last</span> <span class='op'>=</span> <span class='ident'>arr</span>.<span class='ident'>len</span>() <span class='op'>-</span> <span class='number'>1</span>;
         <span class='comment'>// Invert all bits starting with the `index`th one, so the bucket distance is `index`.</span>
-        <span class='ident'>arr</span>[<span class='ident'>index</span> <span class='op'>/</span> <span class='number'>8</span>] <span class='op'>=</span> <span class='ident'>arr</span>[<span class='ident'>index</span> <span class='op'>/</span> <span class='number'>8</span>] <span class='op'>^</span> <span class='number'>0b11111111</span> <span class='op'>&gt;&gt;</span> (<span class='ident'>index</span> <span class='op'>%</span> <span class='number'>8</span>);
-        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> (<span class='ident'>index</span> <span class='op'>/</span> <span class='number'>8</span> <span class='op'>+</span> <span class='number'>1</span>)..(<span class='ident'>arr</span>.<span class='ident'>len</span>() <span class='op'>-</span> <span class='number'>1</span>) {
-            <span class='ident'>arr</span>[<span class='ident'>i</span>] <span class='op'>=</span> <span class='ident'>arr</span>[<span class='ident'>i</span>] <span class='op'>^</span> <span class='number'>255</span>;
+        <span class='ident'>arr</span>[<span class='ident'>index</span> <span class='op'>/</span> <span class='number'>8</span>] <span class='op'>^=</span> <span class='number'>0b11111111</span> <span class='op'>&gt;&gt;</span> (<span class='ident'>index</span> <span class='op'>%</span> <span class='number'>8</span>);
+        <span class='kw'>for</span> <span class='ident'>x</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>arr</span>[(<span class='ident'>index</span> <span class='op'>/</span> <span class='number'>8</span> <span class='op'>+</span> <span class='number'>1</span>)..<span class='ident'>last</span>] {
+            <span class='op'>*</span><span class='ident'>x</span> <span class='op'>^=</span> <span class='number'>0b11111111</span>;
         }
         <span class='comment'>// Add the desired distance.</span>
-        <span class='kw'>let</span> <span class='ident'>last</span> <span class='op'>=</span> <span class='ident'>arr</span>.<span class='ident'>len</span>() <span class='op'>-</span> <span class='number'>1</span>;
-        <span class='ident'>arr</span>[<span class='ident'>last</span>] <span class='op'>=</span> <span class='ident'>arr</span>[<span class='ident'>last</span>] <span class='op'>^</span> <span class='ident'>distance</span>;
+        <span class='ident'>arr</span>[<span class='ident'>last</span>] <span class='op'>^=</span> <span class='ident'>distance</span>;
         <span class='kw'>let</span> <span class='ident'>result</span> <span class='op'>=</span> <span class='ident'>XorName</span>(<span class='ident'>arr</span>);
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>index</span>, <span class='ident'>result</span>.<span class='ident'>bucket_index</span>(<span class='ident'>table_name</span>));
         <span class='ident'>result</span>
@@ -2032,17 +1991,19 @@
         <span class='ident'>added_names</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>,
     }
 
-    <span class='kw'>impl</span> <span class='ident'>TestEnvironment</span> {
-        <span class='kw'>fn</span> <span class='ident'>new</span>() <span class='op'>-&gt;</span> <span class='ident'>TestEnvironment</span> {
+    <span class='kw'>impl</span> <span class='ident'>Default</span> <span class='kw'>for</span> <span class='ident'>TestEnvironment</span> {
+        <span class='kw'>fn</span> <span class='ident'>default</span>() <span class='op'>-&gt;</span> <span class='ident'>TestEnvironment</span> {
             <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>rand</span>::<span class='ident'>random</span>::<span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>();
             <span class='ident'>TestEnvironment</span> {
-                <span class='ident'>table</span>: <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='ident'>name</span>.<span class='ident'>clone</span>()),
+                <span class='ident'>table</span>: <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='ident'>name</span>),
                 <span class='ident'>name</span>: <span class='ident'>name</span>,
                 <span class='ident'>initial_count</span>: (<span class='ident'>rand</span>::<span class='ident'>random</span>::<span class='op'>&lt;</span><span class='ident'>usize</span><span class='op'>&gt;</span>() <span class='op'>%</span> (<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>)) <span class='op'>+</span> <span class='number'>1</span>,
                 <span class='ident'>added_names</span>: <span class='ident'>Vec</span>::<span class='ident'>new</span>(),
             }
         }
+    }
 
+    <span class='kw'>impl</span> <span class='ident'>TestEnvironment</span> {
         <span class='kw'>fn</span> <span class='ident'>partially_fill_table</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>) {
             <span class='kw'>let</span> <span class='ident'>count</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>initial_count</span>;
             <span class='self'>self</span>.<span class='ident'>fill_table</span>(<span class='number'>0</span>, <span class='ident'>count</span>)
@@ -2075,17 +2036,11 @@
 
     <span class='kw'>fn</span> <span class='ident'>are_nodes_sorted</span>(<span class='ident'>routing_table</span>: <span class='kw-2'>&amp;</span><span class='ident'>RoutingTable</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
         <span class='ident'>routing_table</span>.<span class='ident'>buckets</span>
-                     .<span class='ident'>iter</span>()
-                     .<span class='ident'>rev</span>()
-                     .<span class='ident'>flat_map</span>(<span class='op'>|</span><span class='ident'>bucket</span><span class='op'>|</span> <span class='ident'>bucket</span>.<span class='ident'>iter</span>())
-                     .<span class='ident'>zip</span>(<span class='ident'>routing_table</span>.<span class='ident'>buckets</span>
-                                       .<span class='ident'>iter</span>()
-                                       .<span class='ident'>rev</span>()
-                                       .<span class='ident'>flat_map</span>(<span class='op'>|</span><span class='ident'>bucket</span><span class='op'>|</span> <span class='ident'>bucket</span>.<span class='ident'>iter</span>())
-                                       .<span class='ident'>skip</span>(<span class='number'>1</span>))
-                     .<span class='ident'>all</span>(<span class='op'>|</span>(<span class='ident'>lhs</span>, <span class='ident'>rhs</span>)<span class='op'>|</span> {
-                         <span class='ident'>xor_name</span>::<span class='ident'>closer_to_target</span>(<span class='ident'>lhs</span>, <span class='ident'>rhs</span>, <span class='ident'>routing_table</span>.<span class='ident'>our_name</span>())
-                     })
+            .<span class='ident'>iter</span>()
+            .<span class='ident'>rev</span>()
+            .<span class='ident'>flat_map</span>(<span class='op'>|</span><span class='ident'>bucket</span><span class='op'>|</span> <span class='ident'>bucket</span>.<span class='ident'>iter</span>())
+            .<span class='ident'>zip</span>(<span class='ident'>routing_table</span>.<span class='ident'>buckets</span>.<span class='ident'>iter</span>().<span class='ident'>rev</span>().<span class='ident'>flat_map</span>(<span class='op'>|</span><span class='ident'>bucket</span><span class='op'>|</span> <span class='ident'>bucket</span>.<span class='ident'>iter</span>()).<span class='ident'>skip</span>(<span class='number'>1</span>))
+            .<span class='ident'>all</span>(<span class='op'>|</span>(<span class='ident'>lhs</span>, <span class='ident'>rhs</span>)<span class='op'>|</span> <span class='ident'>xor_name</span>::<span class='ident'>closer_to_target</span>(<span class='ident'>lhs</span>, <span class='ident'>rhs</span>, <span class='ident'>routing_table</span>.<span class='ident'>our_name</span>()))
     }
 
     <span class='kw'>fn</span> <span class='ident'>make_sort_predicate</span>(<span class='ident'>target</span>: <span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>Box</span><span class='op'>&lt;</span><span class='ident'>FnMut</span>(<span class='kw-2'>&amp;</span><span class='ident'>XorName</span>, <span class='kw-2'>&amp;</span><span class='ident'>XorName</span>) <span class='op'>-&gt;</span> <span class='ident'>cmp</span>::<span class='ident'>Ordering</span><span class='op'>&gt;</span> {
@@ -2094,12 +2049,12 @@
 
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
     <span class='kw'>fn</span> <span class='ident'>add</span>() {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
 
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>(), <span class='number'>0</span>);
 
         <span class='comment'>// try with our name - should fail</span>
-        <span class='kw'>let</span> <span class='ident'>contact</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
+        <span class='kw'>let</span> <span class='ident'>contact</span> <span class='op'>=</span> <span class='op'>*</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>();
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add</span>(<span class='ident'>contact</span>).<span class='ident'>is_none</span>());
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>(), <span class='number'>0</span>);
 
@@ -2116,7 +2071,7 @@
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
     <span class='kw'>fn</span> <span class='ident'>add_to_full_bucket</span>() {
         <span class='comment'>// add node to a full bucket whose nodes share close group with us</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>GROUP_SIZE</span> {
             <span class='kw'>let</span> <span class='ident'>contact</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='ident'>i</span> <span class='kw'>as</span> <span class='ident'>u8</span>);
@@ -2127,11 +2082,11 @@
 
         <span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Some</span>(<span class='ident'>added_node_details</span>) <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add</span>(<span class='ident'>contact</span>) {
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>added_node_details</span>,
-                <span class='ident'>AddedNodeDetails</span> {
-                    <span class='ident'>must_notify</span>: <span class='macro'>vec</span><span class='macro'>!</span>[],
-                    <span class='ident'>unneeded</span>: <span class='macro'>vec</span><span class='macro'>!</span>[],
-                    <span class='ident'>common_groups</span>: <span class='boolval'>true</span>,
-                });
+                       <span class='ident'>AddedNodeDetails</span> {
+                           <span class='ident'>must_notify</span>: <span class='macro'>vec</span><span class='macro'>!</span>[],
+                           <span class='ident'>unneeded</span>: <span class='macro'>vec</span><span class='macro'>!</span>[],
+                           <span class='ident'>common_groups</span>: <span class='boolval'>true</span>,
+                       });
         } <span class='kw'>else</span> {
             <span class='macro'>assert</span><span class='macro'>!</span>(<span class='boolval'>false</span>);
         }
@@ -2140,7 +2095,7 @@
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>(), <span class='ident'>GROUP_SIZE</span> <span class='op'>+</span> <span class='number'>1</span>);
 
         <span class='comment'>// add node to a full bucket whose nodes do not share close group with us</span>
-        <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>GROUP_SIZE</span> {
             <span class='kw'>let</span> <span class='ident'>contact</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='number'>1</span> <span class='op'>+</span> <span class='ident'>i</span> <span class='kw'>as</span> <span class='ident'>u8</span>);
@@ -2156,19 +2111,15 @@
 
         <span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Some</span>(<span class='ident'>added_node_details</span>) <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add</span>(<span class='ident'>contact</span>) {
             <span class='kw'>let</span> <span class='ident'>bucket_index</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>bucket_index</span>(<span class='kw-2'>&amp;</span><span class='ident'>contact</span>);
-            <span class='kw'>let</span> <span class='ident'>unneeded</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>
-                               .<span class='ident'>buckets</span>[<span class='ident'>bucket_index</span>]
-                               .<span class='ident'>iter</span>()
-                               .<span class='ident'>skip</span>(<span class='ident'>GROUP_SIZE</span>)
-                               .<span class='ident'>cloned</span>()
-                               .<span class='ident'>collect</span>::<span class='op'>&lt;</span><span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;&gt;</span>();
+            <span class='kw'>let</span> <span class='ident'>unneeded</span> <span class='op'>=</span>
+                <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>buckets</span>[<span class='ident'>bucket_index</span>].<span class='ident'>iter</span>().<span class='ident'>skip</span>(<span class='ident'>GROUP_SIZE</span>).<span class='ident'>cloned</span>().<span class='ident'>collect_vec</span>();
 
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>added_node_details</span>,
-                <span class='ident'>AddedNodeDetails</span> {
-                    <span class='ident'>must_notify</span>: <span class='macro'>vec</span><span class='macro'>!</span>[],
-                    <span class='ident'>unneeded</span>: <span class='ident'>unneeded</span>,
-                    <span class='ident'>common_groups</span>: <span class='boolval'>false</span>,
-                });
+                       <span class='ident'>AddedNodeDetails</span> {
+                           <span class='ident'>must_notify</span>: <span class='macro'>vec</span><span class='macro'>!</span>[],
+                           <span class='ident'>unneeded</span>: <span class='ident'>unneeded</span>,
+                           <span class='ident'>common_groups</span>: <span class='boolval'>false</span>,
+                       });
         } <span class='kw'>else</span> {
             <span class='macro'>assert</span><span class='macro'>!</span>(<span class='boolval'>false</span>);
         }
@@ -2179,7 +2130,7 @@
 
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
     <span class='kw'>fn</span> <span class='ident'>add_to_bucket_that_is_not_full</span>() {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>GROUP_SIZE</span> <span class='op'>/</span> <span class='number'>2</span>) {
             <span class='kw'>let</span> <span class='ident'>contact</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='ident'>i</span> <span class='kw'>as</span> <span class='ident'>u8</span>);
@@ -2193,15 +2144,15 @@
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add</span>(<span class='ident'>name_to_notify1</span>).<span class='ident'>is_some</span>());
 
         <span class='kw'>let</span> <span class='ident'>contact</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>1</span>, <span class='number'>255</span>);
-        <span class='kw'>let</span> <span class='ident'>nodes_to_notify</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add</span>(<span class='ident'>contact</span>).<span class='ident'>unwrap</span>().<span class='ident'>must_notify</span>;
+        <span class='kw'>let</span> <span class='ident'>nodes_to_notify</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>add</span>(<span class='ident'>contact</span>).<span class='ident'>expect</span>(<span class='string'>&quot;contact not added&quot;</span>).<span class='ident'>must_notify</span>;
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>nodes_to_notify</span>.<span class='ident'>len</span>() <span class='op'>==</span> <span class='number'>2</span>);
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>nodes_to_notify</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>n</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>n</span> <span class='op'>==</span> <span class='ident'>name_to_notify0</span>));
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>nodes_to_notify</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>n</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>n</span> <span class='op'>==</span> <span class='ident'>name_to_notify1</span>));
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>nodes_to_notify</span>.<span class='ident'>contains</span>(<span class='kw-2'>&amp;</span><span class='ident'>name_to_notify0</span>));
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>nodes_to_notify</span>.<span class='ident'>contains</span>(<span class='kw-2'>&amp;</span><span class='ident'>name_to_notify1</span>));
     }
 
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
     <span class='kw'>fn</span> <span class='ident'>need_to_add</span>() {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
 
         <span class='comment'>// Try with our ID</span>
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>need_to_add</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>()));
@@ -2228,7 +2179,7 @@
         <span class='kw'>use</span> <span class='ident'>rand</span>::<span class='ident'>Rng</span>;
 
         <span class='comment'>// Check on empty table</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
 
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>(), <span class='number'>0</span>);
 
@@ -2241,7 +2192,7 @@
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>TABLE_SIZE</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
 
         <span class='comment'>// Try with our Name</span>
-        <span class='kw'>let</span> <span class='ident'>drop_name</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
+        <span class='kw'>let</span> <span class='ident'>drop_name</span> <span class='op'>=</span> <span class='op'>*</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>();
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>remove</span>(<span class='kw-2'>&amp;</span><span class='ident'>drop_name</span>).<span class='ident'>is_none</span>());
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>TABLE_SIZE</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
 
@@ -2263,12 +2214,11 @@
 
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
     <span class='kw'>fn</span> <span class='ident'>target_nodes</span>() {
-        <span class='comment'>// modernise</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
 
         <span class='comment'>// Check on empty table</span>
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>
-                                   .<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>rand</span>::<span class='ident'>random</span>()), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
+            .<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>rand</span>::<span class='ident'>random</span>()), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>target_nodes</span>.<span class='ident'>len</span>(), <span class='number'>0</span>);
 
         <span class='comment'>// Partially fill the table with &lt;GROUP_SIZE contacts</span>
@@ -2280,7 +2230,7 @@
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>test</span>.<span class='ident'>initial_count</span> {
             <span class='kw'>let</span> <span class='ident'>expected_name</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>);
-            <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>target_nodes</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>node</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>node</span> <span class='op'>==</span> <span class='ident'>expected_name</span>));
+            <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>target_nodes</span>.<span class='ident'>contains</span>(<span class='kw-2'>&amp;</span><span class='ident'>expected_name</span>));
         }
 
         <span class='comment'>// Complete filling the table up to TABLE_SIZE contacts</span>
@@ -2288,32 +2238,27 @@
 
         <span class='comment'>// Try with our ID (should return the rest of the close group)</span>
         <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>
-                           .<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>()),
-                                         <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>,
-                                         <span class='number'>0</span>);
+            .<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='op'>*</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>()), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> ((<span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='ident'>GROUP_SIZE</span> <span class='op'>+</span> <span class='number'>1</span>)..<span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>).<span class='ident'>rev</span>() {
             <span class='kw'>let</span> <span class='ident'>expected_name</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>);
-            <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>target_nodes</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>node</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>node</span> <span class='op'>==</span> <span class='ident'>expected_name</span>));
+            <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>target_nodes</span>.<span class='ident'>contains</span>(<span class='kw-2'>&amp;</span><span class='ident'>expected_name</span>));
         }
 
-        <span class='comment'>// Try with nodes far from us, first time *not* in table and second time *in* table (should</span>
-        <span class='comment'>// return &#39;PARALLELISM&#39; contacts closest to target first time and the single actual target</span>
-        <span class='comment'>// the second time)</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>target</span>: <span class='ident'>XorName</span>;
+        <span class='comment'>// Try with nodes far from us, first time *not* in table and second time *in* table.</span>
         <span class='kw'>for</span> <span class='ident'>count</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='number'>2</span> {
             <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..(<span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='ident'>GROUP_SIZE</span>) {
                 <span class='kw'>let</span> (<span class='ident'>target</span>, <span class='ident'>expected_len</span>) <span class='op'>=</span> <span class='kw'>if</span> <span class='ident'>count</span> <span class='op'>==</span> <span class='number'>0</span> {
-                    (<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>2</span>).<span class='ident'>clone</span>(), <span class='ident'>PARALLELISM</span>)
+                    (<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>2</span>), <span class='ident'>PARALLELISM</span>)
                 } <span class='kw'>else</span> {
-                    (<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>).<span class='ident'>clone</span>(), <span class='number'>1</span>)
+                    (<span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>), <span class='number'>1</span>)
                 };
                 <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='ident'>target</span>), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
                 <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>expected_len</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
 
-                <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>target_nodes</span>.<span class='ident'>len</span>() {
-                    <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>added_names</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>name</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>name</span> <span class='op'>==</span> <span class='ident'>target_nodes</span>[<span class='ident'>i</span>]));
+                <span class='kw'>for</span> <span class='ident'>target_node</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='ident'>target_nodes</span> {
+                    <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>added_names</span>.<span class='ident'>contains</span>(<span class='ident'>target_node</span>));
                 }
             }
         }
@@ -2322,16 +2267,16 @@
         <span class='comment'>// return GROUP_SIZE - 1 closest to target)</span>
         <span class='kw'>for</span> <span class='ident'>count</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='number'>2</span> {
             <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> (<span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='ident'>GROUP_SIZE</span> <span class='op'>+</span> <span class='number'>2</span>)..<span class='ident'>TABLE_SIZE</span> {
-                <span class='ident'>target</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='ident'>count</span> <span class='op'>==</span> <span class='number'>0</span> {
-                    <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>0</span>).<span class='ident'>clone</span>()
+                <span class='kw'>let</span> <span class='ident'>target</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='ident'>count</span> <span class='op'>==</span> <span class='number'>0</span> {
+                    <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>0</span>)
                 } <span class='kw'>else</span> {
-                    <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>).<span class='ident'>clone</span>()
+                    <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>)
                 };
                 <span class='ident'>target_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>target</span>), <span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>0</span>);
                 <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>target_nodes</span>.<span class='ident'>len</span>());
 
-                <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>target_nodes</span>.<span class='ident'>len</span>() {
-                    <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>added_names</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>name</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>name</span> <span class='op'>==</span> <span class='ident'>target_nodes</span>[<span class='ident'>i</span>]));
+                <span class='kw'>for</span> <span class='ident'>target_node</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='ident'>target_nodes</span> {
+                    <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>added_names</span>.<span class='ident'>contains</span>(<span class='ident'>target_node</span>));
                 }
             }
         }
@@ -2339,11 +2284,11 @@
 
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
     <span class='kw'>fn</span> <span class='ident'>is_recipient</span>() {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
         <span class='ident'>test</span>.<span class='ident'>partially_fill_table</span>();
         <span class='ident'>test</span>.<span class='ident'>complete_filling_table</span>();
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>())));
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>())));
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='op'>*</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>())));
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='op'>*</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>our_name</span>())));
         <span class='kw'>let</span> <span class='ident'>close_contact</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>TABLE_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='number'>1</span>);
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>close_contact</span>)));
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_recipient</span>(<span class='ident'>Destination</span>::<span class='ident'>Node</span>(<span class='ident'>close_contact</span>)));
@@ -2355,29 +2300,29 @@
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
     <span class='kw'>fn</span> <span class='ident'>close_nodes</span>() {
         <span class='comment'>// unchecked - could be merged with one below?</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='prelude-val'>Some</span>(<span class='macro'>vec</span><span class='macro'>!</span>[]), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>));
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='prelude-val'>Some</span>(<span class='macro'>vec</span><span class='macro'>!</span>[<span class='ident'>test</span>.<span class='ident'>name</span>]), <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>));
 
         <span class='ident'>test</span>.<span class='ident'>partially_fill_table</span>();
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>initial_count</span>,
-                   <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>).<span class='ident'>unwrap</span>().<span class='ident'>len</span>());
+                   <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>).<span class='ident'>expect</span>(<span class='string'>&quot;not close to name&quot;</span>).<span class='ident'>len</span>());
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>test</span>.<span class='ident'>initial_count</span> {
             <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>
-                        .<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>)
-                        .<span class='ident'>unwrap</span>()
-                        .<span class='ident'>into_iter</span>()
-                        .<span class='ident'>filter</span>(<span class='op'>|</span><span class='ident'>node</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>node</span> <span class='op'>==</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>))
-                        .<span class='ident'>count</span>() <span class='op'>&gt;</span> <span class='number'>0</span>);
+                .<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>)
+                .<span class='ident'>expect</span>(<span class='string'>&quot;not close to name&quot;</span>)
+                .<span class='ident'>into_iter</span>()
+                .<span class='ident'>filter</span>(<span class='op'>|</span><span class='ident'>node</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>node</span> <span class='op'>==</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='ident'>i</span>, <span class='number'>1</span>))
+                .<span class='ident'>count</span>() <span class='op'>&gt;</span> <span class='number'>0</span>);
         }
 
         <span class='ident'>test</span>.<span class='ident'>complete_filling_table</span>();
-        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>,
-                   <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>).<span class='ident'>unwrap</span>().<span class='ident'>len</span>());
+        <span class='kw'>let</span> <span class='ident'>close_nodes</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>).<span class='ident'>expect</span>(<span class='string'>&quot;not close to name&quot;</span>);
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>close_nodes</span>.<span class='ident'>len</span>());
 
-        <span class='kw'>for</span> <span class='ident'>close_node</span> <span class='kw'>in</span> <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>).<span class='ident'>unwrap</span>() {
-            <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>added_names</span>.<span class='ident'>iter</span>().<span class='ident'>any</span>(<span class='op'>|</span><span class='ident'>n</span><span class='op'>|</span> <span class='op'>*</span><span class='ident'>n</span> <span class='op'>==</span> <span class='ident'>close_node</span>));
+        <span class='kw'>for</span> <span class='ident'>close_node</span> <span class='kw'>in</span> <span class='ident'>close_nodes</span> {
+            <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>added_names</span>.<span class='ident'>contains</span>(<span class='kw-2'>&amp;</span><span class='ident'>close_node</span>));
         }
     }
 
@@ -2386,16 +2331,16 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>tables</span> <span class='op'>=</span> <span class='ident'>HashMap</span>::<span class='ident'>new</span>();
         <span class='kw'>for</span> _ <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>TABLE_SIZE</span> {
             <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>rand</span>::<span class='ident'>random</span>::<span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span>();
-            <span class='kw'>let</span> <span class='ident'>table</span> <span class='op'>=</span> <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='ident'>name</span>.<span class='ident'>clone</span>());
+            <span class='kw'>let</span> <span class='ident'>table</span> <span class='op'>=</span> <span class='ident'>RoutingTable</span>::<span class='ident'>new</span>(<span class='ident'>name</span>);
             <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>insert</span>(<span class='ident'>name</span>, <span class='ident'>table</span>);
         }
         <span class='kw'>let</span> <span class='ident'>keys</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>keys</span>().<span class='ident'>cloned</span>().<span class='ident'>collect</span>();
         <span class='comment'>// Add each node to each other node&#39;s routing table.</span>
-        <span class='kw'>for</span> <span class='ident'>name0</span> <span class='kw'>in</span> <span class='ident'>keys</span>.<span class='ident'>iter</span>() {
-            <span class='kw'>for</span> <span class='ident'>name1</span> <span class='kw'>in</span> <span class='ident'>keys</span>.<span class='ident'>iter</span>() {
+        <span class='kw'>for</span> <span class='ident'>name0</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='ident'>keys</span> {
+            <span class='kw'>for</span> <span class='ident'>name1</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='ident'>keys</span> {
                 <span class='kw'>if</span> <span class='ident'>tables</span>[<span class='ident'>name0</span>].<span class='ident'>allow_connection</span>(<span class='ident'>name1</span>) <span class='op'>&amp;&amp;</span> <span class='ident'>tables</span>[<span class='ident'>name1</span>].<span class='ident'>need_to_add</span>(<span class='ident'>name0</span>) {
-                    <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>get_mut</span>(<span class='ident'>name0</span>).<span class='ident'>unwrap</span>().<span class='ident'>add</span>(<span class='op'>*</span><span class='ident'>name1</span>);
-                    <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>get_mut</span>(<span class='ident'>name1</span>).<span class='ident'>unwrap</span>().<span class='ident'>add</span>(<span class='op'>*</span><span class='ident'>name0</span>);
+                    <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>get_mut</span>(<span class='ident'>name0</span>).<span class='ident'>expect</span>(<span class='string'>&quot;name0 not in table&quot;</span>).<span class='ident'>add</span>(<span class='op'>*</span><span class='ident'>name1</span>);
+                    <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>get_mut</span>(<span class='ident'>name1</span>).<span class='ident'>expect</span>(<span class='string'>&quot;name1 not in table&quot;</span>).<span class='ident'>add</span>(<span class='op'>*</span><span class='ident'>name0</span>);
                 }
             }
         }
@@ -2408,18 +2353,21 @@
         <span class='comment'>// Check close groups of the nodes&#39; addresses.</span>
         <span class='kw'>for</span> <span class='ident'>name</span> <span class='kw'>in</span> <span class='ident'>keys</span> {
             <span class='kw'>let</span> <span class='ident'>close_group</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span>_<span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>values</span>()
-                                            .<span class='ident'>filter</span>(<span class='op'>|</span><span class='ident'>t</span><span class='op'>|</span> <span class='ident'>t</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>))
-                                            .<span class='ident'>map</span>(<span class='op'>|</span><span class='ident'>t</span><span class='op'>|</span> <span class='ident'>t</span>.<span class='ident'>our_name</span>())
-                                            .<span class='ident'>cloned</span>()
-                                            .<span class='ident'>sorted_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>name</span>.<span class='ident'>clone</span>()));
+                .<span class='ident'>filter</span>(<span class='op'>|</span><span class='ident'>t</span><span class='op'>|</span> <span class='ident'>t</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>))
+                .<span class='ident'>map</span>(<span class='ident'>RoutingTable</span>::<span class='ident'>our_name</span>)
+                .<span class='ident'>cloned</span>()
+                .<span class='ident'>sorted_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>name</span>));
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span>, <span class='ident'>close_group</span>.<span class='ident'>len</span>());
-            <span class='kw'>let</span> <span class='ident'>other_close_nodes</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>name</span>].<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>).<span class='ident'>unwrap</span>();
+            <span class='kw'>let</span> <span class='ident'>other_close_nodes</span> <span class='op'>=</span>
+                <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>name</span>].<span class='ident'>other_close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>).<span class='ident'>expect</span>(<span class='string'>&quot;not close to name&quot;</span>);
             <span class='comment'>// The node itself is not in `other_close_nodes`, but it is in `close_group`:</span>
             <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>close_group</span>[<span class='number'>1</span>..], <span class='ident'>other_close_nodes</span>[..]);
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>close_group</span>, <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>name</span>].<span class='ident'>close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>).<span class='ident'>unwrap</span>());
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>close_group</span>,
+                       <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>name</span>].<span class='ident'>close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>).<span class='ident'>expect</span>(<span class='string'>&quot;not close to name&quot;</span>));
             <span class='kw'>for</span> <span class='ident'>close_name</span> <span class='kw'>in</span> <span class='ident'>other_close_nodes</span> {
                 <span class='kw'>if</span> <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>close_name</span>].<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>) {
-                    <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>close_group</span>, <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>close_name</span>].<span class='ident'>close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>).<span class='ident'>unwrap</span>());
+                    <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>close_group</span>,
+                               <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>close_name</span>].<span class='ident'>close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>).<span class='ident'>expect</span>(<span class='string'>&quot;not close to name&quot;</span>));
                 } <span class='kw'>else</span> {
                     <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='prelude-val'>None</span>, <span class='ident'>tables</span>[<span class='kw-2'>&amp;</span><span class='ident'>close_name</span>].<span class='ident'>close_nodes</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>));
                 }
@@ -2432,60 +2380,18 @@
         <span class='comment'>// unchecked - could be merged with one above?</span>
         <span class='kw'>let</span> <span class='ident'>num_of_tables</span> <span class='op'>=</span> <span class='number'>50usize</span>;
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>tables</span> <span class='op'>=</span> <span class='ident'>create_random_routing_tables</span>(<span class='ident'>num_of_tables</span>);
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>addresses</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Vec</span>::<span class='ident'>with_capacity</span>(<span class='ident'>num_of_tables</span>);
-
-        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>num_of_tables</span> {
-            <span class='ident'>addresses</span>.<span class='ident'>push</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>());
-            <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>num_of_tables</span> {
-                <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>j</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
-                <span class='comment'>// TODO: Ask need_to_add first?</span>
-                <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>add</span>(<span class='ident'>name</span>);
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>addresses</span> <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>iter</span>().<span class='ident'>map</span>(<span class='ident'>RoutingTable</span>::<span class='ident'>our_name</span>).<span class='ident'>cloned</span>().<span class='ident'>collect_vec</span>();
+        <span class='kw'>for</span> <span class='ident'>table</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>tables</span> {
+            <span class='kw'>for</span> <span class='ident'>name</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='ident'>addresses</span> {
+                <span class='kw'>if</span> <span class='ident'>table</span>.<span class='ident'>need_to_add</span>(<span class='ident'>name</span>) {
+                    <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>table</span>.<span class='ident'>add</span>(<span class='op'>*</span><span class='ident'>name</span>);
+                }
             }
         }
-        <span class='kw'>for</span> <span class='ident'>it</span> <span class='kw'>in</span> <span class='ident'>tables</span>.<span class='ident'>iter</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>it</span>.<span class='ident'>our_name</span>().<span class='ident'>clone</span>()));
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>it</span>.<span class='ident'>other_close_nodes</span>(<span class='ident'>it</span>.<span class='ident'>our_name</span>()).<span class='ident'>unwrap</span>()[..],
+        <span class='kw'>for</span> <span class='ident'>table</span> <span class='kw'>in</span> <span class='ident'>tables</span> {
+            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='op'>*</span><span class='ident'>table</span>.<span class='ident'>our_name</span>()));
+            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>table</span>.<span class='ident'>other_close_nodes</span>(<span class='ident'>table</span>.<span class='ident'>our_name</span>()).<span class='ident'>expect</span>(<span class='string'>&quot;not close to name&quot;</span>)[..],
                        <span class='ident'>addresses</span>[<span class='number'>1</span>..<span class='ident'>GROUP_SIZE</span>]);
-        }
-    }
-
-    <span class='attribute'>#[<span class='ident'>test</span>]</span>
-    <span class='kw'>fn</span> <span class='ident'>churn_test</span>() {
-        <span class='comment'>// unchecked - purpose?</span>
-        <span class='kw'>let</span> <span class='ident'>network_len</span> <span class='op'>=</span> <span class='number'>200usize</span>;
-        <span class='kw'>let</span> <span class='ident'>nodes_to_remove</span> <span class='op'>=</span> <span class='number'>20usize</span>;
-
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>tables</span> <span class='op'>=</span> <span class='ident'>create_random_routing_tables</span>(<span class='ident'>network_len</span>);
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>addresses</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Vec</span>::<span class='ident'>with_capacity</span>(<span class='ident'>network_len</span>);
-
-        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>push</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>());
-            <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-                <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>j</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
-                <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>add</span>(<span class='ident'>name</span>);
-            }
-        }
-
-        <span class='comment'>// now remove nodes</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>drop_vec</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Vec</span>::<span class='ident'>with_capacity</span>(<span class='ident'>nodes_to_remove</span>);
-        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>nodes_to_remove</span> {
-            <span class='ident'>drop_vec</span>.<span class='ident'>push</span>(<span class='ident'>addresses</span>[<span class='ident'>i</span>]);
-        }
-
-        <span class='ident'>tables</span>.<span class='ident'>truncate</span>(<span class='ident'>nodes_to_remove</span>);
-
-        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-            <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>drop_vec</span>.<span class='ident'>len</span>() {
-                <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>remove</span>(<span class='kw-2'>&amp;</span><span class='ident'>drop_vec</span>[<span class='ident'>j</span>]).<span class='ident'>is_some</span>();
-            }
-        }
-        <span class='comment'>// remove IDs too</span>
-        <span class='ident'>addresses</span>.<span class='ident'>truncate</span>(<span class='ident'>nodes_to_remove</span>);
-
-        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>()));
-            <span class='kw'>let</span> <span class='ident'>group</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>other_close_nodes</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>()).<span class='ident'>unwrap</span>();
-            <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>group</span>.<span class='ident'>len</span>(), <span class='ident'>cmp</span>::<span class='ident'>min</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>len</span>()));
         }
     }
 
@@ -2495,27 +2401,25 @@
         <span class='kw'>let</span> <span class='ident'>network_len</span> <span class='op'>=</span> <span class='number'>100usize</span>;
 
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>tables</span> <span class='op'>=</span> <span class='ident'>create_random_routing_tables</span>(<span class='ident'>network_len</span>);
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>addresses</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>XorName</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='ident'>Vec</span>::<span class='ident'>with_capacity</span>(<span class='ident'>network_len</span>);
-
-        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>push</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>());
-            <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-                <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>j</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>();
-                <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>add</span>(<span class='ident'>name</span>);
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>addresses</span> <span class='op'>=</span> <span class='ident'>tables</span>.<span class='ident'>iter</span>().<span class='ident'>map</span>(<span class='ident'>RoutingTable</span>::<span class='ident'>our_name</span>).<span class='ident'>cloned</span>().<span class='ident'>collect_vec</span>();
+        <span class='kw'>for</span> <span class='ident'>table</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>tables</span> {
+            <span class='kw'>for</span> <span class='ident'>name</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='ident'>addresses</span> {
+                <span class='kw'>if</span> <span class='ident'>table</span>.<span class='ident'>need_to_add</span>(<span class='ident'>name</span>) {
+                    <span class='kw'>let</span> _ <span class='op'>=</span> <span class='ident'>table</span>.<span class='ident'>add</span>(<span class='op'>*</span><span class='ident'>name</span>);
+                }
             }
         }
 
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>tested_close_target</span> <span class='op'>=</span> <span class='boolval'>false</span>;
-        <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='number'>0</span>..<span class='ident'>tables</span>.<span class='ident'>len</span>() {
-            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>().<span class='ident'>clone</span>()));
+        <span class='kw'>for</span> <span class='ident'>table</span> <span class='kw'>in</span> <span class='ident'>tables</span> {
+            <span class='ident'>addresses</span>.<span class='ident'>sort_by</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='op'>*</span><span class='ident'>make_sort_predicate</span>(<span class='op'>*</span><span class='ident'>table</span>.<span class='ident'>our_name</span>()));
             <span class='comment'>// if target is in close group return the whole close group excluding target</span>
-            <span class='kw'>for</span> <span class='ident'>j</span> <span class='kw'>in</span> <span class='number'>1</span>..<span class='ident'>GROUP_SIZE</span> {
-                <span class='kw'>if</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>addresses</span>[<span class='ident'>j</span>]) {
-                    <span class='kw'>let</span> <span class='ident'>dst</span> <span class='op'>=</span> <span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='ident'>addresses</span>[<span class='ident'>j</span>]);
-                    <span class='kw'>let</span> <span class='ident'>far_name</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>our_name</span>(), <span class='number'>0</span>, <span class='number'>255</span>);
-                    <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>target_nodes</span>(<span class='ident'>dst</span>, <span class='kw-2'>&amp;</span><span class='ident'>far_name</span>, <span class='number'>1</span>).<span class='ident'>is_empty</span>());
-                    <span class='kw'>let</span> <span class='ident'>target_close_group</span> <span class='op'>=</span> <span class='ident'>tables</span>[<span class='ident'>i</span>].<span class='ident'>target_nodes</span>(<span class='ident'>dst</span>, <span class='kw-2'>&amp;</span><span class='ident'>far_name</span>, <span class='number'>0</span>);
-                    <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>target_close_group</span>.<span class='ident'>len</span>());
+            <span class='kw'>for</span> <span class='ident'>address</span> <span class='kw'>in</span> <span class='ident'>addresses</span>.<span class='ident'>iter</span>().<span class='ident'>take</span>(<span class='ident'>GROUP_SIZE</span>) {
+                <span class='kw'>if</span> <span class='ident'>table</span>.<span class='ident'>is_close</span>(<span class='ident'>address</span>) {
+                    <span class='kw'>let</span> <span class='ident'>dst</span> <span class='op'>=</span> <span class='ident'>Destination</span>::<span class='ident'>Group</span>(<span class='op'>*</span><span class='ident'>address</span>);
+                    <span class='kw'>let</span> <span class='ident'>far_name</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='ident'>table</span>.<span class='ident'>our_name</span>(), <span class='number'>0</span>, <span class='number'>255</span>);
+                    <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>dst</span>, <span class='kw-2'>&amp;</span><span class='ident'>far_name</span>, <span class='number'>1</span>).<span class='ident'>is_empty</span>());
+                    <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>GROUP_SIZE</span> <span class='op'>-</span> <span class='number'>1</span>, <span class='ident'>table</span>.<span class='ident'>target_nodes</span>(<span class='ident'>dst</span>, <span class='kw-2'>&amp;</span><span class='ident'>far_name</span>, <span class='number'>0</span>).<span class='ident'>len</span>());
                     <span class='comment'>// TODO: Reconsider re-swarm prevention and enable or delete this.</span>
                     <span class='comment'>// for close_node in target_close_group {</span>
                     <span class='comment'>//     assert!(tables[i].target_nodes(dst, &amp;close_node, 0).is_empty());</span>
@@ -2530,7 +2434,7 @@
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
     <span class='kw'>fn</span> <span class='ident'>trivial_functions_test</span>() {
         <span class='comment'>// unchecked - but also check has_node function</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='prelude-val'>None</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>find</span>(<span class='op'>|</span>_<span class='op'>|</span> <span class='boolval'>true</span>));
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='number'>0</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>len</span>());
         <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='number'>0</span>, <span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>furthest_close_bucket</span>());
@@ -2612,7 +2516,7 @@
 
     <span class='attribute'>#[<span class='ident'>test</span>]</span>
     <span class='kw'>fn</span> <span class='ident'>allow_connection</span>() {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>test</span> <span class='op'>=</span> <span class='ident'>TestEnvironment</span>::<span class='ident'>default</span>();
 
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>allow_connection</span>(<span class='kw-2'>&amp;</span><span class='ident'>rand</span>::<span class='ident'>random</span>()));
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>allow_connection</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>));
@@ -2650,18 +2554,26 @@
 
         <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>get_contact</span>(<span class='kw-2'>&amp;</span><span class='ident'>test</span>.<span class='ident'>name</span>, <span class='number'>3</span>, <span class='number'>99</span>);
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>));
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>.<span class='ident'>with_flipped_bit</span>(<span class='number'>3</span>).<span class='ident'>unwrap</span>()));
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>.<span class='ident'>with_flipped_bit</span>(<span class='number'>3</span>).<span class='ident'>expect</span>(<span class='string'>&quot;failed to flip bit&quot;</span>)));
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close_to_bucket_of</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>)); <span class='comment'>// Close to the 3rd bucket of name.</span>
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>allow_connection</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>));
 
-        <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>name</span>.<span class='ident'>with_flipped_bit</span>(<span class='number'>2</span>).<span class='ident'>unwrap</span>().<span class='ident'>with_flipped_bit</span>(<span class='number'>3</span>).<span class='ident'>unwrap</span>();
+        <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>name</span>
+            .<span class='ident'>with_flipped_bit</span>(<span class='number'>2</span>)
+            .<span class='ident'>expect</span>(<span class='string'>&quot;failed to flip bit&quot;</span>)
+            .<span class='ident'>with_flipped_bit</span>(<span class='number'>3</span>)
+            .<span class='ident'>expect</span>(<span class='string'>&quot;failed to flip bit&quot;</span>);
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>));
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close_to_bucket_of</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>));
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>allow_connection</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>)); <span class='comment'>// Would be closest entry in bucket 2.</span>
 
-        <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>name</span>.<span class='ident'>with_flipped_bit</span>(<span class='number'>0</span>).<span class='ident'>unwrap</span>().<span class='ident'>with_flipped_bit</span>(<span class='number'>1</span>).<span class='ident'>unwrap</span>();
+        <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>test</span>.<span class='ident'>name</span>
+            .<span class='ident'>with_flipped_bit</span>(<span class='number'>0</span>)
+            .<span class='ident'>expect</span>(<span class='string'>&quot;failed to flip bit&quot;</span>)
+            .<span class='ident'>with_flipped_bit</span>(<span class='number'>1</span>)
+            .<span class='ident'>expect</span>(<span class='string'>&quot;failed to flip bit&quot;</span>);
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='op'>!</span><span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>));
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>.<span class='ident'>with_flipped_bit</span>(<span class='number'>1</span>).<span class='ident'>unwrap</span>()));
+        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>.<span class='ident'>with_flipped_bit</span>(<span class='number'>1</span>).<span class='ident'>expect</span>(<span class='string'>&quot;failed to flip bit&quot;</span>)));
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>is_close_to_bucket_of</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>)); <span class='comment'>// Close to the 1st bucket of name.</span>
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>test</span>.<span class='ident'>table</span>.<span class='ident'>allow_connection</span>(<span class='kw-2'>&amp;</span><span class='ident'>name</span>));
     }
