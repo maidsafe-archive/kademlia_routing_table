@@ -429,7 +429,7 @@ impl Network {
             let node0 = self.get_node_mut_ref(node0);
 
             if let Some(AddedNodeDetails { must_notify, .. }) = node0.table
-                                                                     .add(Contact(node1_name)) {
+                .add(Contact(node1_name)) {
                 let _ = node0.connections.insert(node1_name.clone(), Connection(node1_endpoint));
                 must_notify
             } else {

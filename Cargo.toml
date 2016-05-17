@@ -10,9 +10,9 @@ repository = "https://github.com/maidsafe/kademlia_routing_table"
 version = "0.5.1"
 
 [dependencies]
-clippy = {version = "~0.0.63", optional = true}
-itertools = "~0.4.13"
+clippy = {version = "~0.0.67", optional = true}
+itertools = "~0.4.15"
 log = "~0.3.6"
-maidsafe_utilities = "~0.5.3"
+maidsafe_utilities = "~0.5.4"
 rand = "~0.3.14"
 xor_name = "~0.1.0"
