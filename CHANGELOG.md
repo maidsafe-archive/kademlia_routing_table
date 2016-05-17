@@ -1,5 +1,10 @@
 # kademlia_routing_table - Change Log
 
+## [0.5.2]
+- Reduce `PARALLELISM` to 4 again to reduce redundant traffic.
+- Swarm a message if the target is not in the routing table.
+- Fix several tests.
+
 ## [0.5.1]
 - Extend the API to facilitate finding unneeded connections and querying bucket
   sizes.
