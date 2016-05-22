@@ -46,18 +46,26 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-10' class='srclink' href='../src/kademlia_routing_table/src/contact_info.rs.html#21-24' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-10' class='srclink' href='../src/kademlia_routing_table/src/contact_info.rs.html#21-27' title='goto source code'>[src]</a></span></h1>
 <pre class='rust trait'>pub trait ContactInfo: <a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/cmp/trait.Eq.html' title='core::cmp::Eq'>Eq</a> {
-    fn <a href='#tymethod.name' class='fnname'>name</a>(&amp;self) -&gt; &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a>;
+    type Name;
+    fn <a href='#tymethod.name' class='fnname'>name</a>(&amp;self) -&gt; &amp;Self::<a class='trait' href='../kademlia_routing_table/trait.ContactInfo.html' title='kademlia_routing_table::ContactInfo'>Name</a>;
 }</pre><div class='docblock'><p>Contact info about a node in the network.</p>
 </div>
+            <h2 id='associated-types'>Associated Types</h2>
+            <div class='methods'>
+        <h3 id='associatedtype.Name' class='method stab '><code>type Name</code></h3><div class='docblock'><p>The type of node names. This should implement the <code>Xorable</code> trait.</p>
+</div></div>
             <h2 id='required-methods'>Required Methods</h2>
             <div class='methods'>
-        <h3 id='tymethod.name' class='method stab '><code>fn <a href='#tymethod.name' class='fnname'>name</a>(&amp;self) -&gt; &amp;<a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a></code></h3><div class='docblock'><p>Returns the name of this contact.</p>
+        <h3 id='tymethod.name' class='method stab '><code>fn <a href='#tymethod.name' class='fnname'>name</a>(&amp;self) -&gt; &amp;Self::<a class='trait' href='../kademlia_routing_table/trait.ContactInfo.html' title='kademlia_routing_table::ContactInfo'>Name</a></code></h3><div class='docblock'><p>Returns the name of this contact.</p>
 </div></div>
         <h2 id='implementors'>Implementors</h2>
         <ul class='item-list' id='implementors-list'>
-    </ul><script type="text/javascript" async
+    <li><code>impl <a class='trait' href='../kademlia_routing_table/trait.ContactInfo.html' title='kademlia_routing_table::ContactInfo'>ContactInfo</a> for <a class='struct' href='../xor_name/struct.XorName.html' title='xor_name::XorName'>XorName</a></code></li>
+<li><code>impl <a class='trait' href='../kademlia_routing_table/trait.ContactInfo.html' title='kademlia_routing_table::ContactInfo'>ContactInfo</a> for <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u64.html'>u64</a></code></li>
+<li><code>impl <a class='trait' href='../kademlia_routing_table/trait.ContactInfo.html' title='kademlia_routing_table::ContactInfo'>ContactInfo</a> for <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a></code></li>
+</ul><script type="text/javascript" async
                               src="../implementors/kademlia_routing_table/trait.ContactInfo.js">
                       </script></section>
     <section id='search' class="content hidden"></section>

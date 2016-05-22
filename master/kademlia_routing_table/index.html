@@ -46,7 +46,7 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-0' class='srclink' href='../src/kademlia_routing_table/src/lib.rs.html#18-1268' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-0' class='srclink' href='../src/kademlia_routing_table/src/lib.rs.html#18-901' title='goto source code'>[src]</a></span></h1>
 <div class='docblock'><p>A routing table to manage contacts for a node in a <a href="https://en.wikipedia.org/wiki/Kademlia">Kademlia</a> distributed hash table.</p>
 
 <p>This crate uses the Kademlia mechanism for routing messages in a peer-to-peer network, and
@@ -54,36 +54,39 @@ generalises it to provide redundancy in every step: for senders, messages in tra
 receivers. It contains the routing table and the functionality to decide via which of its
 entries to route a message, but not the networking functionality itself.</p>
 
+<p>It also provides methods to decide which other nodes to connect to, depending on a parameter
+<code>bucket_size</code> (see below).</p>
+
 <h1 id='addresses-and-distance-functions' class='section-header'><a href='#addresses-and-distance-functions'>Addresses and distance functions</a></h1>
-<p>Nodes in the network are addressed with a <a href="../xor_name/struct.XorName.html"><code>XorName</code></a>, a 512-bit unsigned integer. The
-<em><a href="https://en.wikipedia.org/wiki/Exclusive_or#Bitwise_operation">XOR</a> distance</em> between two nodes with addresses <code>x</code> and <code>y</code> is <code>x ^ y</code>. This
+<p>Nodes in the network are addressed with a <a href="trait.Xorable.html"><code>Xorable</code></a> type, an unsigned integer with <code>B</code>
+bits. The <em><a href="https://en.wikipedia.org/wiki/Exclusive_or#Bitwise_operation">XOR</a> distance</em> between two nodes with addresses <code>x</code> and <code>y</code> is <code>x ^ y</code>. This
 <a href="https://en.wikipedia.org/wiki/Metric_%28mathematics%29">distance function</a> has the property that no two points ever have the same distance from a
 given point, i. e. if <code>x ^ y == x ^ z</code>, then <code>y == z</code>. This property allows us to define the
-<em>close group</em> of an address as the <a href="constant.GROUP_SIZE.html"><code>GROUP_SIZE</code></a> closest nodes to that address,
-guaranteeing that the close group will always have exactly <code>GROUP_SIZE</code> members (unless, of
-course, the whole network has less than <code>GROUP_SIZE</code> nodes).</p>
+<code>k</code>-*close group* of an address as the <code>k</code> closest nodes to that address, guaranteeing that the
+close group will always have exactly <code>k</code> members (unless, of course, the whole network has less
+than <code>k</code> nodes).</p>
 
 <p>The routing table is associated with a node with some name <code>x</code>, and manages a number of
-contacts to other nodes, sorting them into up to 512 <em>buckets</em>, depending on their XOR
+contacts to other nodes, sorting them into up to <code>B</code> <em>buckets</em>, depending on their XOR
 distance from <code>x</code>:</p>
 
 <ul>
-<li>If 2<sup>512</sup> &gt; <code>x ^ y</code> &gt;= 2<sup>511</sup>, then y is in bucket 0.</li>
-<li>If 2<sup>511</sup> &gt; <code>x ^ y</code> &gt;= 2<sup>510</sup>, then y is in bucket 1.</li>
-<li>If 2<sup>510</sup> &gt; <code>x ^ y</code> &gt;= 2<sup>509</sup>, then y is in bucket 2.</li>
+<li>If 2<sup><code>B</code></sup> &gt; <code>x ^ y</code> &gt;= 2<sup><code>B - 1</code></sup>, then y is in bucket 0.</li>
+<li>If 2<sup><code>B - 1</code></sup> &gt; <code>x ^ y</code> &gt;= 2<sup><code>B - 2</code></sup>, then y is in bucket 1.</li>
+<li>If 2<sup><code>B - 2</code></sup> &gt; <code>x ^ y</code> &gt;= 2<sup><code>B - 3</code></sup>, then y is in bucket 2.</li>
 <li>...</li>
-<li>If 2 &gt; <code>x ^ y</code> &gt;= 1, then y is in bucket 511.</li>
+<li>If 2 &gt; <code>x ^ y</code> &gt;= 1, then y is in bucket <code>B - 1</code>.</li>
 </ul>
 
 <p>Equivalently, <code>y</code> is in bucket <code>n</code> if the longest common prefix of <code>x</code> and <code>y</code> has length <code>n</code>,
 i. e. the first binary digit in which <code>x</code> and <code>y</code> disagree is the <code>(n + 1)</code>-th one. We call the
 length of the remainder, without the common prefix, the <em>bucket distance</em> of <code>x</code> and <code>y</code>. Hence
-<code>x</code> and <code>y</code> have bucket distance <code>512 - n</code> if and only if <code>y</code> belongs in bucket number <code>n</code>.</p>
+<code>x</code> and <code>y</code> have bucket distance <code>B - n</code> if and only if <code>y</code> belongs in bucket number <code>n</code>.</p>
 
 <p>The bucket distance is coarser than the XOR distance: Whenever the bucket distance from <code>y</code> to
 <code>x</code> is less than the bucket distance from <code>z</code> to <code>x</code>, then <code>y ^ x &lt; z ^ x</code>. But not vice-versa:
 Often <code>y ^ x &lt; z ^ x</code>, even if the bucket distances are equal. The XOR distance ranges from 0
-to 2<sup>512</sup> (exclusive), while the bucket distance ranges from 0 to 512 (inclusive).</p>
+to 2<sup><code>B</code></sup> (exclusive), while the bucket distance ranges from 0 to <code>B</code> (inclusive).</p>
 
 <h1 id='guarantees' class='section-header'><a href='#guarantees'>Guarantees</a></h1>
 <p>The routing table provides functions to decide, for a message with a given destination, which
@@ -91,32 +94,36 @@ nodes in the table to pass the message on to, so that it is guaranteed that:</p>
 
 <ul>
 <li>If the destination is the address of a node, the message will reach that node after at most
-511 hops.</li>
-<li>Otherwise the message will reach every member of the close group of the destination address,
-i. e. all <code>GROUP_SIZE</code> nodes in the network that are XOR-closest to that address, and each
-node knows whether it belongs to that group.</li>
+<code>B - 1</code> hops.</li>
+<li>Otherwise, if the destination is a <code>k</code>-close group with <code>k &lt;= bucket_size</code>, the message will
+reach every member of the <code>k</code>-close group of the destination address, i. e. all <code>k</code> nodes in
+the network that are XOR-closest to that address, and each node knows whether it belongs to
+that group.</li>
 <li>Each node in a given address&#39; close group is connected to each other node in that group. In
 particular, every node is connected to its own close group.</li>
-<li>The number of total hop messages created for each message is at most <code>PARALLELISM</code> * 512.</li>
-<li>For each node there are at most 512 * <code>GROUP_SIZE</code> other nodes in the network for which it can
-obtain the IP address, at any point in time.</li>
+<li>The number of total hop messages created for each message is at most <code>B</code>.</li>
+<li>For each node there are at most <code>B * bucket_size</code> other nodes in the network that would
+accept a connection, at any point in time. All other nodes do not need to disclose their IP
+address.</li>
+<li>There are <code>bucket_size</code> different paths along which a message can be sent, to provide
+redundancy.</li>
 </ul>
 
 <p>However, to be able to make these guarantees, the routing table must be filled with
 sufficiently many contacts. Specifically, the following invariant must be ensured:</p>
 
 <blockquote>
-<p>Whenever a bucket <code>n</code> has fewer than <code>GROUP_SIZE</code> entries, it contains <em>all</em> nodes in the
-network with bucket distance <code>512 - n</code>.</p>
+<p>Whenever a bucket <code>n</code> has fewer than <code>bucket_size</code> entries, it contains <em>all</em> nodes in the
+network with bucket distance <code>B - n</code>.</p>
 </blockquote>
 
 <p>The user of this crate therefore needs to make sure that whenever a node joins or leaves, all
 affected nodes in the network update their routing tables accordingly.</p>
 
 <h1 id='resilience-against-malfunctioning-nodes' class='section-header'><a href='#resilience-against-malfunctioning-nodes'>Resilience against malfunctioning nodes</a></h1>
-<p>In each hop during routing, messages are passed on to <code>PARALLELISM</code> other nodes, so that even
-if <code>PARALLELISM - 1</code> nodes between the source and destination fail, they are still successfully
-delivered.</p>
+<p>The sender may choose to send a message via up to <code>bucket_size</code> distinct paths to provide
+redundancy against malfunctioning hop nodes. These paths are likely, but not guaranteed, to be
+disjoint.</p>
 
 <p>The concept of close groups exists to provide resilience even against failures of the source or
 destination itself: If every member of a group tries to send the same message, it will arrive
@@ -125,8 +132,8 @@ even if some of them malfunction.</p>
 
 <p>Close groups can thus be used as inherently redundant authorities in the network that messages
 can be sent to and received from, using a consensus algorithm: A message from a group authority
-is considered to be legitimate, if at least <code>QUORUM_SIZE</code> group members have sent a message with
-the same content.</p>
+is considered to be legitimate, if a majority of group members have sent a message with the same
+content.</p>
 </div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table>
                     <tr class=' module-item'>
@@ -146,6 +153,14 @@ the same content.</p>
                     </tr>
                 
                     <tr class=' module-item'>
+                        <td><a class='struct' href='struct.Iter.html'
+                               title='kademlia_routing_table::Iter'>Iter</a></td>
+                        <td class='docblock short'>
+                             <p>Immutable iterator over the entries of a <code>RoutingTable</code>.</p>
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
                         <td><a class='struct' href='struct.RoutingTable.html'
                                title='kademlia_routing_table::RoutingTable'>RoutingTable</a></td>
                         <td class='docblock short'>
@@ -161,23 +176,6 @@ the same content.</p>
                              <p>A message destination.</p>
                         </td>
                     </tr>
-                </table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
-<table>
-                    <tr class=' module-item'>
-                        <td><a class='constant' href='constant.GROUP_SIZE.html'
-                               title='kademlia_routing_table::GROUP_SIZE'>GROUP_SIZE</a></td>
-                        <td class='docblock short'>
-                             <p>The size of a close group.</p>
-                        </td>
-                    </tr>
-                
-                    <tr class=' module-item'>
-                        <td><a class='constant' href='constant.PARALLELISM.html'
-                               title='kademlia_routing_table::PARALLELISM'>PARALLELISM</a></td>
-                        <td class='docblock short'>
-                             <p>The number of nodes a message is sent to in each hop for redundancy.</p>
-                        </td>
-                    </tr>
                 </table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
 <table>
                     <tr class=' module-item'>
@@ -185,6 +183,14 @@ the same content.</p>
                                title='kademlia_routing_table::ContactInfo'>ContactInfo</a></td>
                         <td class='docblock short'>
                              <p>Contact info about a node in the network.</p>
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='trait' href='trait.Xorable.html'
+                               title='kademlia_routing_table::Xorable'>Xorable</a></td>
+                        <td class='docblock short'>
+                             <p>A sequence of bits, as a point in XOR space.</p>
                         </td>
                     </tr>
                 </table></section>
