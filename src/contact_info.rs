@@ -19,6 +19,35 @@ use xor_name::XorName;
 
 /// Contact info about a node in the network.
 pub trait ContactInfo: Clone + Eq {
+    /// The type of node names. This should implement the `Xorable` trait.
+    type Name;
+
     /// Returns the name of this contact.
-    fn name(&self) -> &XorName;
+    fn name(&self) -> &Self::Name;
+}
+
+impl ContactInfo for XorName {
+    type Name = XorName;
+
+    fn name(&self) -> &XorName {
+        self
+    }
+}
+
+impl ContactInfo for u64 {
+    type Name = u64;
+
+    fn name(&self) -> &u64 {
+        self
+    }
+}
+
+// This implementation exists mainly to facilitate writing tests. A real network should use enough
+// bits to make the probability of name collisions negligible.
+impl ContactInfo for u8 {
+    type Name = u8;
+
+    fn name(&self) -> &u8 {
+        self
+    }
 }

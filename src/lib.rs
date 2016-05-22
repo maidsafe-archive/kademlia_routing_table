@@ -50,41 +50,43 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 //! receivers. It contains the routing table and the functionality to decide via which of its
 //! entries to route a message, but not the networking functionality itself.
 //!
+//! It also provides methods to decide which other nodes to connect to, depending on a parameter
+//! `bucket_size` (see below).
+//!
 //!
 //! # Addresses and distance functions
 //!
-//! Nodes in the network are addressed with a [`XorName`][2], a 512-bit unsigned integer. The
-//! *[XOR][3] distance* between two nodes with addresses `x` and `y` is `x ^ y`. This
+//! Nodes in the network are addressed with a [`Xorable`][2] type, an unsigned integer with `B`
+//! bits. The *[XOR][3] distance* between two nodes with addresses `x` and `y` is `x ^ y`. This
 //! [distance function][4] has the property that no two points ever have the same distance from a
 //! given point, i. e. if `x ^ y == x ^ z`, then `y == z`. This property allows us to define the
-//! *close group* of an address as the [`GROUP_SIZE`][5] closest nodes to that address,
-//! guaranteeing that the close group will always have exactly `GROUP_SIZE` members (unless, of
-//! course, the whole network has less than `GROUP_SIZE` nodes).
+//! `k`-*close group* of an address as the `k` closest nodes to that address, guaranteeing that the
+//! close group will always have exactly `k` members (unless, of course, the whole network has less
+//! than `k` nodes).
 //!
-//! [2]: ../xor_name/struct.XorName.html
+//! [2]: trait.Xorable.html
 //! [3]: https://en.wikipedia.org/wiki/Exclusive_or#Bitwise_operation
 //! [4]: https://en.wikipedia.org/wiki/Metric_%28mathematics%29
-//! [5]: constant.GROUP_SIZE.html
 //!
 //! The routing table is associated with a node with some name `x`, and manages a number of
-//! contacts to other nodes, sorting them into up to 512 *buckets*, depending on their XOR
+//! contacts to other nodes, sorting them into up to `B` *buckets*, depending on their XOR
 //! distance from `x`:
 //!
-//! * If 2<sup>512</sup> > `x ^ y` >= 2<sup>511</sup>, then y is in bucket 0.
-//! * If 2<sup>511</sup> > `x ^ y` >= 2<sup>510</sup>, then y is in bucket 1.
-//! * If 2<sup>510</sup> > `x ^ y` >= 2<sup>509</sup>, then y is in bucket 2.
+//! * If 2<sup>`B`</sup> > `x ^ y` >= 2<sup>`B - 1`</sup>, then y is in bucket 0.
+//! * If 2<sup>`B - 1`</sup> > `x ^ y` >= 2<sup>`B - 2`</sup>, then y is in bucket 1.
+//! * If 2<sup>`B - 2`</sup> > `x ^ y` >= 2<sup>`B - 3`</sup>, then y is in bucket 2.
 //! * ...
-//! * If 2 > `x ^ y` >= 1, then y is in bucket 511.
+//! * If 2 > `x ^ y` >= 1, then y is in bucket `B - 1`.
 //!
 //! Equivalently, `y` is in bucket `n` if the longest common prefix of `x` and `y` has length `n`,
 //! i. e. the first binary digit in which `x` and `y` disagree is the `(n + 1)`-th one. We call the
 //! length of the remainder, without the common prefix, the *bucket distance* of `x` and `y`. Hence
-//! `x` and `y` have bucket distance `512 - n` if and only if `y` belongs in bucket number `n`.
+//! `x` and `y` have bucket distance `B - n` if and only if `y` belongs in bucket number `n`.
 //!
 //! The bucket distance is coarser than the XOR distance: Whenever the bucket distance from `y` to
 //! `x` is less than the bucket distance from `z` to `x`, then `y ^ x < z ^ x`. But not vice-versa:
 //! Often `y ^ x < z ^ x`, even if the bucket distances are equal. The XOR distance ranges from 0
-//! to 2<sup>512</sup> (exclusive), while the bucket distance ranges from 0 to 512 (inclusive).
+//! to 2<sup>`B`</sup> (exclusive), while the bucket distance ranges from 0 to `B` (inclusive).
 //!
 //!
 //! # Guarantees
@@ -93,21 +95,25 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 //! nodes in the table to pass the message on to, so that it is guaranteed that:
 //!
 //! * If the destination is the address of a node, the message will reach that node after at most
-//!   511 hops.
-//! * Otherwise the message will reach every member of the close group of the destination address,
-//!   i. e. all `GROUP_SIZE` nodes in the network that are XOR-closest to that address, and each
-//!   node knows whether it belongs to that group.
+//!   `B - 1` hops.
+//! * Otherwise, if the destination is a `k`-close group with `k <= bucket_size`, the message will
+//!   reach every member of the `k`-close group of the destination address, i. e. all `k` nodes in
+//!   the network that are XOR-closest to that address, and each node knows whether it belongs to
+//!   that group.
 //! * Each node in a given address' close group is connected to each other node in that group. In
 //!   particular, every node is connected to its own close group.
-//! * The number of total hop messages created for each message is at most `PARALLELISM` * 512.
-//! * For each node there are at most 512 * `GROUP_SIZE` other nodes in the network for which it can
-//!   obtain the IP address, at any point in time.
+//! * The number of total hop messages created for each message is at most `B`.
+//! * For each node there are at most `B * bucket_size` other nodes in the network that would
+//!   accept a connection, at any point in time. All other nodes do not need to disclose their IP
+//!   address.
+//! * There are `bucket_size` different paths along which a message can be sent, to provide
+//!   redundancy.
 //!
 //! However, to be able to make these guarantees, the routing table must be filled with
 //! sufficiently many contacts. Specifically, the following invariant must be ensured:
 //!
-//! > Whenever a bucket `n` has fewer than `GROUP_SIZE` entries, it contains *all* nodes in the
-//! > network with bucket distance `512 - n`.
+//! > Whenever a bucket `n` has fewer than `bucket_size` entries, it contains *all* nodes in the
+//! > network with bucket distance `B - n`.
 //!
 //! The user of this crate therefore needs to make sure that whenever a node joins or leaves, all
 //! affected nodes in the network update their routing tables accordingly.
@@ -115,9 +121,9 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 //!
 //! # Resilience against malfunctioning nodes
 //!
-//! In each hop during routing, messages are passed on to `PARALLELISM` other nodes, so that even
-//! if `PARALLELISM - 1` nodes between the source and destination fail, they are still successfully
-//! delivered.
+//! The sender may choose to send a message via up to `bucket_size` distinct paths to provide
+//! redundancy against malfunctioning hop nodes. These paths are likely, but not guaranteed, to be
+//! disjoint.
 //!
 //! The concept of close groups exists to provide resilience even against failures of the source or
 //! destination itself: If every member of a group tries to send the same message, it will arrive
@@ -126,57 +132,78 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 //!
 //! Close groups can thus be used as inherently redundant authorities in the network that messages
 //! can be sent to and received from, using a consensus algorithm: A message from a group authority
-//! is considered to be legitimate, if at least `QUORUM_SIZE` group members have sent a message with
-//! the same content.
+//! is considered to be legitimate, if a majority of group members have sent a message with the same
+//! content.
 
 #[macro_use]
 #[allow(unused_extern_crates)]
 extern crate maidsafe_utilities;
 
 extern crate itertools;
-#[cfg(test)]
-extern crate rand;
 extern crate xor_name;
 
 mod contact_info;
 mod result;
+mod xorable;
 
 pub use contact_info::ContactInfo;
 pub use result::{AddedNodeDetails, DroppedNodeDetails};
+pub use xorable::Xorable;
 
 use itertools::*;
-use std::cmp;
-use xor_name::XorName;
+use std::{cmp, iter, slice};
 
-/// The size of a close group.
-///
-/// The `GROUP_SIZE` XOR-closest nodes to an address constitute the *close group* with that
-/// address.
-pub const GROUP_SIZE: usize = 8;
+type SliceFn<T> = fn(&Vec<T>) -> slice::Iter<T>;
 
-/// The number of nodes in a group that represent a quorum.
-///
-/// A message from a close group should be considered legitimate if at least `QUORUM_SIZE` members
-/// sent it.
-const QUORUM_SIZE: usize = 5;
+/// Immutable iterator over the entries of a `RoutingTable`.
+pub struct Iter<'a, T: 'a> {
+    inner: iter::FlatMap<iter::Rev<slice::Iter<'a, Vec<T>>>, slice::Iter<'a, T>, SliceFn<T>>,
+}
 
-/// The number of nodes a message is sent to in each hop for redundancy.
-///
-/// See [`target_nodes`](struct.RoutingTable.html#method.target_nodes) for details.
-pub const PARALLELISM: usize = 4;
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<&'a T> {
+        self.inner.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
 
 /// A message destination.
-#[derive(Copy, Clone, Debug)]
-pub enum Destination {
-    /// The close group of the given address. The message should reach `GROUP_SIZE` nodes.
-    Group(XorName),
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Destination<N> {
+    /// The `k`-group of the given address. The message should reach the `k` closest nodes.
+    Group(N, usize),
     /// The individual node at the given address. The message should reach exactly one node.
-    Node(XorName),
+    Node(N),
 }
+
+impl<N> Destination<N> {
+    /// Returns the name of the destination, i. e. the node or group address.
+    pub fn name(&self) -> &N {
+        match *self {
+            Destination::Group(ref name, _) |
+            Destination::Node(ref name) => name,
+        }
+    }
+
+    /// Returns `true` if the destination os a group, and `false` if it is an individual node.
+    pub fn is_group(&self) -> bool {
+        match *self {
+            Destination::Group(_, _) => true,
+            Destination::Node(_) => false,
+        }
+    }
+}
+
 
 /// A routing table to manage contacts for a node.
 ///
-/// It maintains a list of `XorName`s representing connected peer nodes, and provides algorithms for
+/// It maintains a list of `T::Name`s representing connected peer nodes, and provides algorithms for
 /// routing messages.
 ///
 /// See the [crate documentation](index.html) for details.
@@ -186,14 +213,32 @@ pub struct RoutingTable<T: ContactInfo> {
     buckets: Vec<Vec<T>>,
     /// This nodes' own contact info.
     our_info: T,
+    /// The minimum bucket size.
+    bucket_size: usize,
+    /// The bucket size above which entries are considered undesirable.
+    max_bucket_size: usize,
 }
 
-impl<T: ContactInfo> RoutingTable<T> {
-    /// Creates a new routing table for the node with the given name.
-    pub fn new(our_info: T) -> Self {
+impl<T> RoutingTable<T>
+    where T: ContactInfo,
+          T::Name: PartialEq + Xorable
+{
+    /// Creates a new routing table for the node with the given info.
+    ///
+    /// `bucket_size` specifies the minimum number of bucket entries: Whenever a new node joins the
+    /// network which belongs to a bucket with `< bucket_size` entries, it _must_ be added to that
+    /// bucket. This guarantees that all nodes know which `k`-groups they belong to, for each
+    /// `k <= bucket_size`.
+    ///
+    /// In excess of `bucket_size`, `extra_entries` are considered desired in each bucket. After
+    /// that, additional entries are considered unneeded: If both sides agree, they should
+    /// disconnect.
+    pub fn new(our_info: T, bucket_size: usize, extra_entries: usize) -> Self {
         RoutingTable {
             buckets: vec![],
             our_info: our_info,
+            bucket_size: bucket_size,
+            max_bucket_size: bucket_size + extra_entries,
         }
     }
 
@@ -202,16 +247,19 @@ impl<T: ContactInfo> RoutingTable<T> {
     /// Returns `None` if the contact already existed or was denied (see `allow_connection`).
     /// Otherwise it returns `AddedNodeDetails`.
     pub fn add(&mut self, info: T) -> Option<AddedNodeDetails<T>> {
-        if !self.allow_connection(info.name()) {
-            return None;
-        }
         match self.search(info.name()) {
-            (_, Ok(_)) => None,
+            (bucket_index, Ok(i)) => {
+                self.buckets[bucket_index][i] = info;
+                None
+            }
             (bucket_index, Err(i)) => {
+                if !self.allow_connection(info.name()) {
+                    return None;
+                }
                 if self.buckets.len() <= bucket_index {
                     self.buckets.resize(bucket_index + 1, vec![]);
                 }
-                let must_notify = if self.buckets[bucket_index].len() < GROUP_SIZE {
+                let must_notify = if self.buckets[bucket_index].len() < self.bucket_size {
                     self.buckets
                         .iter()
                         .skip(bucket_index + 1)
@@ -221,24 +269,19 @@ impl<T: ContactInfo> RoutingTable<T> {
                     vec![]
                 };
 
-                let common_groups = self.is_in_any_close_group_with(bucket_index);
+                let common_groups = self.is_in_any_close_group_with(bucket_index, self.bucket_size);
 
                 self.buckets[bucket_index].insert(i, info);
 
                 let unneeded = if common_groups {
                     vec![]
                 } else {
-                    self.buckets[bucket_index]
-                        .iter()
-                        .skip(GROUP_SIZE)
-                        .cloned()
-                        .collect()
+                    self.buckets[bucket_index].iter().skip(self.max_bucket_size).cloned().collect()
                 };
 
                 Some(AddedNodeDetails {
                     must_notify: must_notify,
                     unneeded: unneeded,
-                    common_groups: common_groups,
                 })
             }
         }
@@ -248,30 +291,30 @@ impl<T: ContactInfo> RoutingTable<T> {
     ///
     /// Returns `false` if adding the contact in question would not bring the routing table closer
     /// to satisfy the invariant. It returns `true` if and only if the new contact would be among
-    /// the `GROUP_SIZE` closest nodes in its bucket.
-    pub fn need_to_add(&self, name: &XorName) -> bool {
+    /// the `bucket_size` closest nodes in its bucket.
+    pub fn need_to_add(&self, name: &T::Name) -> bool {
         if name == self.our_name() {
             return false;
         }
         match self.search(name) {
-            (_, Ok(_)) => false,           // They already are in our routing table.
-            (_, Err(i)) => i < GROUP_SIZE, // We need to add them if the bucket is not full.
+            (_, Ok(_)) => false,                 // They already are in our routing table.
+            (_, Err(i)) => i < self.bucket_size, // We need to add them if the bucket is not full.
         }
     }
 
     /// Removes `name` from routing table and returns `true` if we no longer need to stay connected.
     ///
-    /// We should remain connected iff the entry is among the `GROUP_SIZE` closest nodes in its
-    /// bucket or if we have any close groups in common with it.
-    pub fn remove_if_unneeded(&mut self, name: &XorName) -> bool {
+    /// We should remain connected iff the entry is among the `self.max_bucket_size` closest nodes
+    /// in its bucket or if we have any close groups in common with it.
+    pub fn remove_if_unneeded(&mut self, name: &T::Name) -> bool {
         if name == self.our_name() {
             return false;
         }
 
         if let (bucket, Ok(i)) = self.search(name) {
-            if i >= GROUP_SIZE && !self.is_in_any_close_group_with(bucket) {
-                let _ = self.remove(name);
-                return true;
+            if i >= self.max_bucket_size &&
+               !self.is_in_any_close_group_with(bucket, self.bucket_size) {
+                return self.remove(name).is_some();
             }
         }
 
@@ -284,44 +327,14 @@ impl<T: ContactInfo> RoutingTable<T> {
     ///
     /// * they already are one of our contacts,
     /// * we need them in our routing table to satisfy the invariant or
-    /// * we are in the close group of one of their bucket addresses.
-    pub fn allow_connection(&self, name: &XorName) -> bool {
+    /// * we are in the `bucket_size`-group of one of their bucket addresses.
+    pub fn allow_connection(&self, name: &T::Name) -> bool {
         if name == self.our_name() {
             return false;
         }
         match self.search(name) {
             (_, Ok(_)) => true,
-            (_, Err(i)) => i < GROUP_SIZE || self.is_close_to_bucket_of(name),
-        }
-    }
-
-    /// Returns the current calculated quorum size.
-    ///
-    /// If it is known that the network has at least `GROUP_SIZE` nodes, this returns the constant
-    /// `QUORUM_SIZE`. For networks smaller than that, the quorum might not be reachable, so a
-    /// smaller number is computed which represents a strict majority in the current network.
-    pub fn dynamic_quorum_size(&self) -> usize {
-        let network_size = self.len() + 1; // Routing table entries plus this node itself.
-        if network_size >= GROUP_SIZE {
-            QUORUM_SIZE
-        } else {
-            cmp::max(network_size * QUORUM_SIZE / GROUP_SIZE,
-                     network_size / 2 + 1)
-        }
-    }
-
-    /// Returns the bucket index of the furthest close node, or `0` if the table is empty.
-    pub fn furthest_close_bucket(&self) -> usize {
-        let mut node_count = 0;
-        for (bucket_index, bucket_len) in self.buckets.iter().map(Vec::len).enumerate().rev() {
-            node_count += bucket_len;
-            if node_count >= GROUP_SIZE {
-                return bucket_index;
-            }
-        }
-        match self.buckets.iter().position(|b| !b.is_empty()) {
-            None => 0,
-            Some(i) => i,
+            (_, Err(i)) => i < self.bucket_size || self.is_close_to_bucket_of(name),
         }
     }
 
@@ -329,61 +342,47 @@ impl<T: ContactInfo> RoutingTable<T> {
     ///
     /// If no entry with that name is found, `None` is returned. Otherwise, the entry is removed
     /// from the routing table and `DroppedNodeDetails` are returned.
-    pub fn remove(&mut self, name: &XorName) -> Option<DroppedNodeDetails> {
-        match self.search(name) {
-            (_, Err(_)) => None,
-            (bucket_index, Ok(i)) => {
-                let common_groups = self.is_in_any_close_group_with(bucket_index);
-                let incomplete_bucket = if self.buckets[bucket_index].len() == GROUP_SIZE {
-                    Some(bucket_index)
-                } else {
-                    None
-                };
-                let _ = self.buckets[bucket_index].remove(i);
-                while self.buckets.last().map_or(false, Vec::is_empty) {
-                    let _ = self.buckets.pop();
-                }
-                // TODO: Remove trailing empty buckets?
-                Some(DroppedNodeDetails {
-                    incomplete_bucket: incomplete_bucket,
-                    common_groups: common_groups,
-                })
+    pub fn remove(&mut self, name: &T::Name) -> Option<DroppedNodeDetails> {
+        if let (bucket_index, Ok(i)) = self.search(name) {
+            let incomplete_bucket = if self.buckets[bucket_index].len() == self.bucket_size {
+                Some(bucket_index)
+            } else {
+                None
+            };
+            let _ = self.buckets[bucket_index].remove(i);
+            while self.buckets.last().map_or(false, Vec::is_empty) {
+                let _ = self.buckets.pop();
             }
+            Some(DroppedNodeDetails { incomplete_bucket: incomplete_bucket })
+        } else {
+            None
         }
     }
 
     /// Returns a collection of nodes to which a message should be sent onwards.
     ///
-    /// If the message is addressed at a group we are a member of and the previous `hop` is not,
-    /// this returns all other members of that group once, and an empty collection for all further
-    /// copies.
+    /// If the message is addressed at a group we are a member of, this returns all other members of
+    /// that group.
     ///
     /// If the message is addressed at an individual node that is directly connected to us, this
-    /// returns the destination node once, and an empty collection for all further copies.
+    /// returns the destination node.
     ///
     /// If we are the individual recipient, it also returns an empty collection.
     ///
-    /// If none of the above is the case and we are the original sender, it returns the
-    /// `PARALLELISM` closest nodes to the target.
-    ///
-    /// Otherwise it returns the `n`-th closest node to the target if this is the `n`-th copy of
-    /// the message we are relaying.
+    /// Otherwise it returns the `n`-th closest node to the target if route is `n`.
     ///
     /// # Arguments
     ///
     /// * `dst` -   The destination of the message.
     /// * `hop` -   The name of the node that relayed the message to us, or ourselves if we are the
     ///             original sender.
-    /// * `count` - The number of times we have seen this message before.
-    pub fn target_nodes(&self, dst: Destination, hop: &XorName, count: usize) -> Vec<T> {
+    /// * `route` - The route number.
+    pub fn target_nodes(&self, dst: Destination<T::Name>, hop: &T::Name, route: usize) -> Vec<T> {
         let target = match dst {
-            Destination::Group(ref target) => {
-                if self.is_close(target) {
-                    if count > 0 {
-                        return vec![];
-                    }
-                    let close_group = self.closest_nodes_to(target, GROUP_SIZE - 1, false);
-                    return close_group;
+            Destination::Group(ref target, group_size) => {
+                if let Some(mut group) = self.other_close_nodes(target, group_size) {
+                    group.retain(|t| t.name() != hop);
+                    return group;
                 }
                 target
             }
@@ -391,27 +390,19 @@ impl<T: ContactInfo> RoutingTable<T> {
                 if target == self.our_name() {
                     return vec![];
                 } else if let Some(target_contact) = self.get(target) {
-                    return if count == 0 {
-                        vec![target_contact.clone()]
-                    } else {
-                        vec![]
-                    };
-                } else if self.is_close(target) {
-                    return self.closest_nodes_to(target, GROUP_SIZE - 1, false);
+                    return vec![target_contact.clone()];
+                } else if self.is_close(target, self.bucket_size) {
+                    return self.closest_nodes_to(target, self.bucket_size - 1, false);
                 }
                 target
             }
         };
-        if hop == self.our_name() {
-            self.closest_nodes_to(target, PARALLELISM, false)
-        } else {
-            self.closest_nodes_to(target, count + 2, false)
-                .into_iter()
-                .filter(|node| node.name() != hop)
-                .skip(count)
-                .take(1)
-                .collect()
-        }
+        self.closest_nodes_to(target, route + 2, false)
+            .into_iter()
+            .filter(|node| node.name() != hop)
+            .skip(route)
+            .take(1)
+            .collect()
     }
 
     /// Returns whether the message is addressed to this node.
@@ -419,26 +410,26 @@ impl<T: ContactInfo> RoutingTable<T> {
     /// If this returns `true`, this node is either the single recipient of the message, or a
     /// member of the group authority to which it is addressed. It therefore needs to handle the
     /// message.
-    pub fn is_recipient(&self, dst: Destination) -> bool {
+    pub fn is_recipient(&self, dst: Destination<T::Name>) -> bool {
         match dst {
             Destination::Node(ref target) => target == self.our_name(),
-            Destination::Group(ref target) => self.is_close(target),
+            Destination::Group(ref target, group_size) => self.is_close(target, group_size),
         }
     }
 
     /// Returns the other members of `name`'s close group, or `None` if we are not a member of it.
-    pub fn other_close_nodes(&self, name: &XorName) -> Option<Vec<T>> {
-        if self.is_close(name) {
-            Some(self.closest_nodes_to(name, GROUP_SIZE - 1, false))
+    pub fn other_close_nodes(&self, name: &T::Name, group_size: usize) -> Option<Vec<T>> {
+        if self.is_close(name, group_size) {
+            Some(self.closest_nodes_to(name, group_size - 1, false))
         } else {
             None
         }
     }
 
     /// Returns the members of `name`'s close group, or `None` if we are not a member of it.
-    pub fn close_nodes(&self, name: &XorName) -> Option<Vec<T>> {
-        if self.is_close(name) {
-            Some(self.closest_nodes_to(name, GROUP_SIZE, true))
+    pub fn close_nodes(&self, name: &T::Name, group_size: usize) -> Option<Vec<T>> {
+        if self.is_close(name, group_size) {
+            Some(self.closest_nodes_to(name, group_size, true))
         } else {
             None
         }
@@ -448,18 +439,18 @@ impl<T: ContactInfo> RoutingTable<T> {
     /// closer to `name` than we are.
     ///
     /// In other words, it returns `true` whenever we cannot rule out that we might be among the
-    /// `GROUP_SIZE` closest nodes to `name`.
+    /// `group_size` closest nodes to `name`.
     ///
-    /// If the routing table is filled in such a way that each bucket contains `GROUP_SIZE`
+    /// If the routing table is filled in such a way that each bucket contains `group_size`
     /// elements unless there aren't enough such nodes in the network, then this criterion is
     /// actually sufficient! In that case, `true` is returned if and only if we are among the
-    /// `GROUP_SIZE` closest node to `name` in the network.
-    pub fn is_close(&self, name: &XorName) -> bool {
+    /// `group_size` closest node to `name` in the network.
+    pub fn is_close(&self, name: &T::Name, group_size: usize) -> bool {
         let mut count = 0;
         for (bucket_index, bucket) in self.buckets.iter().enumerate() {
-            if self.differs_in_bit(name, bucket_index) {
+            if self.our_name().differs_in_bit(name, bucket_index) {
                 count += bucket.len();
-                if count >= GROUP_SIZE {
+                if count >= group_size {
                     return false;
                 }
             }
@@ -477,18 +468,35 @@ impl<T: ContactInfo> RoutingTable<T> {
         self.buckets.iter().all(Vec::is_empty)
     }
 
+    /// Removes all entries from the routing table.
+    pub fn clear(&mut self) {
+        self.buckets.clear();
+    }
+
     /// Returns the name of the node this routing table is for.
-    pub fn our_name(&self) -> &XorName {
+    pub fn our_name(&self) -> &T::Name {
         self.our_info.name()
     }
 
-    /// Returns whether the given node is in the routing table.
-    pub fn contains(&self, name: &XorName) -> bool {
+    /// Returns whether the node with this `name` is in the routing table.
+    pub fn contains(&self, name: &T::Name) -> bool {
         self.search(name).1.is_ok()
     }
 
+    /// Returns the bucket size constant, i. e. the minimum number of entries that need to be added
+    /// to each bucket, if possible.
+    pub fn bucket_size(&self) -> usize {
+        self.bucket_size
+    }
+
+    /// Returns the maximum bucket size constant, i. e. the number of entries above which bucket
+    /// entries are considered unneeded.
+    pub fn max_bucket_size(&self) -> usize {
+        self.max_bucket_size
+    }
+
     /// Returns the contact associated with the given name.
-    pub fn get(&self, name: &XorName) -> Option<&T> {
+    pub fn get(&self, name: &T::Name) -> Option<&T> {
         if let (bucket_index, Ok(node_index)) = self.search(name) {
             Some(&self.buckets[bucket_index][node_index])
         } else if name == self.our_name() {
@@ -511,11 +519,14 @@ impl<T: ContactInfo> RoutingTable<T> {
         self.buckets.len()
     }
 
-    /// Returns an entry that satisfies the given `predicate`.
-    pub fn find<F>(&self, predicate: F) -> Option<&T>
-        where F: FnMut(&&T) -> bool
-    {
-        self.buckets.iter().flat_map(|bucket| bucket.iter()).find(predicate)
+    /// Returns an iterator over all entries, sorted by distance.
+    pub fn iter(&self) -> Iter<T> {
+        #[cfg_attr(feature="clippy", allow(ptr_arg))] // Need to use `&Vec<S>` for `flat_map`.
+        fn vec_iter<S>(vec: &Vec<S>) -> slice::Iter<S> {
+            vec.iter()
+        };
+        // `flat_map(Vec::iter)` or `map(Vec::as_slice).flat_map(<[T]>::iter)` don't seem to work.
+        Iter { inner: self.buckets.iter().rev().flat_map(vec_iter) }
     }
 
     /// Returns the `n` nodes in our routing table that are closest to `target`.
@@ -523,14 +534,14 @@ impl<T: ContactInfo> RoutingTable<T> {
     /// Returns fewer than `n` nodes if the routing table doesn't have enough entries. If
     /// `ourselves` is `true`, this could potentially include ourselves. Otherwise, our own name is
     /// skipped.
-    pub fn closest_nodes_to(&self, target: &XorName, n: usize, ourselves: bool) -> Vec<T> {
+    pub fn closest_nodes_to(&self, target: &T::Name, n: usize, ourselves: bool) -> Vec<T> {
         let cmp = |a: &&T, b: &&T| target.cmp_distance(a.name(), b.name());
         // If we disagree with target in a bit, that bit's bucket contains contacts that are closer
         // to the target than we are. The lower the bucket index, the closer it is:
         let closer_buckets_iter = self.buckets
             .iter()
             .enumerate()
-            .filter(|&(bit, _)| self.differs_in_bit(target, bit))
+            .filter(|&(bit, _)| self.our_name().differs_in_bit(target, bit))
             .flat_map(|(_, b)| b.iter().sorted_by(&cmp).into_iter());
         // Nothing or ourselves, depending on whether we should be include in the result:
         let ourselves_iter = if ourselves {
@@ -544,7 +555,7 @@ impl<T: ContactInfo> RoutingTable<T> {
             .iter()
             .enumerate()
             .rev()
-            .filter(|&(bit, _)| !self.differs_in_bit(target, bit))
+            .filter(|&(bit, _)| !self.our_name().differs_in_bit(target, bit))
             .flat_map(|(_, b)| b.iter().sorted_by(&cmp).into_iter());
         // Chaining these iterators puts the buckets in the right order, with ascending distance
         // from the target. Finally, we need to sort each bucket's contents and take n:
@@ -555,18 +566,40 @@ impl<T: ContactInfo> RoutingTable<T> {
             .collect()
     }
 
-    /// Returns whether we are close to one of `name`'s bucket addresses or to `name` itself.
-    fn is_close_to_bucket_of(&self, name: &XorName) -> bool {
+    /// Returns whether we share any close groups with the nodes in the given bucket.
+    ///
+    /// If the bucket is not full or we have less than `group_size - 1` contacts with a greater
+    /// bucket index, then for _every_ node in that bucket there exists an address which both that
+    /// node and our own node are in the close group of. In that case, the result is `true`.
+    ///
+    /// Otherwise, no such address exists and `false` is returned.
+    pub fn is_in_any_close_group_with(&self, bucket_index: usize, group_size: usize) -> bool {
+        if self.buckets.get(bucket_index).map_or(0, Vec::len) < group_size {
+            return true;
+        }
+        let mut count = 0;
+        for bucket in self.buckets.iter().skip(bucket_index + 1) {
+            count += bucket.len();
+            if count >= group_size - 1 {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Returns whether we are `bucket_size`-close to one of `name`'s bucket addresses or to `name`
+    /// itself.
+    fn is_close_to_bucket_of(&self, name: &T::Name) -> bool {
         // We are close to `name` if the buckets where `name` disagrees with us have less than
-        // GROUP_SIZE entries in total. Therefore we are close to a bucket address of `name`, if
-        // removing the largest such bucket gets us below GROUP_SIZE.
+        // `bucket_size` entries in total. Therefore we are close to a bucket address of `name`, if
+        // removing the largest such bucket gets us below `bucket_size`.
         let mut closer_contacts: usize = 0;
         let mut largest_bucket: usize = 0;
         for (bit, bucket) in self.buckets.iter().enumerate() {
-            if self.differs_in_bit(name, bit) {
+            if self.our_name().differs_in_bit(name, bit) {
                 largest_bucket = cmp::max(largest_bucket, bucket.len());
                 closer_contacts += bucket.len();
-                if closer_contacts >= largest_bucket + GROUP_SIZE {
+                if closer_contacts >= largest_bucket + self.bucket_size {
                     return false;
                 }
             }
@@ -574,16 +607,9 @@ impl<T: ContactInfo> RoutingTable<T> {
         true
     }
 
-    /// Returns whether the `i`-th bit of our and the given name differ.
-    fn differs_in_bit(&self, name: &XorName, i: usize) -> bool {
-        let byte = i / 8;
-        let byte_bit = i % 8;
-        (self.our_name().0[byte] ^ name.0[byte]) & (0b10000000 >> byte_bit) != 0
-    }
-
-    // This is equivalent to the common leading bits of `self.our_name` and `name` where "leading
-    // bits" means the most significant bits.
-    fn bucket_index(&self, name: &XorName) -> usize {
+    /// This is equivalent to the common leading bits of `self.our_name` and `name` where "leading
+    /// bits" means the most significant bits.
+    fn bucket_index(&self, name: &T::Name) -> usize {
         self.our_name().bucket_index(name)
     }
 
@@ -592,7 +618,7 @@ impl<T: ContactInfo> RoutingTable<T> {
     /// Returns a tuple with the bucket index of `name` as the first entry. The second entry is
     /// `Ok(i)` if the node has index `i` in that bucket, or `Err(i)` if it isn't there yet and `i`
     /// is the index inside the bucket where it would be inserted.
-    fn search(&self, name: &XorName) -> (usize, Result<usize, usize>) {
+    fn search(&self, name: &T::Name) -> (usize, Result<usize, usize>) {
         let bucket_index = self.bucket_index(name);
         (bucket_index,
          match self.buckets.get(bucket_index) {
@@ -602,667 +628,274 @@ impl<T: ContactInfo> RoutingTable<T> {
             }
         })
     }
-
-    /// Returns whether we share any close groups with the nodes in the given bucket.
-    ///
-    /// If the bucket is not full or we have less than `GROUP_SIZE - 1` contacts with a greater
-    /// bucket index, then for _every_ node in that bucket there exists an address which both that
-    /// node and our own node are in the close group of. In that case, the result is `true`.
-    ///
-    /// Otherwise, no such address exists and `false` is returned.
-    fn is_in_any_close_group_with(&self, bucket_index: usize) -> bool {
-        if match self.buckets.get(bucket_index) {
-            None => return true,
-            Some(bucket) => bucket.len(),
-        } < GROUP_SIZE {
-            return true;
-        }
-        let mut count = 0;
-        for bucket in self.buckets.iter().skip(bucket_index + 1) {
-            count += bucket.len();
-            if count >= GROUP_SIZE - 1 {
-                return false;
-            }
-        }
-        true
-    }
 }
 
+impl<T: ContactInfo> RoutingTable<T>
+    where T::Name: ContactInfo + Clone
+{
+    /// Converts all entries to `T::Name`s and returns a new `RoutingTable` with them.
+    pub fn to_names(&self) -> RoutingTable<T::Name> {
+        RoutingTable {
+            buckets: self.buckets
+                .iter()
+                .map(|bucket| bucket.iter().map(|node| node.name().clone()).collect())
+                .collect(),
+            our_info: self.our_info.name().clone(),
+            bucket_size: self.bucket_size,
+            max_bucket_size: self.max_bucket_size,
+        }
+    }
+}
 
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand;
-    use std::cmp;
-    use std::collections::HashMap;
-    use itertools::Itertools;
-    use xor_name;
-    use xor_name::XorName;
 
-    impl ContactInfo for XorName {
-        fn name(&self) -> &XorName {
-            self
+    fn extend_table<'a, T, I>(table: &mut RoutingTable<T>, entries: I)
+        where I: IntoIterator<Item = T>,
+              T: ContactInfo + 'a,
+              T::Name: PartialEq + Xorable
+    {
+        for entry in entries {
+            let _ = table.add(entry);
         }
     }
 
-    const TABLE_SIZE: usize = 100;
+    // Since XOR space is symmetric and XORing with the table's own name is an isometry, we choose
+    // 0 as the table name in most tests, for simplicity. Then each address _is_ its distance and:
+    // 1          belongs in bucket 7
+    // 2   and  3 belong  in bucket 6
+    // 4   to   7 belong  in bucket 5
+    // 8   to  15 belong  in bucket 4
+    // 16  to  31 belong  in bucket 3
+    // 32  to  63 belong  in bucket 2
+    // 64  to 127 belong  in bucket 1
+    // 128 to 255 belong  in bucket 0
+    #[test]
+    fn basic_collection_functionality() {
+        let mut table = RoutingTable::new(0u8, 3, 2);
+        assert_eq!(3, table.bucket_size());
+        assert_eq!(5, table.max_bucket_size());
+
+        assert_eq!(table.len(), 0);
+        assert!(table.is_empty());
+
+        // Try with own name - should fail.
+        assert!(table.add(0).is_none());
+        assert_eq!(table.len(), 0);
+        assert!(table.is_empty());
+
+        // Add first contact.
+        assert!(table.add(1).is_some());
+        assert_eq!(table.len(), 1);
+        assert!(!table.is_empty());
+        assert!(table.add(1).is_none());
+        assert_eq!(table.len(), 1);
+        assert!(table.contains(&1));
+        assert_eq!(Some(&1), table.get(&1));
+
+        // Add another contact.
+        assert!(table.add(5).is_some());
+        assert_eq!(table.len(), 2);
+
+        // Remove first contact.
+        assert!(table.remove(&1).is_some());
+        assert_eq!(table.len(), 1);
+        assert!(!table.contains(&1));
+        assert!(table.remove(&1).is_none());
+        assert_eq!(table.len(), 1);
+        assert!(!table.is_empty());
+
+        // Clear the table.
+        table.clear();
+        assert_eq!(table.len(), 0);
+        assert!(table.is_empty());
+    }
 
     #[test]
-    fn constant_constraints() {
-        // This is required for the RoutingTable to make its guarantees.
-        assert!(GROUP_SIZE >= PARALLELISM);
-    }
-
-    /// Creates a name in the `index`-th bucket of the table with the given name, where
-    /// `index < 503`. The given `distance` will be added. If `distance == 255`, the furthest
-    /// possible name in the given bucket is returned.
-    fn get_contact(table_name: &XorName, index: usize, distance: u8) -> XorName {
-        let XorName(mut arr) = *table_name;
-        let last = arr.len() - 1;
-        // Invert all bits starting with the `index`th one, so the bucket distance is `index`.
-        arr[index / 8] ^= 0b11111111 >> (index % 8);
-        for x in &mut arr[(index / 8 + 1)..last] {
-            *x ^= 0b11111111;
-        }
-        // Add the desired distance.
-        arr[last] ^= distance;
-        let result = XorName(arr);
-        assert_eq!(index, result.bucket_index(table_name));
-        result
-    }
-
-    struct TestEnvironment {
-        table: RoutingTable<XorName>,
-        name: XorName,
-        initial_count: usize,
-        added_names: Vec<XorName>,
-    }
-
-    impl Default for TestEnvironment {
-        fn default() -> TestEnvironment {
-            let name = rand::random::<XorName>();
-            TestEnvironment {
-                table: RoutingTable::new(name),
-                name: name,
-                initial_count: (rand::random::<usize>() % (GROUP_SIZE - 1)) + 1,
-                added_names: Vec::new(),
-            }
-        }
-    }
-
-    impl TestEnvironment {
-        fn partially_fill_table(&mut self) {
-            let count = self.initial_count;
-            self.fill_table(0, count)
-        }
-
-        fn complete_filling_table(&mut self) {
-            let count = self.initial_count;
-            self.fill_table(count, TABLE_SIZE)
-        }
-
-        fn fill_table(&mut self, first_bucket: usize, total_buckets: usize) {
-            for i in first_bucket..total_buckets {
-                let name = get_contact(&self.name, i, 1);
-                self.added_names.push(name);
-                assert!(self.table.add(name).is_some());
-            }
-
-            assert_eq!(total_buckets, self.table.len());
-            assert!(are_nodes_sorted(&self.table), "Nodes are not sorted");
-        }
-    }
-
-    fn create_random_routing_tables(num_of_tables: usize) -> Vec<RoutingTable<XorName>> {
-        let mut vector = Vec::with_capacity(num_of_tables);
-        for _ in 0..num_of_tables {
-            vector.push(RoutingTable::new(rand::random()));
-        }
-        vector
-    }
-
-    fn are_nodes_sorted(routing_table: &RoutingTable<XorName>) -> bool {
-        routing_table.buckets
-            .iter()
-            .rev()
-            .flat_map(|bucket| bucket.iter())
-            .zip(routing_table.buckets.iter().rev().flat_map(|bucket| bucket.iter()).skip(1))
-            .all(|(lhs, rhs)| xor_name::closer_to_target(lhs, rhs, routing_table.our_name()))
-    }
-
-    fn make_sort_predicate(target: XorName) -> Box<FnMut(&XorName, &XorName) -> cmp::Ordering> {
-        Box::new(move |lhs: &XorName, rhs: &XorName| target.cmp_distance(lhs, rhs))
+    fn bucket_len() {
+        let network = vec![0b10000000, 0b11000000, 0b11100000, 0b00100000, 0b00110000, 0b00000100,
+                           0b00001000];
+        let mut table = RoutingTable::new(0u8, 2, 1);
+        extend_table(&mut table, network);
+        assert_eq!(3, table.bucket_len(0));
+        assert_eq!(0, table.bucket_len(1));
+        assert_eq!(2, table.bucket_len(2));
+        assert_eq!(0, table.bucket_len(3));
+        assert_eq!(1, table.bucket_len(4));
+        assert_eq!(1, table.bucket_len(5));
+        assert_eq!(0, table.bucket_len(6));
+        assert_eq!(0, table.bucket_len(7));
+        assert_eq!(6, table.bucket_count());
     }
 
     #[test]
     fn add() {
-        let mut test = TestEnvironment::default();
-
-        assert_eq!(test.table.len(), 0);
-
-        // try with our name - should fail
-        let contact = *test.table.our_name();
-        assert!(test.table.add(contact).is_none());
-        assert_eq!(test.table.len(), 0);
-
-        // add first contact
-        let contact = get_contact(&test.name, 0, 2);
-        assert!(test.table.add(contact).is_some());
-        assert_eq!(test.table.len(), 1);
-
-        // try with the same contact - should fail
-        assert!(test.table.add(contact).is_none());
-        assert_eq!(test.table.len(), 1);
-    }
-
-    #[test]
-    fn add_to_full_bucket() {
-        // add node to a full bucket whose nodes share close group with us
-        let mut test = TestEnvironment::default();
-
-        for i in 0..GROUP_SIZE {
-            let contact = get_contact(&test.name, 1, i as u8);
-            assert!(test.table.add(contact).is_some());
-        }
-
-        let contact = get_contact(&test.name, 1, 255);
-
-        if let Some(added_node_details) = test.table.add(contact) {
-            assert_eq!(added_node_details,
-                       AddedNodeDetails {
-                           must_notify: vec![],
-                           unneeded: vec![],
-                           common_groups: true,
-                       });
-        } else {
-            assert!(false);
-        }
-
-        // Adding a node should not remove existing nodes
-        assert_eq!(test.table.len(), GROUP_SIZE + 1);
-
-        // add node to a full bucket whose nodes do not share close group with us
-        test = TestEnvironment::default();
-
-        for i in 0..GROUP_SIZE {
-            let contact = get_contact(&test.name, 1, 1 + i as u8);
-            assert!(test.table.add(contact).is_some());
-        }
-
-        for i in 0..GROUP_SIZE {
-            let contact = get_contact(&test.name, 2, i as u8);
-            assert!(test.table.add(contact).is_some());
-        }
-
-        let contact = get_contact(&test.name, 1, 0);
-
-        if let Some(added_node_details) = test.table.add(contact) {
-            let bucket_index = test.table.bucket_index(&contact);
-            let unneeded =
-                test.table.buckets[bucket_index].iter().skip(GROUP_SIZE).cloned().collect_vec();
-
-            assert_eq!(added_node_details,
-                       AddedNodeDetails {
-                           must_notify: vec![],
-                           unneeded: unneeded,
-                           common_groups: false,
-                       });
-        } else {
-            assert!(false);
-        }
-
-        // Adding a node should not remove existing nodes
-        assert_eq!(test.table.len(), 2 * GROUP_SIZE + 1);
-    }
-
-    #[test]
-    fn add_to_bucket_that_is_not_full() {
-        let mut test = TestEnvironment::default();
-
-        for i in 0..(GROUP_SIZE / 2) {
-            let contact = get_contact(&test.name, 1, i as u8);
-            assert!(test.table.add(contact).is_some());
-        }
-
-        let name_to_notify0 = get_contact(&test.name, 2, 0);
-        assert!(test.table.add(name_to_notify0).is_some());
-
-        let name_to_notify1 = get_contact(&test.name, 3, 0);
-        assert!(test.table.add(name_to_notify1).is_some());
-
-        let contact = get_contact(&test.name, 1, 255);
-        let nodes_to_notify = test.table.add(contact).expect("contact not added").must_notify;
-        assert!(nodes_to_notify.len() == 2);
-        assert!(nodes_to_notify.contains(&name_to_notify0));
-        assert!(nodes_to_notify.contains(&name_to_notify1));
+        let network = vec![128, 32, 4];
+        let mut table = RoutingTable::new(0u8, 2, 1); // Bucket size 2, max bucket size 3.
+        extend_table(&mut table, network);
+        // Bucket 2 contains [32]. We will add 33, 48 and 34 to it.
+        assert_eq!(None, table.add(32)); // Contact already present.
+        assert_eq!(Some(AddedNodeDetails {
+                       must_notify: vec![4], // Bucket 2 wasn't full yet: [32]. Notify closer nodes.
+                       unneeded: vec![],
+                   }),
+                   table.add(33));
+        assert_eq!(Some(AddedNodeDetails {
+                       must_notify: vec![], // Bucket 2 is full now.
+                       unneeded: vec![],
+                   }),
+                   table.add(48));
+        assert_eq!(Some(AddedNodeDetails {
+                       must_notify: vec![], // Bucket 2 is full.
+                       unneeded: vec![48], // Bucket 2 is overfull: 48 is furthest from us.
+                   }),
+                   table.add(34));
     }
 
     #[test]
     fn need_to_add() {
-        let mut test = TestEnvironment::default();
-
-        // Try with our ID
-        assert!(!test.table.need_to_add(test.table.our_name()));
-
-        // Should return true for empty routing table
-        assert!(test.table.need_to_add(&get_contact(&test.name, 0, 2)));
-
-        // Add the first contact, and check it doesn't allow duplicates
-        let new_node_0 = get_contact(&test.name, 0, 2);
-        assert!(test.table.add(new_node_0).is_some());
-        assert!(!test.table.need_to_add(&get_contact(&test.name, 0, 2)));
-
-        // Shoud return false if the bucket is full
-        for i in 0..GROUP_SIZE {
-            let contact = get_contact(&test.name, 1, i as u8);
-            assert!(test.table.add(contact).is_some());
-        }
-
-        assert!(!test.table.need_to_add(&get_contact(&test.name, 1, 255)));
+        let network = vec![128, 32, 33, 4];
+        let mut table = RoutingTable::new(0u8, 2, 1); // Bucket size 2, max bucket size 3.
+        extend_table(&mut table, network);
+        assert!(table.need_to_add(&2));  // Bucket 6 has no entry yet.
+        assert!(table.need_to_add(&64)); // Bucket 1 has no entry yet.
+        assert!(!table.need_to_add(&128)); // Entry is already present.
+        assert!(table.need_to_add(&129)); // Bucket 0 has only one entry.
+        assert!(table.need_to_add(&6)); // Bucket 5 has only one entry.
+        assert!(!table.need_to_add(&34)); // Bucket 2 has already two entries.
     }
 
     #[test]
-    fn remove() {
-        use rand::Rng;
-
-        // Check on empty table
-        let mut test = TestEnvironment::default();
-
-        assert_eq!(test.table.len(), 0);
-
-        // Fill the table
-        test.partially_fill_table();
-        test.complete_filling_table();
-
-        // Try with invalid Address
-        assert!(test.table.remove(&XorName::new([0u8; 64])).is_none());
-        assert_eq!(TABLE_SIZE, test.table.len());
-
-        // Try with our Name
-        let drop_name = *test.table.our_name();
-        assert!(test.table.remove(&drop_name).is_none());
-        assert_eq!(TABLE_SIZE, test.table.len());
-
-        // Try with Address of node not in table
-        assert!(test.table.remove(&get_contact(&test.name, 0, 2)).is_none());
-        assert_eq!(TABLE_SIZE, test.table.len());
-
-        // Remove all nodes one at a time in random order
-        let mut rng = rand::thread_rng();
-        rng.shuffle(&mut test.added_names[..]);
-        let mut len = test.table.len();
-        for name in test.added_names {
-            len -= 1;
-            assert!(test.table.remove(&name).is_some());
-            assert_eq!(len, test.table.len());
-        }
-    }
-
-
-    #[test]
-    fn target_nodes() {
-        let mut test = TestEnvironment::default();
-
-        // Check on empty table
-        let mut target_nodes = test.table
-            .target_nodes(Destination::Group(rand::random()), &test.name, 0);
-        assert_eq!(target_nodes.len(), 0);
-
-        // Partially fill the table with <GROUP_SIZE contacts
-        test.partially_fill_table();
-
-        // Check we get all contacts returned
-        target_nodes = test.table.target_nodes(Destination::Group(rand::random()), &test.name, 0);
-        assert_eq!(test.initial_count, target_nodes.len());
-
-        for i in 0..test.initial_count {
-            let expected_name = get_contact(&test.name, i, 1);
-            assert!(target_nodes.contains(&expected_name));
-        }
-
-        // Complete filling the table up to TABLE_SIZE contacts
-        test.complete_filling_table();
-
-        // Try with our ID (should return the rest of the close group)
-        target_nodes = test.table
-            .target_nodes(Destination::Group(*test.table.our_name()), &test.name, 0);
-        assert_eq!(GROUP_SIZE - 1, target_nodes.len());
-
-        for i in ((TABLE_SIZE - GROUP_SIZE + 1)..TABLE_SIZE - 1).rev() {
-            let expected_name = get_contact(&test.name, i, 1);
-            assert!(target_nodes.contains(&expected_name));
-        }
-
-        // Try with nodes far from us, first time *not* in table and second time *in* table.
-        for count in 0..2 {
-            for i in 0..(TABLE_SIZE - GROUP_SIZE) {
-                let (target, expected_len) = if count == 0 {
-                    (get_contact(&test.name, i, 2), PARALLELISM)
-                } else {
-                    (get_contact(&test.name, i, 1), 1)
-                };
-                target_nodes = test.table.target_nodes(Destination::Node(target), &test.name, 0);
-                assert_eq!(expected_len, target_nodes.len());
-
-                for target_node in &target_nodes {
-                    assert!(test.added_names.contains(target_node));
-                }
-            }
-        }
-
-        // Try with nodes close to us, first time *not* in table and second time *in* table (should
-        // return GROUP_SIZE - 1 closest to target)
-        for count in 0..2 {
-            for i in (TABLE_SIZE - GROUP_SIZE + 2)..TABLE_SIZE {
-                let target = if count == 0 {
-                    get_contact(&test.name, i, 0)
-                } else {
-                    get_contact(&test.name, i, 1)
-                };
-                target_nodes = test.table.target_nodes(Destination::Group(target), &test.name, 0);
-                assert_eq!(GROUP_SIZE - 1, target_nodes.len());
-
-                for target_node in &target_nodes {
-                    assert!(test.added_names.contains(target_node));
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn is_recipient() {
-        let mut test = TestEnvironment::default();
-        test.partially_fill_table();
-        test.complete_filling_table();
-        assert!(test.table.is_recipient(Destination::Node(*test.table.our_name())));
-        assert!(test.table.is_recipient(Destination::Group(*test.table.our_name())));
-        let close_contact = get_contact(&test.name, TABLE_SIZE - 1, 1);
-        assert!(test.table.is_recipient(Destination::Group(close_contact)));
-        assert!(!test.table.is_recipient(Destination::Node(close_contact)));
-        let far_contact = get_contact(&test.name, 1, 1);
-        assert!(!test.table.is_recipient(Destination::Group(far_contact)));
-        assert!(!test.table.is_recipient(Destination::Node(far_contact)));
-    }
-
-    #[test]
-    fn close_nodes() {
-        // unchecked - could be merged with one below?
-        let mut test = TestEnvironment::default();
-        assert_eq!(Some(vec![]), test.table.other_close_nodes(&test.name));
-        assert_eq!(Some(vec![test.name]), test.table.close_nodes(&test.name));
-
-        test.partially_fill_table();
-        assert_eq!(test.initial_count,
-                   test.table.other_close_nodes(&test.name).expect("not close to name").len());
-
-        for i in 0..test.initial_count {
-            assert!(test.table
-                .other_close_nodes(&test.name)
-                .expect("not close to name")
-                .into_iter()
-                .filter(|node| *node == get_contact(&test.name, i, 1))
-                .count() > 0);
-        }
-
-        test.complete_filling_table();
-        let close_nodes = test.table.other_close_nodes(&test.name).expect("not close to name");
-        assert_eq!(GROUP_SIZE - 1, close_nodes.len());
-
-        for close_node in close_nodes {
-            assert!(test.added_names.contains(&close_node));
-        }
-    }
-
-    #[test]
-    fn close_nodes_and_is_close() {
-        let mut tables = HashMap::new();
-        for _ in 0..TABLE_SIZE {
-            let name = rand::random::<XorName>();
-            let table = RoutingTable::new(name);
-            let _ = tables.insert(name, table);
-        }
-        let keys: Vec<XorName> = tables.keys().cloned().collect();
-        // Add each node to each other node's routing table.
-        for name0 in &keys {
-            for name1 in &keys {
-                if tables[name0].allow_connection(name1) && tables[name1].need_to_add(name0) {
-                    let _ = tables.get_mut(name0).expect("name0 not in table").add(*name1);
-                    let _ = tables.get_mut(name1).expect("name1 not in table").add(*name0);
-                }
-            }
-        }
-        // Check close groups of addresses that are not nodes.
-        for _ in 0..1000 {
-            let name = rand::random();
-            let close_group_size = tables.values().filter(|t| t.is_close(&name)).count();
-            assert_eq!(GROUP_SIZE, close_group_size);
-        }
-        // Check close groups of the nodes' addresses.
-        for name in keys {
-            let close_group: Vec<_> = tables.values()
-                .filter(|t| t.is_close(&name))
-                .map(RoutingTable::our_name)
-                .cloned()
-                .sorted_by(&mut *make_sort_predicate(name));
-            assert_eq!(GROUP_SIZE, close_group.len());
-            let other_close_nodes =
-                tables[&name].other_close_nodes(&name).expect("not close to name");
-            // The node itself is not in `other_close_nodes`, but it is in `close_group`:
-            assert_eq!(close_group[1..], other_close_nodes[..]);
-            assert_eq!(close_group,
-                       tables[&name].close_nodes(&name).expect("not close to name"));
-            for close_name in other_close_nodes {
-                if tables[&close_name].is_close(&name) {
-                    assert_eq!(close_group,
-                               tables[&close_name].close_nodes(&name).expect("not close to name"));
-                } else {
-                    assert_eq!(None, tables[&close_name].close_nodes(&name));
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn add_check_close_group_test() {
-        // unchecked - could be merged with one above?
-        let num_of_tables = 50usize;
-        let mut tables = create_random_routing_tables(num_of_tables);
-        let mut addresses = tables.iter().map(RoutingTable::our_name).cloned().collect_vec();
-        for table in &mut tables {
-            for name in &addresses {
-                if table.need_to_add(name) {
-                    let _ = table.add(*name);
-                }
-            }
-        }
-        for table in tables {
-            addresses.sort_by(&mut *make_sort_predicate(*table.our_name()));
-            assert_eq!(table.other_close_nodes(table.our_name()).expect("not close to name")[..],
-                       addresses[1..GROUP_SIZE]);
-        }
-    }
-
-    #[test]
-    fn target_nodes_group_test() {
-        // unchecked - purpose?
-        let network_len = 100usize;
-
-        let mut tables = create_random_routing_tables(network_len);
-        let mut addresses = tables.iter().map(RoutingTable::our_name).cloned().collect_vec();
-        for table in &mut tables {
-            for name in &addresses {
-                if table.need_to_add(name) {
-                    let _ = table.add(*name);
-                }
-            }
-        }
-
-        let mut tested_close_target = false;
-        for table in tables {
-            addresses.sort_by(&mut *make_sort_predicate(*table.our_name()));
-            // if target is in close group return the whole close group excluding target
-            for address in addresses.iter().take(GROUP_SIZE) {
-                if table.is_close(address) {
-                    let dst = Destination::Group(*address);
-                    let far_name = get_contact(table.our_name(), 0, 255);
-                    assert!(table.target_nodes(dst, &far_name, 1).is_empty());
-                    assert_eq!(GROUP_SIZE - 1, table.target_nodes(dst, &far_name, 0).len());
-                    // TODO: Reconsider re-swarm prevention and enable or delete this.
-                    // for close_node in target_close_group {
-                    //     assert!(tables[i].target_nodes(dst, &close_node, 0).is_empty());
-                    // }
-                    tested_close_target = true;
-                }
-            }
-        }
-        assert!(tested_close_target, "No node in the sample was close.");
-    }
-
-    #[test]
-    fn trivial_functions_test() {
-        // unchecked - but also check has_node function
-        let mut test = TestEnvironment::default();
-        assert_eq!(None, test.table.find(|_| true));
-        assert_eq!(0, test.table.len());
-        assert_eq!(0, test.table.furthest_close_bucket());
-
-        // Check on partially filled the table
-        test.partially_fill_table();
-        let contact = rand::random();
-        assert!(!test.table.contains(&contact));
-        assert!(test.table.add(contact).is_some());
-        assert!(test.table.contains(&contact));
-        assert_eq!(Some(&contact), test.table.find(|c| c == &&contact));
-
-        // Check on fully filled the table
-        assert!(test.table.remove(&contact).is_some());
-        assert!(!test.table.contains(&contact));
-        test.complete_filling_table();
-        assert!(test.table.remove(&get_contact(&test.name, 0, 1)).is_some());
-        assert!(test.table.add(contact).is_some());
-        assert!(test.table.contains(&contact));
-        assert_eq!(TABLE_SIZE - GROUP_SIZE, test.table.furthest_close_bucket());
-    }
-
-    #[test]
-    fn bucket_index() {
-        // Set our name for routing table to max possible value (in binary, all `1`s)
-        let our_name = XorName::new([255u8; xor_name::XOR_NAME_LEN]);
-        let routing_table = RoutingTable::new(our_name);
-
-        // Iterate through each u8 element of a target name identical to ours and set it to each
-        // possible value for u8 other than 255 (since that which would a target name identical to
-        // our name)
-        for index in 0..xor_name::XOR_NAME_LEN {
-            let mut array = [255u8; xor_name::XOR_NAME_LEN];
-            for modified_element in 0..255u8 {
-                array[index] = modified_element;
-                let target_name = XorName::new(array);
-                // `index` is equivalent to common leading bytes, so the common leading bits (CLBs)
-                // is `index` * 8 plus some value for `modified_element`.  Where
-                // 0 <= modified_element < 128, the first bit is different so CLBs is 0, and for
-                // 128 <= modified_element < 192, the second bit is different, so CLBs is 1, and so
-                // on.
-                let expected_bucket_index = (index * 8) +
-                                            match modified_element {
-                    0...127 => 0,
-                    128...191 => 1,
-                    192...223 => 2,
-                    224...239 => 3,
-                    240...247 => 4,
-                    248...251 => 5,
-                    252 | 253 => 6,
-                    254 => 7,
-                    _ => unreachable!(),
-                };
-                if expected_bucket_index != routing_table.bucket_index(&target_name) {
-                    let as_binary = |name: &XorName| -> String {
-                        let mut name_as_binary = String::new();
-                        for i in name.0.iter() {
-                            name_as_binary.push_str(&format!("{:08b}", i));
-                        }
-                        name_as_binary
-                    };
-                    println!("us:   {}", as_binary(&our_name));
-                    println!("them: {}", as_binary(&target_name));
-                    println!("index:                 {}", index);
-                    println!("modified_element:      {}", modified_element);
-                    println!("expected bucket_index: {}", expected_bucket_index);
-                    println!("actual bucket_index:   {}",
-                             routing_table.bucket_index(&target_name));
-                }
-                assert_eq!(expected_bucket_index,
-                           routing_table.bucket_index(&target_name));
-            }
-        }
-
-        // Check the bucket index of our own name is 512
-        assert_eq!(::xor_name::XOR_NAME_LEN * 8,
-                   routing_table.bucket_index(&our_name));
+    fn remove_if_unneeded() {
+        let mut table = RoutingTable::new(0u8, 2, 1); // Bucket size 2, max bucket size 3.
+        assert!(!table.remove_if_unneeded(&0)); // Own name.
+        extend_table(&mut table, vec![64, 65, 67]); // Bucket 1 now has `max_bucket_size` entries.
+        assert!(!table.remove_if_unneeded(&67));
+        assert!(table.add(66).is_some()); // Now bucket 1 has one excess entry.
+        assert!(!table.remove_if_unneeded(&67)); // We have a common close group.
+        extend_table(&mut table, vec![1, 2]); // No common close group with 67 anymore.
+        assert!(!table.remove_if_unneeded(&3)); // Entry doesn't exist.
+        assert!(!table.remove_if_unneeded(&66)); // 66 is closer than 67.
+        assert!(table.remove_if_unneeded(&67)); // 64 is furthest in bucket 1.
     }
 
     #[test]
     fn allow_connection() {
-        let mut test = TestEnvironment::default();
+        let mut table = RoutingTable::new(0u8, 2, 1); // Bucket size 2, max bucket size 3.
+        extend_table(&mut table, vec![64, 66, 67, 32, 4, 5, 6, 1]);
+        assert!(!table.allow_connection(&68)); // Bucket 1 is already full.
+        assert!(table.allow_connection(&65)); // Closer than other bucket 1 entries.
+        assert!(table.allow_connection(&37)); // Bucket 2 is not full.
+        assert!(table.allow_connection(&7)); // Common close group. (7 is close to us.)
+    }
 
-        assert!(test.table.allow_connection(&rand::random()));
-        assert!(!test.table.allow_connection(&test.name));
+    #[test]
+    fn remove() {
+        let mut table = RoutingTable::new(0u8, 2, 1); // Bucket size 2, max bucket size 3.
+        extend_table(&mut table, vec![64, 66, 67, 32, 4, 5, 6, 1]);
+        assert_eq!(None, table.remove(&100)); // Entry does not exist.
+        // `incomplete_bucket` is the bucket number only when we pass from 2 to 1 entries.
+        assert_eq!(Some(DroppedNodeDetails { incomplete_bucket: None }),
+                   table.remove(&67));
+        assert_eq!(Some(DroppedNodeDetails { incomplete_bucket: Some(1) }),
+                   table.remove(&66));
+        assert_eq!(Some(DroppedNodeDetails { incomplete_bucket: None }),
+                   table.remove(&64));
+    }
 
-        // Fill the first buckets with [GROUP_SIZE - 1, GROUP_SIZE - 1, GROUP_SIZE, GROUP_SIZE, 1]
-        // elements
-        for i in 0..(GROUP_SIZE - 1) {
-            let contact = get_contact(&test.name, 0, i as u8);
-            assert!(test.table.add(contact).is_some());
-        }
-        for i in 0..(GROUP_SIZE - 1) {
-            let contact = get_contact(&test.name, 1, i as u8);
-            assert!(test.table.add(contact).is_some());
-        }
-        for i in 0..GROUP_SIZE {
-            let contact = get_contact(&test.name, 2, i as u8);
-            assert!(test.table.add(contact).is_some());
-        }
-        for i in 0..GROUP_SIZE {
-            let contact = get_contact(&test.name, 3, i as u8);
-            assert!(test.table.add(contact).is_some());
-        }
-        let contact = get_contact(&test.name, 4, 0);
-        assert!(test.table.add(contact).is_some());
+    #[test]
+    fn target_nodes() {
+        let mut table = RoutingTable::new(0u8, 3, 1); // Bucket size 3, max bucket size 4.
+        extend_table(&mut table, vec![64, 66, 67, 68, 32, 4, 5, 1]);
+        // If the destination node is known, return it.
+        assert_eq!(vec![5], table.target_nodes(Destination::Node(5), &4, 0));
+        assert_eq!(vec![64], table.target_nodes(Destination::Node(64), &1, 2));
+        assert_eq!(vec![4], table.target_nodes(Destination::Group(4, 2), &5, 0));
+        assert_eq!(vec![64],
+                   table.target_nodes(Destination::Group(64, 2), &1, 0));
+        assert_eq!(vec![66],
+                   table.target_nodes(Destination::Group(64, 2), &1, 1));
+        assert_eq!(vec![5], table.target_nodes(Destination::Group(5, 2), &1, 0));
+        // If the destination is a group we are a member of, return the other members.
+        assert_eq!(vec![4, 5],
+                   table.target_nodes(Destination::Group(4, 3), &1, 0));
+        // If the destination is a node we don't know, return the `route`-th closest contact.
+        assert_eq!(vec![64], table.target_nodes(Destination::Node(96), &4, 0));
+        assert_eq!(vec![66], table.target_nodes(Destination::Node(96), &4, 1));
+        assert_eq!(vec![67], table.target_nodes(Destination::Node(96), &4, 2));
+        // If we are the only recipient, return an empty vector.
+        assert_eq!(Vec::<u8>::new(),
+                   table.target_nodes(Destination::Node(0), &4, 2));
+    }
 
-        let name = get_contact(&test.name, 2, 1);
-        assert!(!test.table.is_close(&name));
-        assert!(!test.table.is_close_to_bucket_of(&name));
-        assert!(test.table.allow_connection(&name)); // Already connected
+    #[test]
+    fn is_recipient_and_is_close() {
+        let mut table = RoutingTable::new(0u8, 3, 1); // Bucket size 3, max bucket size 4.
+        extend_table(&mut table, vec![64, 66, 67, 68, 32, 4, 5, 1]);
+        assert!(table.is_recipient(Destination::Node(0))); // That's us!
+        assert!(!table.is_recipient(Destination::Node(1))); // That's someone else.
+        // We are a member of these groups.
+        assert!(table.is_recipient(Destination::Group(0, 1)));
+        assert!(table.is_close(&0, 1));
+        assert!(table.is_recipient(Destination::Group(0, 3)));
+        assert!(table.is_close(&0, 3));
+        assert!(table.is_recipient(Destination::Group(4, 3)));
+        assert!(table.is_close(&4, 3));
+        // We are not a member of these groups.
+        assert!(!table.is_recipient(Destination::Group(64, 3)));
+        assert!(!table.is_close(&64, 3));
+        assert!(!table.is_recipient(Destination::Group(4, 2)));
+        assert!(!table.is_close(&4, 2));
+    }
 
-        let name = get_contact(&test.name, 2, 255);
-        assert!(!test.table.is_close(&name));
-        assert!(!test.table.is_close_to_bucket_of(&name));
-        assert!(!test.table.allow_connection(&name)); // Bucket 2 has GROUP_SIZE entries.
+    #[test]
+    fn close_nodes_and_other_close_nodes() {
+        let mut table = RoutingTable::new(0u8, 3, 1); // Bucket size 3, max bucket size 4.
+        extend_table(&mut table, vec![64, 66, 67, 68, 32, 4, 5, 1]);
+        // We are a member of these groups.
+        assert_eq!(Some(vec![1, 0]), table.close_nodes(&1, 2));
+        assert_eq!(Some(vec![1]), table.other_close_nodes(&1, 2));
+        assert_eq!(Some(vec![4, 5, 0]), table.close_nodes(&4, 3));
+        assert_eq!(Some(vec![4, 5]), table.other_close_nodes(&4, 3));
+        assert_eq!(Some(vec![4, 5, 0]), table.close_nodes(&6, 3));
+        assert_eq!(Some(vec![4, 5]), table.other_close_nodes(&6, 3));
+        // We are not a member of these groups.
+        assert_eq!(None, table.close_nodes(&1, 1));
+        assert_eq!(None, table.other_close_nodes(&1, 1));
+        assert_eq!(None, table.close_nodes(&5, 3)); // 1 is closer to 5 than we are.
+        assert_eq!(None, table.other_close_nodes(&5, 3));
+        assert_eq!(None, table.close_nodes(&7, 3));
+        assert_eq!(None, table.other_close_nodes(&7, 3));
+        assert_eq!(None, table.close_nodes(&70, 3));
+        assert_eq!(None, table.other_close_nodes(&70, 3));
+    }
 
-        let name = get_contact(&test.name, 3, 99);
-        assert!(!test.table.is_close(&name));
-        assert!(test.table.is_close(&name.with_flipped_bit(3).expect("failed to flip bit")));
-        assert!(test.table.is_close_to_bucket_of(&name)); // Close to the 3rd bucket of name.
-        assert!(test.table.allow_connection(&name));
+    #[test]
+    fn iter() {
+        let mut table = RoutingTable::new(0u8, 3, 1);
+        extend_table(&mut table, vec![67, 64, 66, 68, 32, 4, 5, 1]);
+        assert_eq!(vec![1, 4, 5, 32, 64, 66, 67, 68],
+                   table.iter().cloned().collect::<Vec<_>>());
+    }
 
-        let name = test.name
-            .with_flipped_bit(2)
-            .expect("failed to flip bit")
-            .with_flipped_bit(3)
-            .expect("failed to flip bit");
-        assert!(!test.table.is_close(&name));
-        assert!(!test.table.is_close_to_bucket_of(&name));
-        assert!(test.table.allow_connection(&name)); // Would be closest entry in bucket 2.
+    #[test]
+    fn closest_nodes_to() {
+        let mut table = RoutingTable::new(0u8, 3, 1); // Bucket size 3, max bucket size 4.
+        extend_table(&mut table, vec![64, 66, 67, 68, 32, 33, 4, 5, 6, 1]);
+        assert!(!table.is_in_any_close_group_with(1, 3));
+        assert!(!table.is_in_any_close_group_with(2, 2));
+        assert!(!table.is_in_any_close_group_with(5, 2));
+        assert!(table.is_in_any_close_group_with(2, 3)); // 3-group of 32: [32, 33, 0]
+        assert!(table.is_in_any_close_group_with(5, 3)); // 3-group of 1: [1, 0, 5]
+    }
 
-        let name = test.name
-            .with_flipped_bit(0)
-            .expect("failed to flip bit")
-            .with_flipped_bit(1)
-            .expect("failed to flip bit");
-        assert!(!test.table.is_close(&name));
-        assert!(test.table.is_close(&name.with_flipped_bit(1).expect("failed to flip bit")));
-        assert!(test.table.is_close_to_bucket_of(&name)); // Close to the 1st bucket of name.
-        assert!(test.table.allow_connection(&name));
+    #[test]
+    fn is_in_any_close_group_with() {
+        let mut table = RoutingTable::new(4u8, 3, 1);
+        extend_table(&mut table, vec![1, 2, 3, 5, 6, 7]);
+        assert_eq!(vec![1, 2, 3, 4, 5], table.closest_nodes_to(&0, 5, true));
+        assert_eq!(vec![1, 2, 3, 5, 6], table.closest_nodes_to(&0, 5, false));
     }
 }

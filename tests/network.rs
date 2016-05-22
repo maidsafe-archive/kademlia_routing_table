@@ -33,19 +33,22 @@ missing_debug_implementations)]
 
 extern crate kademlia_routing_table;
 extern crate rand;
-extern crate xor_name;
 
 use kademlia_routing_table::{AddedNodeDetails, ContactInfo, Destination, DroppedNodeDetails,
-                             RoutingTable, GROUP_SIZE, PARALLELISM};
+                             RoutingTable, Xorable};
+use std::cmp;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-use xor_name::XorName;
+
+const GROUP_SIZE: usize = 8;
 
 #[derive(Clone, Eq, PartialEq)]
-struct Contact(XorName);
+struct Contact(u64);
 
 impl ContactInfo for Contact {
-    fn name(&self) -> &XorName {
+    type Name = u64;
+
+    fn name(&self) -> &u64 {
         &self.0
     }
 }
@@ -58,27 +61,6 @@ struct Endpoint(usize);
 // Simulated connection to an endpoint.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct Connection(Endpoint);
-
-trait Authority {
-    fn name(&self) -> &XorName;
-    fn is_group(&self) -> bool;
-}
-
-impl Authority for Destination {
-    fn name(&self) -> &XorName {
-        match *self {
-            Destination::Group(ref name) => name,
-            Destination::Node(ref name) => name,
-        }
-    }
-
-    fn is_group(&self) -> bool {
-        match *self {
-            Destination::Group(_) => true,
-            Destination::Node(_) => false,
-        }
-    }
-}
 
 type MessageId = usize;
 
@@ -93,29 +75,31 @@ fn next_message_id() -> MessageId {
 #[derive(Clone, Debug)]
 struct Message {
     id: MessageId,
-    src: Destination,
-    dst: Destination,
+    src: Destination<u64>,
+    dst: Destination<u64>,
     // Names of all the nodes the message passed through.
-    route: Vec<XorName>,
+    route: Vec<u64>,
+    // Which of the `GROUP_SIZE` parallel routes to take.
+    route_num: usize,
 }
 
 impl Message {
-    fn new(src: Destination, dst: Destination) -> Self {
+    fn new(src: Destination<u64>, dst: Destination<u64>, route_num: usize) -> Self {
         Message {
             id: next_message_id(),
             src: src,
             dst: dst,
             route: vec![*src.name()],
+            route_num: route_num,
         }
     }
 
-    fn hop_name(&self) -> &XorName {
+    fn hop_name(&self) -> &u64 {
         self.route.last().unwrap()
     }
 }
 
-// Records how many times a particular message was received and/or sent by a
-// node.
+// Records how many times a particular message was received and/or sent by a node.
 struct MessageStats(HashMap<MessageId, (usize, usize)>);
 
 impl MessageStats {
@@ -163,7 +147,7 @@ enum Action {
 
     // Find close group to the given name and connect each member of it to the
     // node at the given endpoint.
-    ConnectToCloseGroup(Endpoint, XorName),
+    ConnectToCloseGroup(Endpoint, u64),
 }
 
 // Simulated node.
@@ -171,17 +155,17 @@ enum Action {
 // of Actions, so we are sure a node doesn't do anything it wouldn't be able
 // to do in the real world.
 struct Node {
-    name: XorName,
+    name: u64,
     endpoint: Endpoint,
     table: RoutingTable<Contact>,
-    connections: HashMap<XorName, Connection>,
+    connections: HashMap<u64, Connection>,
     message_stats: MessageStats,
     inbox: HashMap<MessageId, Message>,
 }
 
 impl Node {
-    fn new(name: XorName, endpoint: Endpoint) -> Self {
-        let table = RoutingTable::new(Contact(name.clone()));
+    fn new(name: u64, endpoint: Endpoint) -> Self {
+        let table = RoutingTable::new(Contact(name.clone()), GROUP_SIZE, 2);
 
         Node {
             name: name,
@@ -193,19 +177,19 @@ impl Node {
         }
     }
 
-    fn is_connected_to(&self, name: &XorName) -> bool {
+    fn is_connected_to(&self, name: &u64) -> bool {
         self.table.contains(name)
     }
 
-    fn is_close(&self, name: &XorName) -> bool {
-        self.table.is_close(name)
+    fn is_close(&self, name: &u64) -> bool {
+        self.table.is_close(name, GROUP_SIZE)
     }
 
     fn send_message(&mut self, mut message: Message, handle: bool) -> Vec<Action> {
         let mut actions = Vec::new();
 
-        let count = self.message_stats.get_received(message.id).saturating_sub(1);
-        let targets = self.table.target_nodes(message.dst.clone(), message.hop_name(), count);
+        let targets = self.table
+            .target_nodes(message.dst.clone(), message.hop_name(), message.route_num);
 
         message.route.push(self.name.clone());
 
@@ -230,7 +214,7 @@ impl Node {
 
         self.check_direction(&message);
 
-        if self.message_stats.add_received(message.id) > PARALLELISM {
+        if self.message_stats.add_received(message.id) > GROUP_SIZE {
             return actions;
         }
 
@@ -247,15 +231,16 @@ impl Node {
 
     fn check_direction(&self, message: &Message) {
         if !self.is_swarm(&message.dst, message.hop_name()) {
-            if xor_name::closer_to_target(message.hop_name(), &self.name, message.dst.name()) {
+            if message.dst.name().cmp_distance(message.hop_name(), &self.name) ==
+               cmp::Ordering::Less {
                 panic!("Direction check failed {:?}", message);
             }
         }
     }
 
-    fn is_swarm(&self, dst: &Destination, hop_name: &XorName) -> bool {
+    fn is_swarm(&self, dst: &Destination<u64>, hop_name: &u64) -> bool {
         dst.is_group() &&
-        match self.table.other_close_nodes(dst.name()) {
+        match self.table.other_close_nodes(dst.name(), GROUP_SIZE) {
             None => false,
             Some(close_group) => close_group.into_iter().any(|n| n.name() == hop_name),
         }
@@ -278,7 +263,7 @@ struct NodeHandle(Endpoint);
 struct Network {
     endpoint_counter: usize,
     nodes: HashMap<NodeHandle, Node>,
-    names: HashMap<XorName, NodeHandle>,
+    names: HashMap<u64, NodeHandle>,
 }
 
 impl Network {
@@ -297,7 +282,7 @@ impl Network {
         self.endpoint_counter += 1;
 
         let handle = NodeHandle(endpoint);
-        let name = rand::random::<XorName>();
+        let name = rand::random::<u64>();
         let node = Node::new(name.clone(), endpoint);
 
         let _ = self.nodes.insert(handle, node);
@@ -324,7 +309,7 @@ impl Network {
     }
 
     // Get all nodes that believe they are close to the given name.
-    fn get_nodes_close_to(&self, name: &XorName) -> Vec<NodeHandle> {
+    fn get_nodes_close_to(&self, name: &u64) -> Vec<NodeHandle> {
         self.nodes
             .iter()
             .filter(|&(_, node)| node.is_close(name))
@@ -333,15 +318,15 @@ impl Network {
     }
 
     #[allow(unused)]
-    fn get_node_by_name(&self, name: &XorName) -> NodeHandle {
+    fn get_node_by_name(&self, name: &u64) -> NodeHandle {
         self.find_node_by_name(name).unwrap()
     }
 
-    fn find_node_by_name(&self, name: &XorName) -> Option<NodeHandle> {
+    fn find_node_by_name(&self, name: &u64) -> Option<NodeHandle> {
         self.names.get(name).cloned()
     }
 
-    fn get_node_name(&self, handle: NodeHandle) -> XorName {
+    fn get_node_name(&self, handle: NodeHandle) -> u64 {
         self.get_node_ref(handle).name.clone()
     }
 
@@ -447,7 +432,7 @@ impl Network {
     }
 
     // Disconnect the node with `name` from `node0`.
-    fn disconnect(&mut self, node0: NodeHandle, name: &XorName) -> Vec<Action> {
+    fn disconnect(&mut self, node0: NodeHandle, name: &u64) -> Vec<Action> {
         let mut actions = Vec::new();
 
         let incomplete_bucket = {
@@ -464,11 +449,7 @@ impl Network {
         // If removing the node caused a full bucket to become not full, we have
         // to refill it.
         if let Some(bucket_index) = incomplete_bucket {
-            let bucket_name = match self.get_node_name(node0).with_flipped_bit(bucket_index) {
-                Ok(name) => name,
-                Err(_) => return actions,
-            };
-
+            let bucket_name = self.get_node_name(node0) ^ (1 << (63 - bucket_index));
             actions.push(Action::ConnectToCloseGroup(node0.0, bucket_name));
         }
 
@@ -664,14 +645,16 @@ fn messages_for_individual_nodes_reach_their_recipients() {
         let (node_a, node_b) = network.get_two_random_nodes();
         let node_a_name = network.get_node_name(node_a);
         let node_b_name = network.get_node_name(node_b);
+        for route_num in 0..GROUP_SIZE {
+            let message = Message::new(Destination::Node(node_a_name),
+                                       Destination::Node(node_b_name),
+                                       route_num);
 
-        let message = Message::new(Destination::Node(node_a_name),
-                                   Destination::Node(node_b_name));
+            let message_id = message.id;
 
-        let message_id = message.id;
-
-        network.send_message(node_a, message);
-        assert!(network.has_node_message_in_inbox(node_b, message_id));
+            network.send_message(node_a, message);
+            assert!(network.has_node_message_in_inbox(node_b, message_id));
+        }
     });
 }
 
@@ -684,55 +667,44 @@ fn messages_for_groups_reach_all_members_of_the_recipient_group() {
         let group_name = rand::random();
         let group_members = network.get_nodes_close_to(&group_name);
 
-        let message = Message::new(Destination::Node(sender_name),
-                                   Destination::Group(group_name));
+        for route_num in 0..GROUP_SIZE {
+            let message = Message::new(Destination::Node(sender_name),
+                                       Destination::Group(group_name, GROUP_SIZE),
+                                       route_num);
 
-        let message_id = message.id;
+            let message_id = message.id;
 
-        network.send_message(sender, message);
+            network.send_message(sender, message);
 
-        for node in group_members {
-            assert!(network.has_node_message_in_inbox(node, message_id));
+            for node in &group_members {
+                assert!(network.has_node_message_in_inbox(*node, message_id));
+            }
         }
     });
 }
 
 #[test]
-fn only_original_sender_may_send_multiple_copies() {
+fn no_multiple_copies() {
     run_tests(|network| {
         let (node_a, node_b) = network.get_two_random_nodes();
         let node_a_name = network.get_node_name(node_a);
         let node_b_name = network.get_node_name(node_b);
 
         let message = Message::new(Destination::Node(node_a_name),
-                                   Destination::Node(node_b_name));
+                                   Destination::Node(node_b_name),
+                                   0);
         let message_id = message.id;
 
         network.send_message(node_a, message);
 
         for node in network.get_all_nodes() {
-            if node != node_a {
-                let sent = network.get_message_stats(node).get_sent(message_id);
-                let received = network.get_message_stats(node).get_received(message_id);
-                assert!(sent <= received,
-                        "Node {:?} received {} copies but sent {} (message from {:?} to {:?}).",
-                        network.get_node_name(node),
-                        received,
-                        sent,
-                        node_a_name,
-                        node_b_name);
-            }
+            let sent = network.get_message_stats(node).get_sent(message_id);
+            assert!(sent <= 1,
+                    "Node {:?} sent {} copies of a message from {:?} to {:?}.",
+                    network.get_node_name(node),
+                    sent,
+                    node_a_name,
+                    node_b_name);
         }
-    });
-}
-
-// TODO: this test is probably worthless, as it can only fail for extremely
-// large networks or very unbalanced networks (the later may be possible to
-// simulate though).
-#[test]
-fn maximum_number_of_contacts_in_routing_table() {
-    run_tests(|network| {
-        let node = network.get_random_node();
-        assert!(network.get_contact_count(node) <= 512 * GROUP_SIZE);
     });
 }

@@ -26,8 +26,6 @@ pub struct AddedNodeDetails<T: ContactInfo> {
     pub must_notify: Vec<T>,
     /// List of contacts no longer within the close group at the bucket index of the contact added.
     pub unneeded: Vec<T>,
-    /// Whether we are together in any close group with that contact.
-    pub common_groups: bool,
 }
 
 /// This is returned by `RoutingTable::drop_connection` if a node was dropped.
@@ -39,6 +37,4 @@ pub struct DroppedNodeDetails {
     /// `Some(i)` if the entry has been removed from a full bucket with index `i`, indicating
     /// that an attempt to refill that bucket has to be made.
     pub incomplete_bucket: Option<usize>,
-    /// Whether we were together in any close group with that contact.
-    pub common_groups: bool,
 }
