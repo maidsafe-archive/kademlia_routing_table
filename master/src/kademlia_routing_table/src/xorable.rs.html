@@ -124,12 +124,6 @@
 <span id="81">81</span>
 <span id="82">82</span>
 <span id="83">83</span>
-<span id="84">84</span>
-<span id="85">85</span>
-<span id="86">86</span>
-<span id="87">87</span>
-<span id="88">88</span>
-<span id="89">89</span>
 </pre><pre class='rust '>
 <span class='comment'>// Copyright 2016 MaidSafe.net limited.</span>
 <span class='comment'>//</span>
@@ -148,6 +142,7 @@
 <span class='comment'>// Please review the Licences for the specific language governing permissions and limitations</span>
 <span class='comment'>// relating to use of the SAFE Network Software.</span>
 
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>mem</span>;
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>cmp</span>::<span class='ident'>Ordering</span>;
 <span class='kw'>use</span> <span class='ident'>xor_name</span>::<span class='ident'>XorName</span>;
 
@@ -189,37 +184,30 @@
     }
 }
 
-<span class='kw'>impl</span> <span class='ident'>Xorable</span> <span class='kw'>for</span> <span class='ident'>u64</span> {
-    <span class='kw'>fn</span> <span class='ident'>bucket_index</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>other</span>: <span class='kw-2'>&amp;</span><span class='ident'>u64</span>) <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-        (<span class='self'>self</span> <span class='op'>^</span> <span class='ident'>other</span>).<span class='ident'>leading_zeros</span>() <span class='kw'>as</span> <span class='ident'>usize</span>
-    }
+<span class='macro'>macro_rules</span><span class='macro'>!</span> <span class='ident'>impl_xorable</span> {
+    (<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>t</span>:<span class='ident'>ident</span>) <span class='op'>=&gt;</span> {
+        <span class='kw'>impl</span> <span class='ident'>Xorable</span> <span class='kw'>for</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>t</span> {
+            <span class='kw'>fn</span> <span class='ident'>bucket_index</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>other</span>: <span class='kw-2'>&amp;</span><span class='kw'>Self</span>) <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
+                (<span class='self'>self</span> <span class='op'>^</span> <span class='ident'>other</span>).<span class='ident'>leading_zeros</span>() <span class='kw'>as</span> <span class='ident'>usize</span>
+            }
 
-    <span class='kw'>fn</span> <span class='ident'>cmp_distance</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>lhs</span>: <span class='kw-2'>&amp;</span><span class='ident'>u64</span>, <span class='ident'>rhs</span>: <span class='kw-2'>&amp;</span><span class='ident'>u64</span>) <span class='op'>-&gt;</span> <span class='ident'>Ordering</span> {
-        <span class='ident'>Ord</span>::<span class='ident'>cmp</span>(<span class='kw-2'>&amp;</span>(<span class='ident'>lhs</span> <span class='op'>^</span> <span class='self'>self</span>), <span class='kw-2'>&amp;</span>(<span class='ident'>rhs</span> <span class='op'>^</span> <span class='self'>self</span>))
-    }
+            <span class='kw'>fn</span> <span class='ident'>cmp_distance</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>lhs</span>: <span class='kw-2'>&amp;</span><span class='kw'>Self</span>, <span class='ident'>rhs</span>: <span class='kw-2'>&amp;</span><span class='kw'>Self</span>) <span class='op'>-&gt;</span> <span class='ident'>Ordering</span> {
+                <span class='ident'>Ord</span>::<span class='ident'>cmp</span>(<span class='kw-2'>&amp;</span>(<span class='ident'>lhs</span> <span class='op'>^</span> <span class='self'>self</span>), <span class='kw-2'>&amp;</span>(<span class='ident'>rhs</span> <span class='op'>^</span> <span class='self'>self</span>))
+            }
 
-    <span class='kw'>fn</span> <span class='ident'>differs_in_bit</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>u64</span>, <span class='ident'>i</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
-        <span class='kw'>let</span> <span class='ident'>pow_i</span> <span class='op'>=</span> <span class='number'>1</span> <span class='op'>&lt;&lt;</span> (<span class='number'>63</span> <span class='op'>-</span> <span class='ident'>i</span>); <span class='comment'>// 1 on bit i.</span>
-        (<span class='self'>self</span> <span class='op'>^</span> <span class='ident'>name</span>) <span class='kw-2'>&amp;</span> <span class='ident'>pow_i</span> <span class='op'>!=</span> <span class='number'>0</span>
+            <span class='kw'>fn</span> <span class='ident'>differs_in_bit</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='kw'>Self</span>, <span class='ident'>i</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
+                <span class='kw'>let</span> <span class='ident'>pow_i</span> <span class='op'>=</span> <span class='number'>1</span> <span class='op'>&lt;&lt;</span> (<span class='ident'>mem</span>::<span class='ident'>size_of</span>::<span class='op'>&lt;</span><span class='kw'>Self</span><span class='op'>&gt;</span>() <span class='op'>*</span> <span class='number'>8</span> <span class='op'>-</span> <span class='number'>1</span> <span class='op'>-</span> <span class='ident'>i</span>); <span class='comment'>// 1 on bit i.</span>
+                (<span class='self'>self</span> <span class='op'>^</span> <span class='ident'>name</span>) <span class='kw-2'>&amp;</span> <span class='ident'>pow_i</span> <span class='op'>!=</span> <span class='number'>0</span>
+            }
+        }
     }
 }
 
-<span class='comment'>// This implementation exists mainly to facilitate writing tests. A real network should use enough</span>
-<span class='comment'>// bits to make the probability of name collisions negligible.</span>
-<span class='kw'>impl</span> <span class='ident'>Xorable</span> <span class='kw'>for</span> <span class='ident'>u8</span> {
-    <span class='kw'>fn</span> <span class='ident'>bucket_index</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>other</span>: <span class='kw-2'>&amp;</span><span class='ident'>u8</span>) <span class='op'>-&gt;</span> <span class='ident'>usize</span> {
-        (<span class='self'>self</span> <span class='op'>^</span> <span class='ident'>other</span>).<span class='ident'>leading_zeros</span>() <span class='kw'>as</span> <span class='ident'>usize</span>
-    }
-
-    <span class='kw'>fn</span> <span class='ident'>cmp_distance</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>lhs</span>: <span class='kw-2'>&amp;</span><span class='ident'>u8</span>, <span class='ident'>rhs</span>: <span class='kw-2'>&amp;</span><span class='ident'>u8</span>) <span class='op'>-&gt;</span> <span class='ident'>Ordering</span> {
-        <span class='ident'>Ord</span>::<span class='ident'>cmp</span>(<span class='kw-2'>&amp;</span>(<span class='ident'>lhs</span> <span class='op'>^</span> <span class='self'>self</span>), <span class='kw-2'>&amp;</span>(<span class='ident'>rhs</span> <span class='op'>^</span> <span class='self'>self</span>))
-    }
-
-    <span class='kw'>fn</span> <span class='ident'>differs_in_bit</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='kw-2'>&amp;</span><span class='ident'>u8</span>, <span class='ident'>i</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span> {
-        <span class='kw'>let</span> <span class='ident'>pow_i</span> <span class='op'>=</span> <span class='number'>1</span> <span class='op'>&lt;&lt;</span> (<span class='number'>7</span> <span class='op'>-</span> <span class='ident'>i</span>); <span class='comment'>// 1 on bit i.</span>
-        (<span class='self'>self</span> <span class='op'>^</span> <span class='ident'>name</span>) <span class='kw-2'>&amp;</span> <span class='ident'>pow_i</span> <span class='op'>!=</span> <span class='number'>0</span>
-    }
-}
+<span class='macro'>impl_xorable</span><span class='macro'>!</span>(<span class='ident'>usize</span>);
+<span class='macro'>impl_xorable</span><span class='macro'>!</span>(<span class='ident'>u64</span>);
+<span class='macro'>impl_xorable</span><span class='macro'>!</span>(<span class='ident'>u32</span>);
+<span class='macro'>impl_xorable</span><span class='macro'>!</span>(<span class='ident'>u16</span>);
+<span class='macro'>impl_xorable</span><span class='macro'>!</span>(<span class='ident'>u8</span>);
 </pre>
 </section>
     <section id='search' class="content hidden"></section>
