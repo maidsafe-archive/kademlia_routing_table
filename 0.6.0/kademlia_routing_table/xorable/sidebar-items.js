@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["Xorable","A sequence of bits, as a point in XOR space."]]});
