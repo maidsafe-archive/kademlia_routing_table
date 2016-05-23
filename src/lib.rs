@@ -135,12 +135,7 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 //! is considered to be legitimate, if a majority of group members have sent a message with the same
 //! content.
 
-#[macro_use]
-#[allow(unused_extern_crates)]
-extern crate maidsafe_utilities;
-
 extern crate itertools;
-extern crate xor_name;
 
 mod contact_info;
 mod result;

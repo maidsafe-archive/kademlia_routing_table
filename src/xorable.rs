@@ -17,7 +17,6 @@
 
 use std::mem;
 use std::cmp::Ordering;
-use xor_name::XorName;
 
 /// A sequence of bits, as a point in XOR space.
 ///
@@ -40,22 +39,44 @@ pub trait Xorable {
     fn differs_in_bit(&self, other: &Self, i: usize) -> bool;
 }
 
-impl Xorable for XorName {
-    fn bucket_index(&self, other: &XorName) -> usize {
-        self.bucket_index(other)
-    }
 
-    fn cmp_distance(&self, lhs: &XorName, rhs: &XorName) -> Ordering {
-        self.cmp_distance(lhs, rhs)
-    }
+macro_rules! impl_xorable_for_array {
+    ($t: ident, $l: expr) => {
+        impl Xorable for [$t; $l] {
+            fn bucket_index(&self, other: &[$t; $l]) -> usize {
+                for byte_index in 0..$l {
+                    if self[byte_index] != other[byte_index] {
+                        return (byte_index * mem::size_of::<$t>() * 8) +
+                               (self[byte_index] ^ other[byte_index]).leading_zeros() as usize;
+                    }
+                }
+                $l * mem::size_of::<$t>()
+            }
 
-    /// Returns whether the `i`-th bit of our and the given name differ.
-    fn differs_in_bit(&self, name: &XorName, i: usize) -> bool {
-        let byte = i / 8;
-        let byte_bit = i % 8;
-        (self.0[byte] ^ name.0[byte]) & (0b10000000 >> byte_bit) != 0
+            fn cmp_distance(&self, lhs: &[$t; $l], rhs: &[$t; $l]) -> Ordering {
+                for i in 0..$l {
+                    if lhs[i] != rhs[i] {
+                        return Ord::cmp(&(lhs[i] ^ self[i]), &(rhs[i] ^ self[i]));
+                    }
+                }
+                Ordering::Equal
+            }
+
+            fn differs_in_bit(&self, name: &[$t; $l], i: usize) -> bool {
+                let bits = mem::size_of::<$t>() * 8;
+                let index = i / bits;
+                let pow_i = 1 << (bits - 1 - (i % bits));
+                (self[index] ^ name[index]) & pow_i != 0
+            }
+        }
     }
 }
+
+impl_xorable_for_array!(u8, 64);
+impl_xorable_for_array!(u8, 32);
+impl_xorable_for_array!(u8, 16);
+impl_xorable_for_array!(u8, 8);
+impl_xorable_for_array!(u8, 4);
 
 macro_rules! impl_xorable {
     ($t:ident) => {
@@ -81,3 +102,62 @@ impl_xorable!(u64);
 impl_xorable!(u32);
 impl_xorable!(u16);
 impl_xorable!(u8);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::cmp::Ordering;
+
+    #[test]
+    fn bucket_index() {
+        assert_eq!(0, 0u8.bucket_index(&128u8));
+        assert_eq!(3, 10u8.bucket_index(&16u8));
+        assert_eq!(0, 0u16.bucket_index(&(1 << 15)));
+        assert_eq!(11, 10u16.bucket_index(&16u16));
+    }
+
+    #[test]
+    fn bucket_index_array() {
+        assert_eq!(0, [0, 0, 0, 0].bucket_index(&[128u8, 0, 0, 0]));
+        assert_eq!(11, [0, 10u8, 0, 0].bucket_index(&[0, 16u8, 0, 0]));
+    }
+
+    #[test]
+    fn cmp_distance() {
+        assert_eq!(Ordering::Equal, 42u8.cmp_distance(&13, &13));
+        assert_eq!(Ordering::Less, 42u8.cmp_distance(&44, &45));
+        assert_eq!(Ordering::Greater, 42u8.cmp_distance(&45, &44));
+    }
+
+    #[test]
+    fn cmp_distance_array() {
+        assert_eq!(Ordering::Equal,
+                   [1u8, 2, 3, 4].cmp_distance(&[2u8, 3, 4, 5], &[2u8, 3, 4, 5]));
+        assert_eq!(Ordering::Less,
+                   [1u8, 2, 3, 4].cmp_distance(&[2u8, 2, 4, 5], &[2u8, 3, 6, 5]));
+        assert_eq!(Ordering::Greater,
+                   [1u8, 2, 3, 4].cmp_distance(&[2u8, 3, 6, 5], &[2u8, 2, 4, 5]));
+        assert_eq!(Ordering::Less,
+                   [1u8, 2, 3, 4].cmp_distance(&[1, 2, 3, 8], &[1, 2, 8, 4]));
+        assert_eq!(Ordering::Greater,
+                   [1u8, 2, 3, 4].cmp_distance(&[1, 2, 8, 4], &[1, 2, 3, 8]));
+        assert_eq!(Ordering::Less,
+                   [1u8, 2, 3, 4].cmp_distance(&[1, 2, 7, 4], &[1, 2, 6, 4]));
+        assert_eq!(Ordering::Greater,
+                   [1u8, 2, 3, 4].cmp_distance(&[1, 2, 6, 4], &[1, 2, 7, 4]));
+    }
+
+    #[test]
+    fn differs_in_bit() {
+        assert!(0b00101010u8.differs_in_bit(&0b00100010u8, 4));
+        assert!(0b00101010u8.differs_in_bit(&0b00000010u8, 4));
+        assert!(!0b00101010u8.differs_in_bit(&0b00001010u8, 4));
+    }
+
+    #[test]
+    fn differs_in_bit_array() {
+        assert!([0u8, 0, 0, 0].differs_in_bit(&[0, 1, 0, 10], 15));
+        assert!([0u8, 7, 0, 0].differs_in_bit(&[0, 0, 0, 0], 14));
+        assert!(![0u8, 7, 0, 0].differs_in_bit(&[0, 0, 0, 0], 26));
+    }
+}

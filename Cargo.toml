@@ -12,7 +12,6 @@ version = "0.5.2"
 [dependencies]
 clippy = {version = "~0.0.67", optional = true}
 itertools = "~0.4.15"
-log = "~0.3.6"
-maidsafe_utilities = "~0.5.4"
+
+[dev-dependencies]
 rand = "~0.3.14"
-xor_name = "~0.1.0"
