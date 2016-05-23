@@ -1,5 +1,17 @@
 # kademlia_routing_table - Change Log
 
+## [0.6.0]
+- Remove the xor_name dependency. Instead, `XorName` and other users need to
+  implement the `Xorable` trait.
+- Rewrite the unit tests using `u8` instead of `XorName`. This should be both
+  faster and more readable.
+- Use `u64` in the network tests instead of `XorName`.
+- Make the group size configurable: `bucket_size` specifies the maximum group
+  size that close groups can be computed for, and `extra_entries` specifies how
+  many additional entries are tolerated in each bucket.
+- Make `target_nodes` take a `route` argument that allows specifying any of
+  `bucket_size` parallel routes to the destination.
+
 ## [0.5.2]
 - Reduce `PARALLELISM` to 4 again to reduce redundant traffic.
 - Swarm a message if the target is not in the routing table.
