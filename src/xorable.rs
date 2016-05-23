@@ -15,6 +15,7 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
+use std::mem;
 use std::cmp::Ordering;
 use xor_name::XorName;
 
@@ -56,34 +57,27 @@ impl Xorable for XorName {
     }
 }
 
-impl Xorable for u64 {
-    fn bucket_index(&self, other: &u64) -> usize {
-        (self ^ other).leading_zeros() as usize
-    }
+macro_rules! impl_xorable {
+    ($t:ident) => {
+        impl Xorable for $t {
+            fn bucket_index(&self, other: &Self) -> usize {
+                (self ^ other).leading_zeros() as usize
+            }
 
-    fn cmp_distance(&self, lhs: &u64, rhs: &u64) -> Ordering {
-        Ord::cmp(&(lhs ^ self), &(rhs ^ self))
-    }
+            fn cmp_distance(&self, lhs: &Self, rhs: &Self) -> Ordering {
+                Ord::cmp(&(lhs ^ self), &(rhs ^ self))
+            }
 
-    fn differs_in_bit(&self, name: &u64, i: usize) -> bool {
-        let pow_i = 1 << (63 - i); // 1 on bit i.
-        (self ^ name) & pow_i != 0
+            fn differs_in_bit(&self, name: &Self, i: usize) -> bool {
+                let pow_i = 1 << (mem::size_of::<Self>() * 8 - 1 - i); // 1 on bit i.
+                (self ^ name) & pow_i != 0
+            }
+        }
     }
 }
 
-// This implementation exists mainly to facilitate writing tests. A real network should use enough
-// bits to make the probability of name collisions negligible.
-impl Xorable for u8 {
-    fn bucket_index(&self, other: &u8) -> usize {
-        (self ^ other).leading_zeros() as usize
-    }
-
-    fn cmp_distance(&self, lhs: &u8, rhs: &u8) -> Ordering {
-        Ord::cmp(&(lhs ^ self), &(rhs ^ self))
-    }
-
-    fn differs_in_bit(&self, name: &u8, i: usize) -> bool {
-        let pow_i = 1 << (7 - i); // 1 on bit i.
-        (self ^ name) & pow_i != 0
-    }
-}
+impl_xorable!(usize);
+impl_xorable!(u64);
+impl_xorable!(u32);
+impl_xorable!(u16);
+impl_xorable!(u8);
