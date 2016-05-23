@@ -15,7 +15,7 @@
 // Please review the Licences for the specific language governing permissions and limitations
 // relating to use of the SAFE Network Software.
 
-use xor_name::XorName;
+use xorable::Xorable;
 
 /// Contact info about a node in the network.
 pub trait ContactInfo: Clone + Eq {
@@ -26,28 +26,10 @@ pub trait ContactInfo: Clone + Eq {
     fn name(&self) -> &Self::Name;
 }
 
-impl ContactInfo for XorName {
-    type Name = XorName;
+impl<T: Xorable + Clone + Eq> ContactInfo for T {
+    type Name = Self;
 
-    fn name(&self) -> &XorName {
-        self
-    }
-}
-
-impl ContactInfo for u64 {
-    type Name = u64;
-
-    fn name(&self) -> &u64 {
-        self
-    }
-}
-
-// This implementation exists mainly to facilitate writing tests. A real network should use enough
-// bits to make the probability of name collisions negligible.
-impl ContactInfo for u8 {
-    type Name = u8;
-
-    fn name(&self) -> &u8 {
+    fn name(&self) -> &Self {
         self
     }
 }
