@@ -1,9 +1,9 @@
 [package]
 authors = ["MaidSafe Developers <dev@maidsafe.net>"]
 description = "Kademlia Routing Table implementation"
-documentation = "http://maidsafe.net/kademlia_routing_table/latest"
+documentation = "http://docs.maidsafe.net/kademlia_routing_table/latest"
 homepage = "http://maidsafe.net"
-license = "GPL-3.0"
+license = "GPL-3.0/MaidSafe.net Commercial License 1.0"
 name = "kademlia_routing_table"
 readme = "README.md"
 repository = "https://github.com/maidsafe/kademlia_routing_table"
