@@ -88,9 +88,9 @@ impl<'a, T: 'a + Binary + Clone + Copy + Default + Hash + Xorable> Iterator for 
 // A message destination.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Destination<N> {
-    // The `k`-group of the given name. The message should reach the `k` closest nodes.
-    Group(N, usize),
-    // The individual node at the given name. The message should reach exactly one node.
+    // The group closest to the given name.
+    Group(N),
+    // The individual node at the given name.
     Node(N),
 }
 
@@ -98,7 +98,7 @@ impl<N> Destination<N> {
     // Returns the name of the destination, i.e. the node or group name.
     pub fn name(&self) -> &N {
         match *self {
-            Destination::Group(ref name, _) |
+            Destination::Group(ref name) |
             Destination::Node(ref name) => name,
         }
     }
@@ -106,7 +106,7 @@ impl<N> Destination<N> {
     // Returns `true` if the destination is a group, and `false` if it is an individual node.
     pub fn is_group(&self) -> bool {
         match *self {
-            Destination::Group(_, _) => true,
+            Destination::Group(_) => true,
             Destination::Node(_) => false,
         }
     }
@@ -165,6 +165,10 @@ impl<T: Binary + Clone + Copy + Default + Hash + Xorable> RoutingTable<T> {
         }
     }
 
+    pub fn our_name(&self) -> &T {
+        &self.our_name
+    }
+
     // Total number of entries in the routing table.
     pub fn len(&self) -> usize {
         self.groups.values().fold(0, |acc, group| acc + group.len())
@@ -176,6 +180,28 @@ impl<T: Binary + Clone + Copy + Default + Hash + Xorable> RoutingTable<T> {
 
     pub fn iter(&self) -> Iter<T> {
         Iter { inner: self.groups.iter().flat_map(Iter::<T>::iterate) }
+    }
+
+    // If our group is the closest one to `name`, returns all names in our group *including ours*,
+    // otherwise returns `None`.
+    pub fn close_names(&self, name: &T) -> Option<HashSet<T>> {
+        if self.our_group_prefix.matches(name) {
+            let mut our_group = unwrap!(self.groups.get(&self.our_group_prefix)).clone();
+            let _ = our_group.insert(self.our_name);
+            Some(our_group)
+        } else {
+            None
+        }
+    }
+
+    // If our group is the closest one to `name`, returns all names in our group *excluding ours*,
+    // otherwise returns `None`.
+    pub fn other_close_names(&self, name: &T) -> Option<HashSet<T>> {
+        if self.our_group_prefix.matches(name) {
+            Some(unwrap!(self.groups.get(&self.our_group_prefix)).clone())
+        } else {
+            None
+        }
     }
 
     // Returns the list of contacts as a result of a merge to which we aren't currently connected,
@@ -359,6 +385,68 @@ impl<T: Binary + Clone + Copy + Default + Hash + Xorable> RoutingTable<T> {
             .collect()
     }
 
+    // Returns a collection of nodes to which a message with the given `Destination` should be sent
+    // onwards.
+    //
+    // * If the destination is a group:
+    //     - if our group is the closest on the network (i.e. our group's prefix is a prefix of the
+    //       destination), returns all other members of our group; otherwise
+    //     - if the closest group has fewer than `route` members, returns the `route`-th member of
+    //       this group; otherwise
+    //     - returns `Err(Error::CannotRoute)`
+    //
+    // * If the destination is an individual node:
+    //     - if our name *is* the destination, returns `Err(Error::OwnName)`; otherwise
+    //     - if the destination name is an entry in the routing table, returns it; otherwise
+    //     - if our group is the closest on the network (i.e. our group's prefix is a prefix of the
+    //       destination), this returns `Err(Error::NoSuchPeer)`; otherwise
+    //     - if the closest group has fewer than `route` members, returns the `route`-th member of
+    //       this group; otherwise
+    //     - returns `Err(Error::CannotRoute)`
+    pub fn targets(&self, dst: &Destination<T>, route: usize) -> Result<HashSet<T>, Error> {
+        let (closest_group, target_name) = match *dst {
+            Destination::Group(ref target_name) => {
+                let closest_group_prefix = self.closest_group_prefix(target_name);
+                if closest_group_prefix == self.our_group_prefix {
+                    return Ok(unwrap!(self.groups.get(&closest_group_prefix)).clone());
+                }
+                // Safe to unwrap as we just chose `closest_group_prefix` from the list of groups
+                (unwrap!(self.groups.get(&closest_group_prefix)), target_name)
+            }
+            Destination::Node(ref target_name) => {
+                if *target_name == self.our_name {
+                    return Err(Error::OwnName);
+                }
+                let closest_group_prefix = self.closest_group_prefix(target_name);
+                // Safe to unwrap as we just chose `closest_group_prefix` from the list of groups
+                let closest_group = unwrap!(self.groups.get(&closest_group_prefix));
+                if closest_group.contains(target_name) {
+                    return Ok([*target_name].iter().cloned().collect());
+                } else if closest_group_prefix == self.our_group_prefix {
+                    return Err(Error::NoSuchPeer);
+                }
+                (closest_group, target_name)
+            }
+        };
+        let mut names = closest_group.iter().collect_vec();
+        names.sort_by(|&lhs, &rhs| target_name.cmp_distance(lhs, rhs));
+        match names.get(route) {
+            Some(&name) => Ok([*name].iter().cloned().collect()),
+            None => Err(Error::CannotRoute),
+        }
+    }
+
+    // Returns whether a `Destination` represents this node.
+    //
+    // Returns `true` if `dst` is a single node with name equal to `our_name`, or if `dst` is a
+    // group and the closest group is our group.
+    pub fn is_recipient(&self, dst: &Destination<T>) -> bool {
+        match *dst {
+            Destination::Node(ref target_name) => *target_name == self.our_name,
+            Destination::Group(ref target_name) => self.our_group_prefix.matches(target_name),
+        }
+    }
+
     fn split_our_group(&mut self) {
         let our_group = unwrap!(self.groups.remove(&self.our_group_prefix));
         let (our_new_group, other_new_group) = our_group.into_iter()
@@ -406,6 +494,14 @@ impl<T: Binary + Clone + Copy + Default + Hash + Xorable> RoutingTable<T> {
     // in the routing table.
     fn find_group_prefix(&self, name: &T) -> Option<Prefix<T>> {
         self.groups.keys().find(|&prefix| prefix.matches(name)).cloned()
+    }
+
+    // Returns the prefix of the group closest to `name`, regardless of whether `name` belongs in
+    // that group or not.
+    fn closest_group_prefix(&self, name: &T) -> Prefix<T> {
+        let mut keys = self.groups.keys().collect_vec();
+        keys.sort_by(|&lhs, &rhs| lhs.cmp_distance(rhs, name));
+        *keys[0]
     }
 }
 

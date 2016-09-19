@@ -23,7 +23,7 @@ use super::xorable::Xorable;
 
 // A group prefix, i.e. a sequence of bits specifying the part of the network's name space
 // consisting of all names that start with this sequence.
-#[derive(Clone, Copy, Default, Eq)]
+#[derive(Clone, Copy, Default, Eq, Ord)]
 pub struct Prefix<T: Clone + Copy + Default + Binary + Xorable> {
     bit_count: usize,
     name: T,
@@ -96,6 +96,12 @@ impl<T: Clone + Copy + Default + Binary + Xorable> Prefix<T> {
     /// Returns `true` if this is a prefix of the given `name`.
     pub fn matches(&self, name: &T) -> bool {
         self.name.common_prefix(name) >= self.bit_count
+    }
+
+    /// Compares the distance of `self` and `other` to `target`. Returns `Less` if `self` is closer,
+    /// `Greater` if `other` is closer, and `Equal` if `self.name == other.name`.
+    pub fn cmp_distance(&self, other: &Self, target: &T) -> Ordering {
+        target.cmp_distance(&self.name, &other.name)
     }
 }
 

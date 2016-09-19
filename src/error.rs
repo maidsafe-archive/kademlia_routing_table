@@ -34,5 +34,21 @@ quick_error! {
             description("Peer name already exists")
             display("Peer's name has already been added to the routing table.")
         }
+        /// The destination group doesn't have enough members to satisfy the requested route.
+        CannotRoute {
+            description("Can't use requested route")
+            display("Destination group doesn't have enough members to use requested route.")
+        }
+        /// The target destination is this node's own name.
+        OwnName {
+            description("Target is own name")
+            display("The target destination is our own name.")
+        }
+        /// The target peer doesn't exist on the network.  (If it did, it would be in our own group
+        /// and we would know of it).
+        NoSuchPeer {
+            description("No such peer")
+            display("Peer doesn't exist on the network.")
+        }
     }
 }
