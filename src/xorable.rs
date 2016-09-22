@@ -22,28 +22,34 @@ use std::cmp::Ordering;
 ///
 /// These are considered points in a space with the XOR metric, and need to implement the
 /// functionality required by `RoutingTable` to use them as node names.
-pub trait Xorable {
+pub trait Xorable: Ord {
     /// Returns the bucket that `other` belongs to, in the routing table of the node with name
     /// `self`. This must be the number of leading bits in which `self` and `other` agree. E. g.
     /// the bucket index of `other = 11110000` for `self = 11111111` is 4, because the fifth bit is
     /// the first one in which they differ.
-    fn bucket_index(&self, other: &Self) -> usize;
+    fn common_prefix(&self, other: &Self) -> usize;
 
     /// Compares the distance of the arguments to `self`. Returns `Less` if `lhs` is closer,
     /// `Greater` if `rhs` is closer, and `Equal` if `lhs == rhs`. (The XOR distance can only be
     /// equal if the arguments are equal.)
     fn cmp_distance(&self, lhs: &Self, rhs: &Self) -> Ordering;
 
-    /// Returns `true` if the `i`-th bit of other has a different value than the `i`-th bit of
-    /// `self`.
-    fn differs_in_bit(&self, other: &Self, i: usize) -> bool;
-}
+    /// Returns `true` if the `i`-th bit is `1`.
+    fn bit(&self, i: usize) -> bool;
 
+    /// Returns `true` if the `i`-th bit of other has a different value to the `i`-th bit of `self`.
+    fn differs_in_bit(&self, other: &Self, i: usize) -> bool;
+
+    /// Returns a copy of `self`, with the `index`-th bit flipped.
+    ///
+    /// If `index` exceeds the number of bits in `self`, an unmodified copy of `self` is returned.
+    fn with_flipped_bit(&self, i: usize) -> Self;
+}
 
 macro_rules! impl_xorable_for_array {
     ($t: ident, $l: expr) => {
         impl Xorable for [$t; $l] {
-            fn bucket_index(&self, other: &[$t; $l]) -> usize {
+            fn common_prefix(&self, other: &[$t; $l]) -> usize {
                 for byte_index in 0..$l {
                     if self[byte_index] != other[byte_index] {
                         return (byte_index * mem::size_of::<$t>() * 8) +
@@ -62,17 +68,33 @@ macro_rules! impl_xorable_for_array {
                 Ordering::Equal
             }
 
+            fn bit(&self, i: usize) -> bool {
+                let bits = mem::size_of::<$t>() * 8;
+                let index = i / bits;
+                let pow_i = 1 << (bits - 1 - (i % bits));
+                self[index] & pow_i != 0
+            }
+
             fn differs_in_bit(&self, name: &[$t; $l], i: usize) -> bool {
                 let bits = mem::size_of::<$t>() * 8;
                 let index = i / bits;
                 let pow_i = 1 << (bits - 1 - (i % bits));
                 (self[index] ^ name[index]) & pow_i != 0
             }
+
+            fn with_flipped_bit(&self, i: usize) -> Self {
+                let bits = mem::size_of::<$t>() * 8;
+                let mut copy = *self;
+                if i >= bits * self.len() {
+                    return copy;
+                }
+                copy[i / bits] ^= 1 << (bits - 1 - i % bits);
+                copy
+            }
         }
     }
 }
 
-impl_xorable_for_array!(u8, 64);
 impl_xorable_for_array!(u8, 32);
 impl_xorable_for_array!(u8, 16);
 impl_xorable_for_array!(u8, 8);
@@ -81,7 +103,7 @@ impl_xorable_for_array!(u8, 4);
 macro_rules! impl_xorable {
     ($t:ident) => {
         impl Xorable for $t {
-            fn bucket_index(&self, other: &Self) -> usize {
+            fn common_prefix(&self, other: &Self) -> usize {
                 (self ^ other).leading_zeros() as usize
             }
 
@@ -89,9 +111,22 @@ macro_rules! impl_xorable {
                 Ord::cmp(&(lhs ^ self), &(rhs ^ self))
             }
 
+            fn bit(&self, i: usize) -> bool {
+                let pow_i = 1 << (mem::size_of::<Self>() * 8 - 1 - i); // 1 on bit i.
+                self & pow_i != 0
+            }
+
             fn differs_in_bit(&self, name: &Self, i: usize) -> bool {
                 let pow_i = 1 << (mem::size_of::<Self>() * 8 - 1 - i); // 1 on bit i.
                 (self ^ name) & pow_i != 0
+            }
+
+            fn with_flipped_bit(&self, i: usize) -> Self {
+                if i >= mem::size_of::<Self>() * 8 {
+                    return *self;
+                }
+                let pow_i = 1 << (mem::size_of::<Self>() * 8 - 1 - i); // 1 on bit i.
+                self ^ pow_i
             }
         }
     }
@@ -103,23 +138,25 @@ impl_xorable!(u32);
 impl_xorable!(u16);
 impl_xorable!(u8);
 
+
+
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use std::cmp::Ordering;
 
     #[test]
-    fn bucket_index() {
-        assert_eq!(0, 0u8.bucket_index(&128u8));
-        assert_eq!(3, 10u8.bucket_index(&16u8));
-        assert_eq!(0, 0u16.bucket_index(&(1 << 15)));
-        assert_eq!(11, 10u16.bucket_index(&16u16));
+    fn common_prefix() {
+        assert_eq!(0, 0u8.common_prefix(&128u8));
+        assert_eq!(3, 10u8.common_prefix(&16u8));
+        assert_eq!(0, 0u16.common_prefix(&(1 << 15)));
+        assert_eq!(11, 10u16.common_prefix(&16u16));
     }
 
     #[test]
-    fn bucket_index_array() {
-        assert_eq!(0, [0, 0, 0, 0].bucket_index(&[128u8, 0, 0, 0]));
-        assert_eq!(11, [0, 10u8, 0, 0].bucket_index(&[0, 16u8, 0, 0]));
+    fn common_prefix_array() {
+        assert_eq!(0, [0, 0, 0, 0].common_prefix(&[128u8, 0, 0, 0]));
+        assert_eq!(11, [0, 10u8, 0, 0].common_prefix(&[0, 16u8, 0, 0]));
     }
 
     #[test]
@@ -145,6 +182,25 @@ mod test {
                    [1u8, 2, 3, 4].cmp_distance(&[1, 2, 7, 4], &[1, 2, 6, 4]));
         assert_eq!(Ordering::Greater,
                    [1u8, 2, 3, 4].cmp_distance(&[1, 2, 6, 4], &[1, 2, 7, 4]));
+    }
+
+    #[test]
+    fn bit() {
+        assert_eq!(false, 0b00101000u8.bit(0));
+        assert_eq!(true, 0b00101000u8.bit(2));
+        assert_eq!(false, 0b00101000u8.bit(3));
+    }
+
+    #[test]
+    fn bit_array() {
+        assert_eq!(true, [2u8, 128, 1, 0].bit(6));
+        assert_eq!(true, [2u8, 128, 1, 0].bit(8));
+        assert_eq!(true, [2u8, 128, 1, 0].bit(23));
+        assert_eq!(false, [2u8, 128, 1, 0].bit(5));
+        assert_eq!(false, [2u8, 128, 1, 0].bit(7));
+        assert_eq!(false, [2u8, 128, 1, 0].bit(9));
+        assert_eq!(false, [2u8, 128, 1, 0].bit(22));
+        assert_eq!(false, [2u8, 128, 1, 0].bit(24));
     }
 
     #[test]
