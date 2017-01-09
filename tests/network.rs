@@ -19,7 +19,7 @@
 // https://github.com/maidsafe/QA/blob/master/Documentation/Rust%20Lint%20Checks.md
 #![forbid(bad_style, exceeding_bitshifts, mutable_transmutes, no_mangle_const_items,
 unknown_crate_types, warnings)]
-#![deny(deprecated, drop_with_repr_extern, improper_ctypes, missing_docs,
+#![deny(deprecated, improper_ctypes, missing_docs,
 non_shorthand_field_patterns, overflowing_literals, plugin_as_library,
 private_no_mangle_fns, private_no_mangle_statics, stable_features, unconditional_recursion,
 unknown_lints, unsafe_code, unused, unused_allocation, unused_attributes,
@@ -165,7 +165,7 @@ struct Node {
 
 impl Node {
     fn new(name: u64, endpoint: Endpoint) -> Self {
-        let table = RoutingTable::new(Contact(name.clone()), GROUP_SIZE, 2);
+        let table = RoutingTable::new(Contact(name), GROUP_SIZE, 2);
 
         Node {
             name: name,
@@ -189,9 +189,9 @@ impl Node {
         let mut actions = Vec::new();
 
         let targets = self.table
-            .target_nodes(message.dst.clone(), message.hop_name(), message.route_num);
+            .target_nodes(message.dst, message.hop_name(), message.route_num);
 
-        message.route.push(self.name.clone());
+        message.route.push(self.name);
 
         for target in targets {
             if let Some(&connection) = self.connections.get(target.name()) {
@@ -201,7 +201,7 @@ impl Node {
         }
 
         // Handle the message ourselves if we need to.
-        if handle && self.table.is_recipient(message.dst.clone()) &&
+        if handle && self.table.is_recipient(message.dst) &&
            self.message_stats.get_received(message.id) == 0 {
             actions.extend(self.on_message(message, false));
         }
@@ -222,7 +222,7 @@ impl Node {
             actions.extend(self.send_message(message.clone(), false));
         }
 
-        if self.table.is_recipient(message.dst.clone()) {
+        if self.table.is_recipient(message.dst) {
             let _ = self.inbox.insert(message.id, message);
         }
 
@@ -230,11 +230,9 @@ impl Node {
     }
 
     fn check_direction(&self, message: &Message) {
-        if !self.is_swarm(&message.dst, message.hop_name()) {
-            if message.dst.name().cmp_distance(message.hop_name(), &self.name) ==
-               cmp::Ordering::Less {
-                panic!("Direction check failed {:?}", message);
-            }
+        if !self.is_swarm(&message.dst, message.hop_name()) &&
+           message.dst.name().cmp_distance(message.hop_name(), &self.name) == cmp::Ordering::Less {
+            panic!("Direction check failed {:?}", message);
         }
     }
 
@@ -283,7 +281,7 @@ impl Network {
 
         let handle = NodeHandle(endpoint);
         let name = rand::random::<u64>();
-        let node = Node::new(name.clone(), endpoint);
+        let node = Node::new(name, endpoint);
 
         let _ = self.nodes.insert(handle, node);
         let _ = self.names.insert(name, handle);
@@ -327,7 +325,7 @@ impl Network {
     }
 
     fn get_node_name(&self, handle: NodeHandle) -> u64 {
-        self.get_node_ref(handle).name.clone()
+        self.get_node_ref(handle).name
     }
 
     // Bootstrap the node by fully populating its routing table.
@@ -351,12 +349,9 @@ impl Network {
         let mut actions = Vec::new();
         let nodes = self.get_all_nodes();
 
-        for i in 0..nodes.len() {
-            for j in (i + 1)..nodes.len() {
-                let node0 = nodes[i];
-                let node1 = nodes[j];
-
-                actions.append(&mut self.connect_if_allowed(node0, node1));
+        for (i, node0) in nodes.iter().enumerate() {
+            for node1 in nodes.iter().skip(i + 1) {
+                actions.append(&mut self.connect_if_allowed(*node0, *node1));
             }
         }
 
@@ -407,15 +402,16 @@ impl Network {
 
         let (node1_name, node1_endpoint) = {
             let node1 = self.get_node_ref(node1);
-            (node1.name.clone(), node1.endpoint)
+            (node1.name, node1.endpoint)
         };
 
         let notify_contacts = {
             let node0 = self.get_node_mut_ref(node0);
 
-            if let Some(AddedNodeDetails { must_notify, .. }) = node0.table
-                .add(Contact(node1_name)) {
-                let _ = node0.connections.insert(node1_name.clone(), Connection(node1_endpoint));
+            if let Some(AddedNodeDetails { must_notify, .. }) =
+                node0.table
+                    .add(Contact(node1_name)) {
+                let _ = node0.connections.insert(node1_name, Connection(node1_endpoint));
                 must_notify
             } else {
                 Vec::new()
@@ -439,7 +435,7 @@ impl Network {
             let node = self.get_node_mut_ref(node0);
 
             if let Some(DroppedNodeDetails { incomplete_bucket, .. }) = node.table.remove(name) {
-                let _ = node.connections.remove(&name);
+                let _ = node.connections.remove(name);
                 incomplete_bucket
             } else {
                 None
@@ -497,7 +493,7 @@ impl Network {
     }
 
     fn get_node_ref(&self, handle: NodeHandle) -> &Node {
-        self.nodes.get(&handle).unwrap()
+        &self.nodes[&handle]
     }
 
     fn get_node_mut_ref(&mut self, handle: NodeHandle) -> &mut Node {

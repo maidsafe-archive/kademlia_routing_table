@@ -24,7 +24,7 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
 // https://github.com/maidsafe/QA/blob/master/Documentation/Rust%20Lint%20Checks.md
 #![forbid(bad_style, exceeding_bitshifts, mutable_transmutes, no_mangle_const_items,
           unknown_crate_types, warnings)]
-#![deny(deprecated, drop_with_repr_extern, improper_ctypes, missing_docs,
+#![deny(deprecated, improper_ctypes, missing_docs,
         non_shorthand_field_patterns, overflowing_literals, plugin_as_library,
         private_no_mangle_fns, private_no_mangle_statics, stable_features, unconditional_recursion,
         unknown_lints, unsafe_code, unused, unused_allocation, unused_attributes,
@@ -33,12 +33,6 @@ html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
         unused_qualifications, unused_results)]
 #![allow(box_pointers, fat_ptr_transmutes, missing_copy_implementations,
          missing_debug_implementations, variant_size_differences)]
-
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
-#![cfg_attr(feature="clippy", deny(clippy, unicode_not_nfc, wrong_pub_self_convention,
-                                   option_unwrap_used))]
-#![cfg_attr(feature="clippy", allow(use_debug))]
 
 //! A routing table to manage contacts for a node in a [Kademlia][1] distributed hash table.
 //!
@@ -516,7 +510,7 @@ impl<T> RoutingTable<T>
 
     /// Returns an iterator over all entries, sorted by distance.
     pub fn iter(&self) -> Iter<T> {
-        #[cfg_attr(feature="clippy", allow(ptr_arg))] // Need to use `&Vec<S>` for `flat_map`.
+        #[cfg_attr(feature="cargo-clippy", allow(ptr_arg))] // Need to use `&Vec<S>` for `flat_map`.
         fn vec_iter<S>(vec: &Vec<S>) -> slice::Iter<S> {
             vec.iter()
         };
@@ -617,11 +611,11 @@ impl<T> RoutingTable<T>
         let bucket_index = self.bucket_index(name);
         (bucket_index,
          match self.buckets.get(bucket_index) {
-            None => Err(0),
-            Some(bucket) => {
-                bucket.binary_search_by(|other| self.our_name().cmp_distance(other.name(), name))
-            }
-        })
+             None => Err(0),
+             Some(bucket) => {
+                 bucket.binary_search_by(|other| self.our_name().cmp_distance(other.name(), name))
+             }
+         })
     }
 }
 
