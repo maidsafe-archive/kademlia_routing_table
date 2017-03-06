@@ -5,8 +5,8 @@
 // licence you accepted on initial access to the Software (the "Licences").
 //
 // By contributing code to the SAFE Network Software, or to this project generally, you agree to be
-// bound by the terms of the MaidSafe Contributor Agreement, version 1.0.  This, along with the
-// Licenses can be found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
+// bound by the terms of the MaidSafe Contributor Agreement.  This, along with the Licenses can be
+// found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
 //
 // Unless required by applicable law or agreed to in writing, the SAFE Network Software distributed
 // under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,9 +16,9 @@
 // relating to use of the SAFE Network Software.
 
 #![doc(html_logo_url =
-"https://raw.githubusercontent.com/maidsafe/QA/master/Images/maidsafe_logo.png",
-html_favicon_url = "http://maidsafe.net/img/favicon.ico",
-html_root_url = "http://maidsafe.github.io/kademlia_routing_table")]
+           "https://raw.githubusercontent.com/maidsafe/QA/master/Images/maidsafe_logo.png",
+       html_favicon_url = "https://maidsafe.net/img/favicon.ico",
+       html_root_url = "https://docs.rs/kademlia_routing_table")]
 
 // For explanation of lint checks, run `rustc -W help` or see
 // https://github.com/maidsafe/QA/blob/master/Documentation/Rust%20Lint%20Checks.md
@@ -136,11 +136,11 @@ mod result;
 mod xorable;
 
 pub use contact_info::ContactInfo;
-pub use result::{AddedNodeDetails, DroppedNodeDetails};
-pub use xorable::Xorable;
 
 use itertools::*;
+pub use result::{AddedNodeDetails, DroppedNodeDetails};
 use std::{cmp, iter, slice};
+pub use xorable::Xorable;
 
 type SliceFn<T> = fn(&Vec<T>) -> slice::Iter<T>;
 
@@ -265,13 +265,17 @@ impl<T> RoutingTable<T>
                 let unneeded = if common_groups {
                     vec![]
                 } else {
-                    self.buckets[bucket_index].iter().skip(self.max_bucket_size).cloned().collect()
+                    self.buckets[bucket_index]
+                        .iter()
+                        .skip(self.max_bucket_size)
+                        .cloned()
+                        .collect()
                 };
 
                 Some(AddedNodeDetails {
-                    must_notify: must_notify,
-                    unneeded: unneeded,
-                })
+                         must_notify: must_notify,
+                         unneeded: unneeded,
+                     })
             }
         }
     }
@@ -515,7 +519,12 @@ impl<T> RoutingTable<T>
             vec.iter()
         };
         // `flat_map(Vec::iter)` or `map(Vec::as_slice).flat_map(<[T]>::iter)` don't seem to work.
-        Iter { inner: self.buckets.iter().rev().flat_map(vec_iter) }
+        Iter {
+            inner: self.buckets
+                .iter()
+                .rev()
+                .flat_map(vec_iter),
+        }
     }
 
     /// Returns the `n` nodes in our routing table that are closest to `target`.
@@ -726,20 +735,21 @@ mod test {
         extend_table(&mut table, network);
         // Bucket 2 contains [32]. We will add 33, 48 and 34 to it.
         assert_eq!(None, table.add(32)); // Contact already present.
+        // Bucket 2 wasn't full yet: [32]. Notify closer nodes.
         assert_eq!(Some(AddedNodeDetails {
-                       must_notify: vec![4], // Bucket 2 wasn't full yet: [32]. Notify closer nodes.
-                       unneeded: vec![],
-                   }),
+                            must_notify: vec![4],
+                            unneeded: vec![],
+                        }),
                    table.add(33));
         assert_eq!(Some(AddedNodeDetails {
-                       must_notify: vec![], // Bucket 2 is full now.
-                       unneeded: vec![],
-                   }),
+                            must_notify: vec![], // Bucket 2 is full now.
+                            unneeded: vec![],
+                        }),
                    table.add(48));
         assert_eq!(Some(AddedNodeDetails {
-                       must_notify: vec![], // Bucket 2 is full.
-                       unneeded: vec![48], // Bucket 2 is overfull: 48 is furthest from us.
-                   }),
+                            must_notify: vec![], // Bucket 2 is full.
+                            unneeded: vec![48], // Bucket 2 is overfull: 48 is furthest from us.
+                        }),
                    table.add(34));
     }
 
@@ -748,7 +758,7 @@ mod test {
         let network = vec![128, 32, 33, 4];
         let mut table = RoutingTable::new(0u8, 2, 1); // Bucket size 2, max bucket size 3.
         extend_table(&mut table, network);
-        assert!(table.need_to_add(&2));  // Bucket 6 has no entry yet.
+        assert!(table.need_to_add(&2)); // Bucket 6 has no entry yet.
         assert!(table.need_to_add(&64)); // Bucket 1 has no entry yet.
         assert!(!table.need_to_add(&128)); // Entry is already present.
         assert!(table.need_to_add(&129)); // Bucket 0 has only one entry.

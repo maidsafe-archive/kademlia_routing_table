@@ -5,8 +5,8 @@
 // licence you accepted on initial access to the Software (the "Licences").
 //
 // By contributing code to the SAFE Network Software, or to this project generally, you agree to be
-// bound by the terms of the MaidSafe Contributor Agreement, version 1.0.  This, along with the
-// Licenses can be found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
+// bound by the terms of the MaidSafe Contributor Agreement.  This, along with the Licenses can be
+// found in the root directory of this project at LICENSE, COPYING and CONTRIBUTOR.
 //
 // Unless required by applicable law or agreed to in writing, the SAFE Network Software distributed
 // under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -38,7 +38,7 @@ use kademlia_routing_table::{AddedNodeDetails, ContactInfo, Destination, Dropped
                              RoutingTable, Xorable};
 use std::cmp;
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::atomic::{ATOMIC_USIZE_INIT, AtomicUsize, Ordering};
 
 const GROUP_SIZE: usize = 8;
 
@@ -128,7 +128,10 @@ impl MessageStats {
     }
 
     fn entry(&self, id: MessageId) -> (usize, usize) {
-        self.0.get(&id).cloned().unwrap_or((0, 0))
+        self.0
+            .get(&id)
+            .cloned()
+            .unwrap_or((0, 0))
     }
 
     fn entry_mut(&mut self, id: MessageId) -> &mut (usize, usize) {
@@ -188,8 +191,7 @@ impl Node {
     fn send_message(&mut self, mut message: Message, handle: bool) -> Vec<Action> {
         let mut actions = Vec::new();
 
-        let targets = self.table
-            .target_nodes(message.dst, message.hop_name(), message.route_num);
+        let targets = self.table.target_nodes(message.dst, message.hop_name(), message.route_num);
 
         message.route.push(self.name);
 
@@ -294,7 +296,10 @@ impl Network {
     }
 
     fn get_all_nodes(&self) -> Vec<NodeHandle> {
-        self.nodes.keys().cloned().collect()
+        self.nodes
+            .keys()
+            .cloned()
+            .collect()
     }
 
     fn get_random_node(&self) -> NodeHandle {
@@ -409,8 +414,7 @@ impl Network {
             let node0 = self.get_node_mut_ref(node0);
 
             if let Some(AddedNodeDetails { must_notify, .. }) =
-                node0.table
-                    .add(Contact(node1_name)) {
+                node0.table.add(Contact(node1_name)) {
                 let _ = node0.connections.insert(node1_name, Connection(node1_endpoint));
                 must_notify
             } else {
@@ -593,10 +597,10 @@ fn number_of_nodes_close_to_any_name_is_equal_to_group_size() {
     use std::cmp;
 
     run_tests(|network| {
-        let name = rand::random();
-        let expected_count = cmp::min(network.nodes_count(), GROUP_SIZE);
-        assert_eq!(network.get_nodes_close_to(&name).len(), expected_count);
-    });
+                  let name = rand::random();
+                  let expected_count = cmp::min(network.nodes_count(), GROUP_SIZE);
+                  assert_eq!(network.get_nodes_close_to(&name).len(), expected_count);
+              });
 }
 
 #[test]
