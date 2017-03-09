@@ -1,16 +1,15 @@
 [package]
 authors = ["MaidSafe Developers <dev@maidsafe.net>"]
 description = "Kademlia Routing Table implementation"
-documentation = "http://docs.maidsafe.net/kademlia_routing_table/latest"
-homepage = "http://maidsafe.net"
-license = "GPL-3.0/MaidSafe.net Commercial License 1.0"
+documentation = "https://docs.rs/kademlia_routing_table"
+homepage = "https://maidsafe.net"
+license = "GPL-3.0"
 name = "kademlia_routing_table"
 readme = "README.md"
 repository = "https://github.com/maidsafe/kademlia_routing_table"
 version = "0.6.0"
 
 [dependencies]
-clippy = {version = "~0.0.68", optional = true}
 itertools = "~0.4.15"
 
 [dev-dependencies]
