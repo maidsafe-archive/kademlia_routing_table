@@ -1,3 +1,9 @@
+# ***This repository is no longer maintained***
+# It has been moved to the maidsafe-archive organisation for reference only
+#
+#
+#
+#
 # kademlia_routing_table
 
 **Maintainer:** Andreas Fackler (andreas.fackler@maidsafe.net)
